@@ -14,6 +14,32 @@ cd palmfolk
 If the repository is already cloned, fetch and switch to `m1-slice-0`.
 Do not copy `Library`, `Temp` or local build outputs between operating systems.
 
+## Checks available before Windows
+
+These checks run without Unity, Android tools or a headset:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r tools/requirements-checks.txt
+.venv/bin/python tools/check_source.py
+pwsh -NoProfile -File tools/Test-ManifestChecks.ps1
+```
+
+The last command needs PowerShell 7 on Linux; GitHub Actions already supplies it.
+The workflow **Source checks** also runs the manifest tests on Windows PowerShell
+5.1 in a hosted runner. It needs no Unity license, Meta app, signing key or secrets.
+It does not build or verify the game. The manifest fixtures are synthetic XML.
+
+To inspect a manifest already exported from an APK, on either platform:
+
+```powershell
+./tools/Test-Slice0Apk.ps1 -ManifestXml './path to/AndroidManifest.xml'
+```
+
+Use `-Source` only for the source template, whose Internet-permission removal marker
+must disappear in the actual APK. The default APK mode below always checks the
+manifest extracted from the built APK.
+
 ## First Unity import and build
 
 1. In Unity Hub install **6000.0.66f2**, including **Android Build Support**,
@@ -36,6 +62,8 @@ Do not copy `Library`, `Temp` or local build outputs between operating systems.
    must be enabled, with **Hand Interaction Profile** under Enabled Interaction
    Profiles. Run **Project Validation** and resolve errors before building.
    Do not enable passthrough, controller visuals, extra interaction systems or samples.
+   Setup now refreshes OpenXR feature settings itself; manually opening the
+   settings is for checking the result rather than initializing them.
 7. Run **Palmfolk > Slice 0 > 3. Build APK**. Output:
    `Builds/Palmfolk-slice0.apk`. This uses local debug signing, with no custom
    signing key created or stored. A Competition-channel signing key is the owner's

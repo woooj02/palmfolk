@@ -7,6 +7,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.XR.Management;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.XR.OpenXR;
 using UnityEngine.XR.OpenXR.Features;
 using UnityEngine.XR.OpenXR.Features.Interactions;
@@ -33,6 +34,8 @@ namespace Palmfolk.Editor
             Require(PlayerSettings.Android.targetArchitectures == AndroidArchitecture.ARM64, "Use ARM64 only.");
             Require(!PlayerSettings.Android.forceInternetPermission, "Disable Force Internet Permission.");
             Require(PlayerSettings.Android.applicationEntry == AndroidApplicationEntry.Activity, "Use the Activity entry point.");
+            Require(!PlayerSettings.GetUseDefaultGraphicsAPIs(BuildTarget.Android) &&
+                PlayerSettings.GetGraphicsAPIs(BuildTarget.Android).SequenceEqual(new[] { GraphicsDeviceType.Vulkan }), "Use Vulkan as the Android graphics API.");
             Require(File.Exists(Slice0Setup.ScenePath), "Create the M1 scene before building.");
             var enabledScenes = EditorBuildSettings.scenes.Where(scene => scene.enabled).ToArray();
             Require(enabledScenes.Length == 1 && enabledScenes[0].path == Slice0Setup.ScenePath, "M1 must be the only enabled build scene.");
@@ -43,7 +46,8 @@ namespace Palmfolk.Editor
             var settings = OpenXRSettings.GetSettingsForBuildTargetGroup(BuildTargetGroup.Android);
             Require(settings != null && settings.GetFeature<MetaQuestFeature>() != null && settings.GetFeature<MetaQuestFeature>().enabled,
                 "Enable Meta Quest Support in Android OpenXR settings.");
-            Require(settings.GetFeatures<OpenXRFeature>().Any(feature => feature.GetType().FullName == "Meta.XR.MetaXRFeature" && feature.enabled),
+            Require(settings.GetFeature<MetaQuestFeature>().ForceRemoveInternetPermission, "Enable Internet-permission removal in Meta Quest Support.");
+            Require(settings.GetFeatures<OpenXRFeature>().Any(feature => feature != null && feature.GetType().FullName == "Meta.XR.MetaXRFeature" && feature.enabled),
                 "Enable Meta XR Feature in Android OpenXR settings.");
             Require(settings.GetFeature<HandInteractionProfile>() != null && settings.GetFeature<HandInteractionProfile>().enabled,
                 "Enable Hand Interaction Profile in Android OpenXR settings.");

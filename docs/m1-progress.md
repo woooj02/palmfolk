@@ -54,3 +54,21 @@ hands with controllers off. Do not proceed to slice 1 before that result.
 
 Pending. Follow [the test steps](slice-0-quest2.md) and record the actual headset
 result here after the owner reports it. Quest 2 results never certify Quest 3/3S.
+
+## Additional work before Windows, Nov 6, 2026
+
+- Added `tools/check_source.py` for repeatable version-pin, asset GUID, private-file
+  ignore, document-baseline and C# syntax checks. It uses pinned developer parsers;
+  it is not a Unity compiler.
+- Executed the manifest validator on Linux using portable PowerShell. Regression
+  fixtures exercise invalid declarations and the file-based CLI. Fixtures are
+  synthetic and never count as an APK or headset test.
+- Added the **Source checks** GitHub Actions workflow: Linux source/manifest checks
+  plus Windows PowerShell manifest checks, with read-only repository permissions.
+  The workflow does not install Unity, accept terms, create keys or build an APK.
+- Setup now initializes Android OpenXR features through the package's public API.
+  Added build-time checks for the actual packaged hand visuals, handedness, anchors,
+  OpenXR skeleton, hand material, camera rig and graphics configuration. These C#
+  changes still need the first Windows Unity compile/build.
+- Slice 1 remains unstarted. The next product verification is the slice 0 Windows
+  build and the owner's Quest 2 hands test.

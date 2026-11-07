@@ -6,6 +6,7 @@ using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEditor.XR.Management;
 using UnityEditor.XR.Management.Metadata;
+using UnityEditor.XR.OpenXR.Features;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.XR.Management;
@@ -82,7 +83,7 @@ namespace Palmfolk.Editor
             const string settingsPath = "Assets/XR/XRGeneralSettingsPerBuildTarget.asset";
             Directory.CreateDirectory("Assets/XR");
             AssetDatabase.Refresh();
-            if (!EditorBuildSettings.TryGetConfigObject<XRGeneralSettingsPerBuildTarget>(XRGeneralSettings.k_SettingsKey, out var perTarget))
+            if (!EditorBuildSettings.TryGetConfigObject<XRGeneralSettingsPerBuildTarget>(XRGeneralSettings.k_SettingsKey, out var perTarget) || perTarget == null)
             {
                 perTarget = AssetDatabase.LoadAssetAtPath<XRGeneralSettingsPerBuildTarget>(settingsPath);
                 if (perTarget == null)
@@ -104,8 +105,9 @@ namespace Palmfolk.Editor
             if (!XRPackageMetadataStore.AssignLoader(manager, OpenXRLoaderType, BuildTargetGroup.Android))
                 throw new BuildFailedException("Could not enable the Android OpenXR loader.");
 
+            FeatureHelpers.RefreshFeatures(BuildTargetGroup.Android);
             var settings = OpenXRSettings.GetSettingsForBuildTargetGroup(BuildTargetGroup.Android);
-            if (settings == null) throw new BuildFailedException("Open the Android OpenXR settings once, then rerun Configure Android.");
+            if (settings == null) throw new BuildFailedException("Could not create Android OpenXR settings. Check the first Unity Console error.");
             settings.renderMode = OpenXRSettings.RenderMode.SinglePassInstanced;
             settings.depthSubmissionMode = OpenXRSettings.DepthSubmissionMode.None;
             EnableFeature(settings, typeof(MetaQuestFeature).FullName);
@@ -120,9 +122,9 @@ namespace Palmfolk.Editor
 
         private static void EnableFeature(OpenXRSettings settings, string typeName)
         {
-            var feature = settings.GetFeatures<OpenXRFeature>().FirstOrDefault(item => item.GetType().FullName == typeName);
+            var feature = settings.GetFeatures<OpenXRFeature>().FirstOrDefault(item => item != null && item.GetType().FullName == typeName);
             if (feature == null)
-                throw new BuildFailedException($"Missing OpenXR feature {typeName}. Let package import finish and reopen Android OpenXR settings before retrying.");
+                throw new BuildFailedException($"Missing OpenXR feature {typeName}. Verify the pinned packages finished importing.");
             feature.enabled = true;
             EditorUtility.SetDirty(feature);
         }

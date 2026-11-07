@@ -17,9 +17,19 @@ crashlytics-build.properties
 
 # Secrets and local
 .env
+.env.*
 *.keystore
 *.jks
+*.key
+*.pem
+*.p12
+*.pfx
 .DS_Store
 
 # Playtest recordings stay off the repo (T10, T13)
 playtest-logs/
+
+# Local source-check tooling
+.venv/
+__pycache__/
+*.pyc

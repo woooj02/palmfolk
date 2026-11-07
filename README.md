@@ -7,6 +7,7 @@ Entry for the Meta VR Start Developer Competition 2026 (Gaming track, New Experi
 
 Status: M1 slice 0 source prepared on Linux; Unity import, Android build and Quest 2
 verification are pending on Windows. No headset behavior is verified yet.
+Source checks and manifest regressions can run on Linux and in GitHub Actions.
 
 Open the repository root with **Unity 6000.0.66f2 on Windows**, with Android Build
 Support, OpenJDK and Android SDK & NDK Tools installed. Follow

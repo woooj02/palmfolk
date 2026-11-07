@@ -17,3 +17,7 @@ SDK is reserved for UI (T11); this slice does not instantiate its interactors.
 Unity generates `Packages/packages-lock.json` on the first Windows import. Keep it
 and the dependency license files available for the P9 credits pass. The owner handles
 any terms acceptance presented during setup; no acceptance has been performed here.
+
+Developer checks use tree-sitter and its C# grammar, pinned in
+`tools/requirements-checks.txt`; their licenses stay in the installed distributions.
+These tools and PowerShell run outside the Unity player and are not shipped in the APK.
