@@ -1,0 +1,7 @@
+{
+  "name": "Palmfolk.Core",
+  "rootNamespace": "Palmfolk.Core",
+  "references": [],
+  "noEngineReferences": true,
+  "autoReferenced": true
+}

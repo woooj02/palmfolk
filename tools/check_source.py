@@ -14,6 +14,7 @@ PINS = {
     "com.unity.xr.hands": "1.7.2",
     "com.unity.xr.management": "4.5.3",
     "com.unity.xr.openxr": "1.17.0",
+    "com.unity.test-framework": "1.4.6",
 }
 
 
@@ -45,7 +46,7 @@ def main():
     require("m_EditorVersion: 6000.0.66f2" in version.splitlines(), "Unity version must be pinned to 6000.0.66f2")
     print("PASS: Unity and SDK version pins")
 
-    generated = {"library", "temp", "obj", "build", "builds", "logs", "usersettings", "playtest-logs", ".venv", "__pycache__"}
+    generated = {"library", "temp", "obj", "bin", "build", "builds", "logs", "usersettings", "playtest-logs", "testresults", ".venv", "__pycache__"}
     forbidden_suffixes = {".apk", ".aab", ".keystore", ".jks", ".key", ".pem", ".p12", ".pfx", ".pyc"}
     for name in files:
         path = Path(name)
@@ -97,6 +98,15 @@ def main():
         tree = parser.parse((ROOT / name).read_bytes())
         require(not tree.root_node.has_error, f"C# syntax error: {name}")
     print(f"PASS: {len(sources)} C# files parsed (syntax only)")
+    core = json.loads((ROOT / "Assets/Palmfolk/Core/Palmfolk.Core.asmdef").read_text())
+    require(core.get("noEngineReferences") is True and not core.get("references"), "Core must have no engine/SDK assembly references")
+    developer = json.loads((ROOT / "Assets/Palmfolk/Developer/Palmfolk.Developer.asmdef").read_text())
+    require(developer.get("defineConstraints") == ["PALMFOLK_DEVELOPMENT"], "Developer assembly must use the single development gate")
+    for name in sources:
+        if name.startswith("Assets/Palmfolk/Core/"):
+            text = (ROOT / name).read_text()
+            require(not re.search(r"\b(UnityEngine|UnityEditor|PhysX|OVRPlugin|Stopwatch)\b|DateTime\.(Now|UtcNow)|Environment\.TickCount", text), f"Engine/wall-clock dependency in Core: {name}")
+    print("PASS: engine-independent core and developer assembly gate")
     print("Source checks passed. Unity compilation, APK output and Quest 2 behavior are not verified.")
 
 

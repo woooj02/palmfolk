@@ -8,6 +8,7 @@
 [Uu]ser[Ss]ettings/
 [Mm]emoryCaptures/
 *.csproj
+!tools/CoreChecks/**/Palmfolk.*.csproj
 *.sln
 *.apk
 *.aab
@@ -33,3 +34,5 @@ playtest-logs/
 .venv/
 __pycache__/
 *.pyc
+[Bb]in/
+TestResults/

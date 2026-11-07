@@ -21,3 +21,9 @@ any terms acceptance presented during setup; no acceptance has been performed he
 Developer checks use tree-sitter and its C# grammar, pinned in
 `tools/requirements-checks.txt`; their licenses stay in the installed distributions.
 These tools and PowerShell run outside the Unity player and are not shipped in the APK.
+
+Gameplay tests use Unity Test Framework 1.4.6 in the Editor. The separate headless
+test project uses NUnit 3.14.0, NUnit3TestAdapter 4.6.0 and Microsoft.NET.Test.Sdk
+17.11.1 through NuGet. Their installed packages retain their licenses. They are
+not runtime gameplay code and are not shipped in the APK. All gameplay algorithms
+in `Assets/Palmfolk/Core` and developer helpers were written for this project.

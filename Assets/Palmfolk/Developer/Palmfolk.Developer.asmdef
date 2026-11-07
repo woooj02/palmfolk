@@ -1,0 +1,6 @@
+{
+  "name": "Palmfolk.Developer",
+  "references": ["Palmfolk.Core"],
+  "defineConstraints": ["PALMFOLK_DEVELOPMENT"],
+  "noEngineReferences": true
+}

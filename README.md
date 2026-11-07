@@ -5,9 +5,11 @@ they build keep the shape of your hand after you let go.
 
 Entry for the Meta VR Start Developer Competition 2026 (Gaming track, New Experience division).
 
-Status: M1 slice 0 source prepared on Linux; Unity import, Android build and Quest 2
-verification are pending on Windows. No headset behavior is verified yet.
-Source checks and manifest regressions can run on Linux and in GitHub Actions.
+Status: the M1 gameplay core is implemented and tested without Unity. Windows
+scene/input integration, Android builds and Quest 2 verification are pending.
+The existing scene generator still creates the slice 0 hands/islands scene.
+See [`docs/m1-gameplay.md`](docs/m1-gameplay.md) for the algorithms, test commands
+and explicit integration ports. No headset behavior is verified yet.
 
 Open the repository root with **Unity 6000.0.66f2 on Windows**, with Android Build
 Support, OpenJDK and Android SDK & NDK Tools installed. Follow

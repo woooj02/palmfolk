@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>8.0</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DeveloperFeatures Condition="'$(DeveloperFeatures)' == ''">true</DeveloperFeatures>
+    <DefineConstants Condition="'$(DeveloperFeatures)' == 'true'">$(DefineConstants);PALMFOLK_DEVELOPMENT</DefineConstants>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Core/Palmfolk.Core.csproj" />
+    <Compile Include="../../../Assets/Palmfolk/Developer/**/*.cs" />
+  </ItemGroup>
+</Project>

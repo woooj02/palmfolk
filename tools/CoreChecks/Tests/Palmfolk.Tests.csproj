@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>8.0</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <IsTestProject>true</IsTestProject>
+    <DeveloperFeatures Condition="'$(DeveloperFeatures)' == ''">true</DeveloperFeatures>
+    <DefineConstants Condition="'$(DeveloperFeatures)' == 'true'">$(DefineConstants);PALMFOLK_DEVELOPMENT</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Core/Palmfolk.Core.csproj" />
+    <ProjectReference Include="../Developer/Palmfolk.Developer.csproj" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <Compile Include="../../../Assets/Palmfolk/Tests/**/*.cs" />
+  </ItemGroup>
+</Project>

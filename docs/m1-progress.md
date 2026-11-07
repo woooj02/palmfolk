@@ -9,18 +9,24 @@
 - H1 stays in M1 as a small greybox Arch test. This resolves the mismatch between
   H1's M1 timing in the requirements and the build plan's exclusion of puzzles 3–8.
   The full Arch puzzle remains outside M1. Requirements and build plan are unchanged.
-- Stop after each slice and wait for the owner's Quest 2 result before starting the next.
+- Original instruction: stop after each slice for a Quest 2 result. The latest
+  owner instruction authorizes preparing gameplay algorithms ahead of those tests;
+  headset verification and M1 sign-off still require the owner's real results.
 
 ## Slice status
 
 | Slice | Implementation | Verification |
 |---|---|---|
 | 0 | Source prepared: pinned dependencies, Windows scene/setup commands, build checks and APK manifest check | Unity import/compile not verified; APK not built; Quest 2 not verified |
-| 1–8 | Not started | Not verified |
-| 9 | Not started; include H1 greybox test plus H2/H3 | Not verified |
+| 1 | Input contracts, deterministic tick runner, consent-gated recording/replay, metrics/radius/dropout watchers | Compiled and tested headlessly; live SDK input, editor replay bindings and stats panel pending |
+| 2–3 | Joint routes, surface cursor traversal, connection hysteresis and hand ownership | Synthetic tests; Unity visuals and headset contact unverified |
+| 4–6 | Section commits, pause/resume/removal, curve bake, capacity/refusals and complete Pip/Bram M1 flow | Headless end-to-end and rule tests; Unity scene integration/headset behavior unverified |
+| 7–8 | Partial-build/recovery saves, dual slots, ghost alignment/blend and safe checkpoint return | Headless regression tests; Quest storage, suspension and live tracking unverified |
+| 9 | H1 synthetic arch/rock validation; H2/H3 measurement ports | Real Arch testers, comfort, radii and M1 sign-off pending |
 
 Slice 0 is not Done until a Windows build boots on Quest 2 and the owner sees both
-hands with controllers off. Do not proceed to slice 1 before that result.
+hands with controllers off. Source preparation may proceed under the latest owner
+authorization; no later slice has a headset pass yet.
 
 ## Slice 0 implementation notes
 
@@ -30,7 +36,8 @@ hands with controllers off. Do not proceed to slice 1 before that result.
   It uses SDK package prefab references, not imported sample assets. It does not
   overwrite an existing M1 scene.
 - Default SDK hand meshes, OpenXR skeleton, no hand physics capsules. The two
-  greybox islands have a 12 cm gap pointing sideways. No gameplay is implemented yet.
+  greybox islands have a 12 cm gap pointing sideways. Gameplay is not yet bound
+  into this generated Unity scene; the separate core is described below.
 - `PALMFOLK_DEVELOPMENT` is the single planned gate for developer-only code.
   Slice 0 contains no recording, stats panel or radius logging; these are slice 1.
 - H3 API candidate: XR Hands
@@ -70,5 +77,17 @@ result here after the owner reports it. Quest 2 results never certify Quest 3/3S
   Added build-time checks for the actual packaged hand visuals, handedness, anchors,
   OpenXR skeleton, hand material, camera rig and graphics configuration. These C#
   changes still need the first Windows Unity compile/build.
-- Slice 1 remains unstarted. The next product verification is the slice 0 Windows
-  build and the owner's Quest 2 hands test.
+- The next product verification remains the slice 0 Windows build and the owner's
+  Quest 2 hands test; gameplay source preparation is now separately authorized.
+
+## Gameplay preparation
+
+The `m1-gameplay` branch adds the engine-independent M1 algorithms, shared Unity/
+headless NUnit tests, development/release compilation checks and cloud gameplay
+tests on Linux and Windows. See [implementation and remaining ports](m1-gameplay.md).
+The original requirements and build plan remain byte-for-byte unchanged.
+
+Local verification: the .NET Standard 2.1 core and developer libraries compile;
+59 developer-mode tests and 51 release-mode tests pass on Linux using .NET 8.
+The release suite includes an assertion that no recording/stats types remain.
+These are synthetic/headless results, not Unity, APK or headset passes.
