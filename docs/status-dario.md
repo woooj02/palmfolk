@@ -26,14 +26,31 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   still crossing. Verified in the Unity editor (batch mode): compiles, 90 EditMode tests pass. Not verified on a
   headset.
 
+- **D3, Nov 10.** Valley model and puzzle director. `ValleySpec` (islands, anchor zones, edges, ledge, six
+  puzzles) is published for Sam's content; `ValleySimulation` runs Board to Finale with walker, group and cart
+  travelers, widens the ledge before the finale (V2), checks Bram's three-crossing route and asks only for the
+  failing bridges (V1, V3); `ValleyPresentation` is the view contract. The M1 slice is unchanged. Details:
+  [`core-api.md`](core-api.md). Verified headless: 136 developer-mode and 128 release-mode tests pass,
+  including Board to Finale with Sam's S1 fixtures on his candidate layout (either hand, and planted through
+  `PalmfolkGame`), the First Bridge deck capped by the ledge whatever the hand, a rope refused for Width, a
+  straight deck refused over the rock and an arch accepted, the old bridge kept until its replacement passes, and
+  20 V3 cases (each side and route bridge missing, narrowed, steepened or moved in a save) all finishing with three
+  crossings. Verified in the Unity editor (batch mode): compiles, 135 EditMode tests pass (after rebasing on Sam's latest). Not verified on a headset.
+
 ## Next
 
-- D3, valley model and puzzle director.
+- D4, waiting for the owner.
 
 ## Notes for later items
 
-- The M1 level still sits at the palm (valley origin). Island layout around the planted palm (V5, E6) comes with
-  D3 and Sam's S7 numbers.
+- For Sam: the `Curved` fixture's metacarpal to proximal segment is about 36 degrees, just over the walker's
+  35 degree limit, so a curved hand is refused as a walker bridge. The D3 tests use their own sloped and arched
+  hands for the Fork and the Arch. If Curved is meant to pass, its first bend needs to be a little flatter.
+- The rock's size in the D3 tests (1.6 cm square, 3.5 cm tall, centred in the C to E gap) is a test choice;
+  H1 and Sam's content set the real one.
+- Fork builds two single-curve edges in turn; a branching bridge (one hand, two lookouts) is D4.
+
+- The M1 slice still sits at the palm (valley origin). A valley game uses Sam's layout around the palm.
 - `RecordedRun` still records valley-local M1 frames. Recording world frames through `PalmfolkGame` needs a
   recording format version bump; planned with the replay work.
 - Saving the pose (and the Table mode anchor, MR2/MR3) is not done; bridges are already valley-local, so a save

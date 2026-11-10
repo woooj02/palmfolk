@@ -37,15 +37,14 @@ namespace Palmfolk.Core
         }
     }
     public interface IClearanceField { double MinimumHeadroom(Vec3 from, Vec3 to, double deckWidth); }
-    public sealed class LevelGeometry : IClearanceField
+    // Free headroom above a deck segment, from axis-aligned obstacle boxes.
+    public sealed class ObstacleField : IClearanceField
     {
-        public Vec3 Start { get; }
-        public Vec3 End { get; }
         public IReadOnlyList<Obstacle> Obstacles { get; }
-        public LevelGeometry(Vec3 start, Vec3 end, params Obstacle[] obstacles)
+        public ObstacleField(params Obstacle[] obstacles)
         {
-            if (!start.IsFinite || !end.IsFinite || Vec3.Distance(start, end) < 0.01 || obstacles == null) throw new ArgumentException("Invalid level anchors.");
-            Start = start; End = end; Obstacles = Array.AsReadOnly((Obstacle[])obstacles.Clone());
+            if (obstacles == null) throw new ArgumentException("Invalid obstacles.");
+            Obstacles = Array.AsReadOnly((Obstacle[])obstacles.Clone());
         }
         public double MinimumHeadroom(Vec3 from, Vec3 to, double deckWidth)
         {
@@ -84,20 +83,42 @@ namespace Palmfolk.Core
             return result;
         }
     }
+    public sealed class LevelGeometry : IClearanceField
+    {
+        private readonly ObstacleField field;
+        public Vec3 Start { get; }
+        public Vec3 End { get; }
+        public IReadOnlyList<Obstacle> Obstacles => field.Obstacles;
+        public LevelGeometry(Vec3 start, Vec3 end, params Obstacle[] obstacles)
+        {
+            if (!start.IsFinite || !end.IsFinite || Vec3.Distance(start, end) < 0.01 || obstacles == null) throw new ArgumentException("Invalid level anchors.");
+            Start = start; End = end; field = new ObstacleField(obstacles);
+        }
+        public double MinimumHeadroom(Vec3 from, Vec3 to, double deckWidth) => field.MinimumHeadroom(from, to, deckWidth);
+    }
     public static class BridgeValidator
     {
         public static IReadOnlyList<ValidationFailure> Validate(CurveTree tree, Vec3 start, Vec3 end, TravelerKind kind, GameSettings settings, IClearanceField clearance)
         {
-            if (tree == null || clearance == null || !Enum.IsDefined(typeof(TravelerKind), kind)) throw new ArgumentException("Invalid validation input.");
+            if (settings == null) throw new ArgumentException("Invalid validation input.");
+            return Validate(tree, new AnchorZone(start, settings.ConnectDistance), new[] { new AnchorZone(end, settings.ConnectDistance) }, kind, settings, clearance);
+        }
+        // Zone anchors: the root curve starts in `start`; every leaf ends in one of `ends`, and every end zone is reached.
+        public static IReadOnlyList<ValidationFailure> Validate(CurveTree tree, AnchorZone start, IReadOnlyList<AnchorZone> ends, TravelerKind kind, GameSettings settings, IClearanceField clearance)
+        {
+            if (tree == null || clearance == null || settings == null || ends == null || ends.Count == 0 || !Enum.IsDefined(typeof(TravelerKind), kind)) throw new ArgumentException("Invalid validation input.");
             var failures = new List<ValidationFailure>();
-            double minWidth = kind == TravelerKind.Walker ? 0.01 : 0.025;
+            var reached = new bool[ends.Count];
+            double minWidth = MinimumWidth(kind);
             double maxSlope = kind == TravelerKind.Walker ? 35 : 25;
             double minHeight = kind == TravelerKind.Cart ? 0.05 : 0.035;
             for (int c = 0; c < tree.Curves.Count; c++)
             {
                 var route = tree.Curves[c];
                 bool leaf = true; for (int i = c + 1; i < tree.Parents.Count; i++) if (tree.Parents[i] == c) leaf = false;
-                if ((c == 0 && Vec3.Distance(route.Start, start) > settings.ConnectDistance) || (leaf && Vec3.Distance(route.End, end) > settings.ConnectDistance)) failures.Add(new ValidationFailure(Refusal.Unanchored, c, 0));
+                bool endAnchored = false;
+                if (leaf) for (int e = 0; e < ends.Count; e++) if (ends[e].Contains(route.End)) { reached[e] = true; endAnchored = true; }
+                if ((c == 0 && !start.Contains(route.Start)) || (leaf && !endAnchored)) failures.Add(new ValidationFailure(Refusal.Unanchored, c, 0));
                 if (route.Length > settings.MaximumRouteLength) failures.Add(new ValidationFailure(Refusal.TooLong, c, 0));
                 for (int i = 0; i < route.Widths.Count; i++)
                 {
@@ -110,8 +131,12 @@ namespace Palmfolk.Core
                         if (SegmentDistance(a, b, route.Points[j], route.Points[j + 1]) < 0.001) failures.Add(new ValidationFailure(Refusal.SelfCrossing, c, i));
                 }
             }
+            // An end zone no branch reaches (a missing Fork branch) is reported on the root curve.
+            for (int e = 0; e < ends.Count; e++)
+                if (!reached[e] && !failures.Exists(f => f.Reason == Refusal.Unanchored)) failures.Add(new ValidationFailure(Refusal.Unanchored, 0, 0));
             return failures.AsReadOnly();
         }
+        public static double MinimumWidth(TravelerKind kind) => kind == TravelerKind.Walker ? 0.01 : 0.025;
         private static double SegmentDistance(Vec3 p, Vec3 q, Vec3 r, Vec3 s)
         {
             Vec3 u = q - p, v = s - r, w = p - r;

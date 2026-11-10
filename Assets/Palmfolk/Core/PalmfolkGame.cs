@@ -13,7 +13,10 @@ namespace Palmfolk.Core
     {
         private readonly List<GameEvent> events = new List<GameEvent>();
         private bool paused;
-        public M1Simulation Puzzle { get; }
+        // The puzzle in valley-local space: the M1 slice (M1Simulation) or the whole valley (ValleySimulation).
+        public ITickSimulation Simulation { get; }
+        public M1Simulation Puzzle => Simulation as M1Simulation;
+        public ValleySimulation Valley => Simulation as ValleySimulation;
         public PlantingDetector Planting { get; }
         public ValleyStage Stage { get; private set; } = ValleyStage.Planting;
         // Null until the first planting; kept while replanting so the old valley stays drawn.
@@ -21,12 +24,14 @@ namespace Palmfolk.Core
         public PlantingResult LastPlanting { get; private set; }
         public int Plantings { get; private set; }
         public bool IsPaused => paused;
-        public long Tick => Puzzle.Tick;
+        public long Tick => Simulation.Tick;
         public IReadOnlyList<GameEvent> Events => events.AsReadOnly();
 
-        public PalmfolkGame(LevelGeometry level, GameSettings settings = null)
+        public PalmfolkGame(LevelGeometry level, GameSettings settings = null) : this(new M1Simulation(level, settings), settings) { }
+        public PalmfolkGame(ValleySpec valley, GameSettings settings = null, ValleyProgress resume = null) : this(new ValleySimulation(valley, settings, resume), settings) { }
+        private PalmfolkGame(ITickSimulation simulation, GameSettings settings)
         {
-            Puzzle = new M1Simulation(level, settings);
+            Simulation = simulation;
             Planting = new PlantingDetector(settings);
         }
 
@@ -44,8 +49,8 @@ namespace Palmfolk.Core
             {
                 // The puzzle sits out planting as if focus were lost: a hand that owned Pip goes into
                 // recovery, and the player realigns with the ghost after planting.
-                Puzzle.Step(new HandFrame(frame.Tick, frame.TimestampMicroseconds, null, null, false, command, frame.ControllersInHand));
-                events.AddRange(Puzzle.Events);
+                Simulation.Step(new HandFrame(frame.Tick, frame.TimestampMicroseconds, null, null, false, command, frame.ControllersInHand));
+                events.AddRange(Simulation.Events);
                 if (replant) Emit(GameEventKind.ReplantStarted);
                 var result = Planting.Step(paused ? Unfocused(frame) : frame);
                 if (Planting.StartupPromptDue) Emit(GameEventKind.StartupPromptDue);
@@ -57,8 +62,8 @@ namespace Palmfolk.Core
                 return;
             }
             // Replant never reaches this point: it switched the stage above.
-            Puzzle.Step(Pose.ToValley(frame));
-            events.AddRange(Puzzle.Events);
+            Simulation.Step(Pose.ToValley(frame));
+            events.AddRange(Simulation.Events);
         }
 
         private static HandFrame Unfocused(HandFrame frame) =>

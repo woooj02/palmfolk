@@ -30,7 +30,8 @@ namespace Palmfolk.Core
         public ValleyPose Pose { get; } = ValleyPose.Identity;
         public double PlantProgress { get; }
         public HandSide? PlantingHand { get; }
-        public WorldPresentation(PalmfolkGame game, double interpolationAlpha) : this(game.Puzzle, interpolationAlpha)
+        public WorldPresentation(PalmfolkGame game, double interpolationAlpha)
+            : this(game?.Puzzle ?? throw new System.ArgumentException("Use ValleyPresentation for a valley game."), interpolationAlpha)
         {
             Stage = game.Stage; Pose = game.Pose;
             if (game.Stage != ValleyStage.Planting) return;

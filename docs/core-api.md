@@ -35,7 +35,9 @@ The whole game as one `ITickSimulation`. Feed it world-space `HandFrame`s at 60 
 |---|---|
 | `Stage` | `ValleyStage.Planting` or `Playing`. Starts in `Planting`. |
 | `Pose` | `ValleyPose`, `null` until the first planting. While replanting it keeps the old pose, so the old valley can stay drawn until the new one grows. |
-| `Puzzle` | The `M1Simulation`, in valley-local space. During planting it is held as if focus were lost: a hand that carried Pip goes into recovery, and the player realigns with the ghost afterwards. |
+| `Simulation` | The puzzle being played, in valley-local space: an `M1Simulation` or a `ValleySimulation` (D3). |
+| `Valley` | The `ValleySimulation`, or `null` for the M1 slice. Built with `new PalmfolkGame(valleySpec, settings, resume)`. |
+| `Puzzle` | The `M1Simulation`, or `null` for a valley game. During planting it is held as if focus were lost: a hand that carried Pip goes into recovery, and the player realigns with the ghost afterwards. |
 | `Planting` | `PlantingDetector`: `Progress` (0 to 1 over the resting second), `Hand`, `WaitingForHands`, `ShowStartupText`. |
 | `LastPlanting` | `PlantingResult`: `Pose`, `Hand`, `HandLength` (metres, wrist to middle fingertip along the bones). |
 | `Plantings` | How many times the valley has been planted. |
@@ -74,6 +76,61 @@ stay as they were. New fields:
 While `Stage == Planting`, `WaitingForHands`, `PutControllersDown` and `ShowStartupText` come from planting
 (E19), and `Paused` is the player's pause only.
 
+### Valley content (D3, `Assets/Palmfolk/Core/ValleyModel.cs`)
+
+Sam's content (`Core/Content`) builds a `ValleySpec`; the director runs it. All positions are valley-local.
+
+| Type | Meaning |
+|---|---|
+| `IslandSpec(id, top, radius)` | An island: centre of its deck top and its radius. |
+| `AnchorZone(centre, radius)` | Where a bridge may end. Any route end inside the zone connects; the T2 hold and break distances are measured from the zone's edge. |
+| `EdgeSpec(id, from, to, fromAnchor, toAnchor)` | A gap between two islands. `EdgeSpec.Between(id, fromIsland, toIsland, fromZone, toZone)` puts the anchors on the rims facing each other. Pip builds from `From` when he can reach it, otherwise from `To`. |
+| `LedgeSpec(edge, island, narrow, wide, wideningTicks)` | V2. Every bridge on `edge` is capped to the ledge width (whole deck) until Pip widens it before the finale. |
+| `PuzzleSpec(kind, edges, traveler, travelerFrom, rule)` | One puzzle. `rule` (what a bridge must pass) defaults to the traveler's own rules. |
+| `ValleySpec(islands, edges, puzzles, obstacles, ledge, camp, sanctuary)` | The valley. `obstacles` are boxes (the rock) checked for headroom. `FinaleRoute()` is Bram's route as (edge, from, to). |
+
+`ValleySpec` refuses: anything but six puzzles in the order Board, First Bridge, Width, Fork, Arch, Finale; a
+Board with more than one edge; puzzle edges that don't touch `travelerFrom` (except the finale); a finale that is
+not the cart from the camp along a path of edges to the sanctuary; a ledge edge not built in both First Bridge
+and the finale.
+
+`BridgeValidator.Validate(tree, startZone, endZones, kind, settings, clearance)` is the zone form of validation:
+every leaf must end in a zone and every zone must be reached. The point form is unchanged (it wraps points in
+zones of radius `ConnectDistance`).
+
+### `ValleySimulation` (`Assets/Palmfolk/Core/ValleySimulation.cs`)
+
+The six puzzles of one valley (V1 to V3, E4). `new ValleySimulation(spec, settings, resume)`; `resume` is a
+`ValleyProgress` (the D5 save payload: `CompletedPuzzles`, `PipIsland`, `LedgeWidened`, `Bridges` by edge id).
+
+Each puzzle runs through `Stage` (`DirectorStage`):
+
+1. `Walking`: Pip walks over built bridges to the island he builds from (a straight walk if no bridge path exists).
+2. `Interacting`: an `EdgeSession` (`Session`) runs M1's hand loop on one edge: Board carries Pip on the hand;
+   the others build. A bridge that fails the puzzle's rule is refused and removed; the old bridge on that edge,
+   if any, stays until a replacement passes (R4). Edges are built one after another; `PendingEdges` lists what
+   is left.
+3. `AwaitingWithdrawal`: until no hand is near a built bridge.
+4. `TravelersCrossing` (`Travelers`) or, in the finale, `BramCrossing` (`Bram`).
+5. The next puzzle, or `Complete`.
+
+The finale first has Pip walk to the ledge and widen it (`Widening`, `WideningProgress`), then checks Bram's route
+against the cart's rules (V3). Edges that fail, are missing or were damaged in a save are in `FailingEdges` and
+are rebuilt; edges off the route are never asked for. Bram then crosses each bridge on the route.
+
+`Check(route, kind)` and `Passes(edge, kind)` validate stored bridges. Fork in D3 is two single-curve edges built
+in turn; branching curve trees come with D4. `M1Simulation` stays for the M1 slice.
+
+### `ValleyPresentation`
+
+What the views draw for a valley game: `new ValleyPresentation(palmfolkGame, alpha)` (or from a
+`ValleySimulation`). Fields: `Puzzle`, `PuzzleIndex`, `Stage`, `Complete`, `Pip`, `Bram`, `Travelers` (`Kind`,
+`Destination`, `Position`, `Arrived`), `Bridges` by edge id, `FailingEdges` (glow, V3), `ActiveEdge`, `Source`,
+`Destination` (anchor zones), `Rule`, `LedgeWidth`, `WideningProgress`, then the M1 hand and build fields
+(`HandOwner`, `FilteredHandRoute`, `GhostRoute`, `Scaffold`, `BuildPhase`, `BuildProgress`,
+`ScaffoldRemovalProgress`, `RouteTier`, `Refusals`), the E19 fields, and the planting fields (`PlantingStage`,
+`Pose`, `PlantProgress`, `PlantingHand`). `WorldPresentation(PalmfolkGame)` throws for a valley game.
+
 ### Events
 
 `GameEventKind` gains two values, appended at the end so existing numbers don't change:
@@ -82,6 +139,10 @@ While `Stage == Planting`, `WaitingForHands`, `PutControllersDown` and `ShowStar
 |---|---|
 | `Planted` | The tick the valley is planted or replanted. Read `Pose` and `LastPlanting`. |
 | `ReplantStarted` | The tick a `Replant` command takes effect. |
+
+D3 appends `PuzzleStarted`, `PuzzleCompleted`, `LedgeWidening`, `LedgeWidened`, `RebuildNeeded` (once per
+failing edge), `TravelersStarted`, `TravelerArrived`, `CrossingCompleted` (each of Bram's bridges). The valley
+also raises the M1 hand and build events, `PersistentBridgeObserved`, `BramStarted` and `BramFinished`.
 
 `StartupPromptDue` is also raised during planting, once, when the startup text becomes due.
 
@@ -104,3 +165,8 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   `PlantingResult`; `InputCommand.Replant`; `GameEventKind.Planted` and `ReplantStarted`; planting and scale
   settings in `GameSettings`; `Rotation.AboutUp`, `Inverse` and `*`; the `WorldPresentation` fields above.
   Nothing removed or renamed.
+- **D3, Nov 10.** Added `ValleyModel.cs` (`AnchorZone`, `IslandSpec`, `EdgeSpec`, `LedgeSpec`, `PuzzleKind`,
+  `PuzzleSpec`, `ValleySpec`), `EdgeSession`, `ValleySimulation`, `DirectorStage`, `ValleyProgress`, `Traveler`,
+  `ValleyPresentation`, `TravelerView`; `ObstacleField` (split from `LevelGeometry`, which uses it); the zone
+  overload of `BridgeValidator.Validate` and `BridgeValidator.MinimumWidth`; `PalmfolkGame.Simulation` and
+  `Valley`; the events above. `PalmfolkGame.Puzzle` is `null` for a valley game. Nothing removed or renamed.
