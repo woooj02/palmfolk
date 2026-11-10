@@ -37,16 +37,24 @@ T3, E21 or MR3 refer to the requirements. If this file and those disagree, they 
 
 ## How we merge
 
-1. Work in **your own clone** (for example `E:\palmfolk-partner`), never in the other developer's folder.
-2. One work item, one branch, named `area-topic` (`core-planting`, `views-bridge-mesh`). Branch from fresh `main`.
+1. **Separate folders, same repository.** The Lead works in `E:\palmfolk`. The Partner works in `E:\palmfolk-partner`,
+   a git worktree of the same repository, already on its first branch, `fixtures-hands`. Never edit, switch branches
+   or run git commands that change files in the other developer's folder. Both folders share one `.git`, so a
+   commit in either is visible to both without pushing, but `main` can be checked out in only one folder at a time:
+   update it with `git fetch` and `git rebase origin/main`, not by checking `main` out.
+2. One work item, one branch, named `area-topic` (`core-planting`, `views-bridge-mesh`). Branch from fresh
+   `origin/main`.
 3. Before merging: rebase on `main`, then run both test configurations:
    ```bash
    dotnet test tools/CoreChecks/Tests/Palmfolk.Tests.csproj --configuration Release
    dotnet test tools/CoreChecks/Tests/Palmfolk.Tests.csproj --configuration Release -p:DeveloperFeatures=false
    ```
    Once Unity is installed, also compile in batch mode (P10 adds the script). CI (`Source checks`) must pass.
-4. Merge small and often, at least once a day. With the GitHub CLI: open a PR and merge it when CI is green.
-   Without it: `git merge --no-ff` locally, re-run the tests, push `main`.
+4. **Merge each finished item into `main` the same day.** Don't hold work on a branch until the end: the views
+   need Core's changes as they land, and one big merge on Nov 16 would leave no time to fix what it breaks.
+   With the GitHub CLI: open a PR and merge it when CI is green. Without it, from your own folder:
+   `git fetch`, `git rebase origin/main`, re-run the tests, then `git push origin HEAD:main`. If the push is
+   refused because `main` moved, fetch, rebase and test again.
 5. A change inside the other developer's paths needs their review. Say why in the PR or commit message.
 
 ### Who owns which paths
