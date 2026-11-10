@@ -41,6 +41,44 @@ namespace Palmfolk.Developer
             duration = 0; joints = 0; disruptive = countedDisruptive = false;
         }
     }
+    // T19 for the valley: dropouts of the hand that owns each interaction, counted per puzzle. A dropout is that hand
+    // missing, or its route joints invalid or low-confidence, for 250 ms or more while it carries Pip or builds;
+    // it is disruptive if Pip froze (T5) or the build paused.
+    public sealed class ValleyDropouts
+    {
+        private readonly DropoutWatcher[] puzzles = { new DropoutWatcher(), new DropoutWatcher(), new DropoutWatcher(), new DropoutWatcher(), new DropoutWatcher(), new DropoutWatcher() };
+        private int current = -1;
+        public DropoutWatcher Puzzle(int index) => puzzles[index];
+        public int Count { get { int n = 0; foreach (var p in puzzles) n += p.Count; return n; } }
+        public int DisruptiveCount { get { int n = 0; foreach (var p in puzzles) n += p.DisruptiveCount; return n; } }
+
+        public void Observe(PalmfolkGame game, HandFrame frame)
+        {
+            var valley = game?.Valley;
+            if (valley == null || frame == null || valley.IsComplete) { if (current >= 0) puzzles[current].EndEpisode(); return; }
+            int index = valley.PuzzleIndex;
+            if (index != current) { if (current >= 0) puzzles[current].EndEpisode(); current = index; }
+            var session = valley.Session; var route = session?.ActiveRoute ?? session?.Recovery?.Ghost;
+            if (session?.Owner == null || route == null) { puzzles[index].EndEpisode(); return; }
+            var hand = frame.Hand(session.Owner.Value);
+            uint invalid = !session.PoorTracking ? 0 : hand == null ? 0x3ffffffu : hand.InvalidMask;
+            puzzles[index].Step(frame.Tick, session.Owner.Value, frame.HasFocus && !game.IsPaused, invalid,
+                session.Recovery != null || session.Build?.Phase == BuildPhase.Paused, route.Reversed ? route.End - route.Start : route.Start - route.End);
+        }
+
+        // One line per puzzle, then one per dropout: what the owner checks record (T19).
+        public string Log()
+        {
+            var text = new System.Text.StringBuilder();
+            text.AppendLine("puzzle,dropouts,disruptive");
+            for (int i = 0; i < puzzles.Length; i++) text.AppendLine($"{i},{puzzles[i].Count},{puzzles[i].DisruptiveCount}");
+            text.AppendLine("# puzzle,start_tick,duration_ms,hand,disruptive,joints_hex,direction_x,direction_y,direction_z");
+            for (int i = 0; i < puzzles.Length; i++)
+                foreach (var d in puzzles[i].Completed)
+                    text.AppendLine(FormattableString.Invariant($"{i},{d.StartTick},{d.DurationTicks * 1000 / GameSettings.TickRate},{d.Hand},{d.Disruptive},{d.AffectedJoints:x7},{d.FingerDirection.X:F3},{d.FingerDirection.Y:F3},{d.FingerDirection.Z:F3}"));
+            return text.ToString();
+        }
+    }
     public sealed class PlaytestMetrics
     {
         public long? BoardingTick { get; private set; }

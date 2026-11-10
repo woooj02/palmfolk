@@ -212,6 +212,24 @@ What the views draw for a valley game: `new ValleyPresentation(palmfolkGame, alp
 `ScaffoldRemovalProgress`, `RouteTier`, `Refusals`), the E19 fields, and the planting fields (`PlantingStage`,
 `Pose`, `PlantProgress`, `PlantingHand`). `WorldPresentation(PalmfolkGame)` throws for a valley game.
 
+### Tracking loss and quality (D7: T5, T18, T19)
+
+- **T5.** When the hand carrying Pip or building is lost (missing, or its route joints invalid or low-confidence),
+  `Recovering` is set and `GhostRoute` is the still, carved ghost to draw; Bram gestures toward it. `RecoveryPhase`
+  is `Frozen` (Pip holds still), `Aligning` (the owning hand is back within 2 cm; 300 ms to go), `Blending` (Pip
+  moves onto the live hand over 200 ms) or `Returning` (after 8 s: Pip walks back to where the interaction
+  started and the scaffold comes down). Events: `TrackingLost`, `RecoveryAligned`, `RecoveryCompleted`,
+  `ReturningToCheckpoint`. Only the owning hand can realign; Pip never moves to a hand that appears elsewhere.
+- **T18.** `QualityPrompt`: show the one line "Hand tracking works best in a well-lit room, with your hand in
+  view." It comes up once per session, after 20 s of poor tracking while the valley waits on the player, and goes
+  after 3 s of good tracking (`QualityPromptDue` is raised when it comes up). `StillnessLoosened`: show the
+  loosened-stillness icon; from then on the stillness tolerance is one step looser for the session. Connection
+  distances never loosen. Poor tracking means the owning hand's route joints while a hand owns the interaction,
+  otherwise both hands. `EdgeSession.PoorTracking` is the per-tick value.
+- **T19 (Developer builds).** `GameRecorder.Dropouts` counts, per puzzle, dropouts (the owning hand lost for
+  250 ms or more while carrying or building) and disruptive ones (Pip froze or the build paused). Session
+  recording writes them to `session-*-dropouts.txt` next to the recording.
+
 ### Events
 
 `GameEventKind` gains two values, appended at the end so existing numbers don't change:
@@ -270,3 +288,9 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   `GameRecordingCodec`, `GameReplay`, `DecisionDigest` (Developer). Renamed: `PlayMode` is now `ValleyMode`
   (it clashed with `UnityEngine.PlayMode`). Changed: a `ValleyPose` built from a forward that is already level and
   unit length keeps it exactly, so a pose read back from a save maps hands exactly as before.
+- **D7, Nov 10.** Added `ValleyPresentation.QualityPrompt`, `StillnessLoosened`, `Recovering`, `RecoveryPhase`;
+  `ValleySimulation.QualityPromptShowing` and `StillnessLoosened`; `HintWatcher.QualityPromptShowing` and
+  `PromptClearTicks`; `EdgeSession.PoorTracking`; `ValleyDropouts` and `GameRecorder.Dropouts` (Developer).
+  Changed: in the valley, T18's poor tracking is the owning hand's while a hand owns the interaction (before, it
+  was both hands always); after boarding, Pip rides the fingertip until the build starts, instead of standing
+  where he boarded.

@@ -87,10 +87,14 @@ namespace Palmfolk.Core
 
     public sealed class HintWatcher
     {
-        private int idleTicks, poorTicks;
+        // T18: the quality line stays up until tracking has been good for this long.
+        public const int PromptClearTicks = 180;
+        private int idleTicks, poorTicks, goodTicks;
         private bool qualityPrompted;
         public bool HintDue { get; private set; }
         public bool QualityPromptDue { get; private set; }
+        // T18: the one line of text is showing. It is shown once per session.
+        public bool QualityPromptShowing { get; private set; }
         public int StillnessAdjustment { get; private set; }
         public void Step(bool progressed, bool poorTracking)
         {
@@ -100,8 +104,11 @@ namespace Palmfolk.Core
             poorTicks = poorTracking ? poorTicks + 1 : 0;
             if (poorTicks >= 1200 && !qualityPrompted)
             {
-                qualityPrompted = true; StillnessAdjustment = 1; QualityPromptDue = true;
+                qualityPrompted = true; StillnessAdjustment = 1; QualityPromptDue = true; QualityPromptShowing = true; goodTicks = 0;
             }
+            if (!QualityPromptShowing || QualityPromptDue) return;
+            goodTicks = poorTracking ? 0 : goodTicks + 1;
+            if (goodTicks >= PromptClearTicks) QualityPromptShowing = false;
         }
     }
 }

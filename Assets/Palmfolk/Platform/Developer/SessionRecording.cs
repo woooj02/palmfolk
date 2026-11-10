@@ -8,9 +8,10 @@ using UnityEngine;
 
 namespace Palmfolk.Platform.Developer
 {
-    // Developer builds only (T13, T17a, H3). With the tester's verbal consent ticked, records the session from the
-    // moment the runner opens a game, and on pause or quit writes the recording and the joint-radius log to the
-    // app's private storage (recordings/, never committed). Pull them with adb; replay in the editor with GameReplay.
+    // Developer builds only (T13, T17a, H3, T19). With the tester's verbal consent ticked, records the session from
+    // the moment the runner opens a game, and on pause or quit writes the recording, the joint-radius log and the
+    // per-puzzle dropout log to the app's private storage (recordings/, never committed). Pull them with adb;
+    // replay in the editor with GameReplay.
     public sealed class SessionRecording : MonoBehaviour
     {
         [SerializeField] private PalmfolkRunner runner;
@@ -55,6 +56,7 @@ namespace Palmfolk.Platform.Developer
             string path = Path.Combine(folder, "session-" + stamp + ".pfr2");
             File.WriteAllBytes(path, GameRecordingCodec.Encode(Recorder.Finish()));
             File.WriteAllText(Path.Combine(folder, "session-" + stamp + "-radii.txt"), RadiusLog(Recorder.Radii, runner?.Hands as XRHandsReader));
+            File.WriteAllText(Path.Combine(folder, "session-" + stamp + "-dropouts.txt"), Recorder.Dropouts.Log());
             LastWritten = path;
         }
 

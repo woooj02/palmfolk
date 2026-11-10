@@ -41,6 +41,8 @@ namespace Palmfolk.Core
         public TravelerKind Rule { get; }
         public double WidthCap { get; }
         public HandSide? Owner { get; private set; }
+        // T18: on the last step, the owning hand was missing or its route joints were invalid or low-confidence.
+        public bool PoorTracking { get; private set; }
         public Vec3 Pip { get; private set; }
         public TreeBuild Build { get; private set; }
         public Recovery Recovery { get; private set; }
@@ -113,14 +115,14 @@ namespace Palmfolk.Core
         {
             var left = leftFilter.Step(frame.Left, settings); var right = rightFilter.Step(frame.Right, settings);
             var hand = Owner == HandSide.Left ? left : right;
-            CurveTree liveTree = null; Route live = null;
+            CurveTree liveTree = null; Route live = null; PoorTracking = false;
             if (Owner.HasValue && activeRoute != null) liveTree = Read(hand, out live);
             if (Owner.HasValue)
             {
                 // Test raw data too: smoothing must not make a returning hand look aligned for a tick.
                 var rawHand = frame.Hand(Owner.Value);
                 Read(rawHand, out var raw);
-                bool poorTracking = rawHand == null || (rawHand.InvalidMask & RequiredMask()) != 0;
+                bool poorTracking = PoorTracking = rawHand == null || (rawHand.InvalidMask & RequiredMask()) != 0;
                 if (raw == null && Recovery == null) BeginRecovery(poorTracking);
                 if (Recovery != null)
                 {
@@ -219,6 +221,9 @@ namespace Palmfolk.Core
             }
             if (Build == null)
             {
+                // Pip rides the fingertip he boarded at until the build starts, so a hand that settles a little
+                // before going still doesn't make him pop to the build front (D7).
+                Pip = activeRoute.Start;
                 if (!connected || !still) return SessionResult.Continue;
                 Build = new TreeBuild(activeTree, settings); Refusals = Array.Empty<ValidationFailure>(); RefusedTree = null; RefusedEdges = Array.Empty<string>();
                 emit(GameEventKind.BuildStarted);

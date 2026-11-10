@@ -84,6 +84,7 @@ namespace Palmfolk.Developer
         public PalmfolkGame Game { get; }
         public DecisionDigest Digest { get; } = new DecisionDigest();
         public RadiusWatcher Radii { get; } = new RadiusWatcher();
+        public ValleyDropouts Dropouts { get; } = new ValleyDropouts();
         public bool RecordingLimitReached { get; private set; }
         public long Tick => Game.Tick;
         public IReadOnlyList<GameEvent> Events => Game.Events;
@@ -106,7 +107,7 @@ namespace Palmfolk.Developer
         {
             Game.Step(frame);
             if (frames.Count < maximumFrames) frames.Add(frame); else RecordingLimitReached = true;
-            Digest.Observe(Game); Radii.Observe(frame.Left); Radii.Observe(frame.Right);
+            Digest.Observe(Game); Radii.Observe(frame.Left); Radii.Observe(frame.Right); Dropouts.Observe(Game, frame);
         }
 
         public GameRecording Finish()

@@ -71,9 +71,25 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   5 s frame not fast-forwarding, and a session recorded through the runner replaying. Not verified on a
   headset: needs the owner (below).
 
+- **D7, Nov 10.** Recovery across the whole valley. A headless sweep plays Chapter 1 and forces tracking loss
+  every 3 ticks (50 ms) along every hand route: Board's carry, First Bridge, Width, the Fork, the Arch and both
+  finale rebuilds. It uses five kinds of loss: 10 ticks gone, 30 ticks low-confidence, gone then back 20 cm away
+  for 2.5 s, gone for over 9 s, and the other hand shown where the owner was. It also drops tracking while Pip
+  walks and while travelers and Bram cross. In every one of about 2,300 runs, Pip, Bram and the travelers never move
+  more than 5 mm in a tick, Pip never stands on an island he hadn't reached, nothing is carried, baked or
+  completed while recovering, a long loss always returns Pip to the island he left, and the valley still
+  finishes. A deliberately planted skip bug made the sweep fail, so the test is known to catch one. The sweep
+  found one real bug: after boarding, Pip stood still until the build began, so a hand that shifted while
+  settling made him jump to the build front (5 mm in one tick); he now rides the fingertip. T18: the
+  lighting line and the loosened-stillness icon are now presentation flags, shown once, with connection distances
+  unchanged. T19: developer recordings log dropouts and disruptive dropouts per puzzle. Verified headless after
+  rebasing on Sam's latest: 189 developer-mode and 175 release-mode tests pass. Verified in the Unity editor
+  (batch mode): 204 EditMode tests pass, 221 with `PALMFOLK_DEVELOPMENT`. The editor runs the sweep every 15 ticks, because it is about eight times
+  slower. Not verified on a headset: owner-checks Slice 9 needs the owner and Sam's views.
+
 ## Next
 
-- D7, recovery across the whole valley.
+- D8, visitors and the living valley.
 
 ## Notes for later items
 
@@ -97,6 +113,9 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   `Palmfolk.Platform.Editor.LiveInputSetup.EnableHands()` from Configure Android, so nobody misses that step.
   `PlayMode` is now `ValleyMode`, because `UnityEngine.PlayMode` made it ambiguous in any file that uses both
   namespaces.
+- For Sam (D7): T5 and T18 now have presentation flags to draw: `Recovering` and `RecoveryPhase` (the still
+  ghost from `GhostRoute`, Bram's gesture), `QualityPrompt` (the one line of text, P8's exception) and
+  `StillnessLoosened` (the icon). See `core-api.md`.
 - Defaults to check on the headset (H2): reference hand length 18 cm, scale clamp 0.75 to 1.3, palm half
   thickness 1.5 cm, and whether a 20 degree tilt limit is right on a lap.
 
@@ -114,6 +133,11 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
      (`Palmfolk event: Planted ...`).
   5. Quit, then copy `/sdcard/Android/data/com.keepsrunning.palmfolk/files/recordings/` into `playtest-logs/`
      in the repo folder (Git ignores it) and tell me; I'll replay it in the editor and read the radius log (H3).
+
+- D7's headset check (owner-checks Slice 9) waits for Sam's views of the ghost, Bram's gesture, the lighting line
+  and the icon. Then, on the Quest 2: hide the hand mid-build, bring it back 20 cm away (Pip must stay put), then
+  back in place (he blends back on); hide it for 8 s (he walks back, the scaffold comes down); keep the hand half
+  out of view for 20 s (one line of text and the icon). Copy the session's `-dropouts.txt` into `playtest-logs/`.
 
 ## Questions for the owner
 

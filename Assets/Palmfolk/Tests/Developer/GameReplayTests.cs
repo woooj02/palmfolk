@@ -28,6 +28,31 @@ namespace Palmfolk.Tests
             return recorded;
         }
 
+        // D7/T19: a 330 ms loss mid-build is one disruptive dropout for that puzzle; a 130 ms one is not a dropout.
+        [Test] public void DropoutsAreCountedPerPuzzle()
+        {
+            var save = new SaveData(); var settings = new GameSettings();
+            var game = PalmfolkGame.Open(TestValley.Chapter1(), save, null, settings);
+            var recorder = new GameRecorder(true, "test-build", "test-chapter", game, save, null, settings);
+            long longFrom = -1, shortFrom = -1;
+            LiveInputTests.LivePlay.Run(game, recorder, 60, g => g.Valley.IsComplete, distort: (tick, hand) =>
+            {
+                var v = game.Valley;
+                if (longFrom < 0 && v.PuzzleIndex == 1 && v.Session?.Build?.Progress > 0.3) longFrom = tick;
+                if (shortFrom < 0 && v.PuzzleIndex == 2 && v.Session?.Build?.Progress > 0.3) shortFrom = tick;
+                bool drop = (longFrom >= 0 && tick < longFrom + 20) || (shortFrom >= 0 && tick < shortFrom + 8);
+                return drop ? null : hand;
+            });
+            Assert.That(game.Valley.IsComplete, Is.True); Assert.That(longFrom, Is.GreaterThan(0)); Assert.That(shortFrom, Is.GreaterThan(0));
+            var d = recorder.Dropouts;
+            Assert.That(d.Puzzle(1).Count, Is.EqualTo(1)); Assert.That(d.Puzzle(1).DisruptiveCount, Is.EqualTo(1));
+            Assert.That(d.Puzzle(2).Count, Is.Zero);
+            Assert.That(d.Count, Is.EqualTo(1)); Assert.That(d.DisruptiveCount, Is.EqualTo(1));
+            var log = d.Log();
+            Assert.That(log, Does.StartWith("puzzle,dropouts,disruptive")); Assert.That(log, Does.Contain("\n1,1,1"));
+            Assert.That(log.Split('\n').Count(l => l.StartsWith("1,") && l.Contains(",True,")), Is.EqualTo(1));
+        }
+
         [Test] public void AWholeLiveValleyReplaysWithIdenticalDecisions()
         {
             var recording = Record();

@@ -60,6 +60,13 @@ namespace Palmfolk.Core
         public bool WaitingForHands { get; }
         public bool PutControllersDown { get; }
         public bool ShowStartupText { get; }
+        // T18: show the one line "Hand tracking works best in a well-lit room, with your hand in view." while
+        // QualityPrompt is set, and the loosened-stillness icon while StillnessLoosened is set.
+        public bool QualityPrompt { get; }
+        public bool StillnessLoosened { get; }
+        // T5: a hand-supported traveler is frozen or blending back (GhostRoute is drawn, Bram gestures).
+        public bool Recovering { get; }
+        public RecoveryPhase? RecoveryPhase { get; }
         // Planting (D2). Playing and Identity when built from a ValleySimulation alone; Pose is null before the first planting.
         public ValleyStage PlantingStage { get; } = ValleyStage.Playing;
         public ValleyPose Pose { get; } = ValleyPose.Identity;
@@ -76,6 +83,7 @@ namespace Palmfolk.Core
             Bridges = new Dictionary<string, CurveTree>(game.Progress.Bridges); FailingEdges = game.FailingEdges;
             LedgeWidth = game.LedgeWidth; WideningProgress = game.WideningProgress;
             Paused = game.IsPaused; WaitingForHands = game.WaitingForHands; ShowStartupText = game.ShowStartupText;
+            QualityPrompt = game.QualityPromptShowing; StillnessLoosened = game.StillnessLoosened;
             var session = game.Session;
             PutControllersDown = game.PuzzleIndex == 0 && session != null && !session.Owner.HasValue && game.ControllersInHand;
             Refusals = session?.Refusals ?? game.RefusedFailures;
@@ -87,6 +95,7 @@ namespace Palmfolk.Core
             HandOwner = session.Owner; FilteredHandRoute = session.ActiveRoute; GhostRoute = session.Recovery?.Ghost; RouteTier = session.RouteTier;
             Scaffold = session.Build?.Phase == Core.BuildPhase.Removed ? null : session.Build?.FrozenRoute();
             BuildPhase = session.Build?.Phase; BuildProgress = session.Build?.Progress ?? 0; ScaffoldRemovalProgress = session.Build?.RemovalProgress ?? 0;
+            Recovering = session.Recovery != null; RecoveryPhase = session.Recovery?.Phase;
         }
 
         public ValleyPresentation(PalmfolkGame game, double interpolationAlpha)

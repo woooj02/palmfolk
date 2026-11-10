@@ -113,6 +113,9 @@ namespace Palmfolk.Core
         public bool WaitingForHands { get; private set; }
         public bool ShowStartupText => WaitingForHands && startupWaitTicks >= 600;
         public bool IsComplete => Stage == DirectorStage.Complete;
+        // T18: the one line about lighting is showing, and the stillness tolerance has loosened one step (shown as an icon).
+        public bool QualityPromptShowing => hints.QualityPromptShowing;
+        public bool StillnessLoosened => hints.StillnessAdjustment > 0;
         public ValleyProgress Progress => progress.Copy();
 
         public ValleySimulation(ValleySpec valley, GameSettings settings = null, ValleyProgress resume = null)
@@ -182,7 +185,9 @@ namespace Palmfolk.Core
                     if (Bram.Arrived) { Emit(GameEventKind.BramFinished); CompletePuzzle(); }
                     break;
             }
-            bool poor = (frame.Left == null || frame.Left.InvalidMask != 0) && (frame.Right == null || frame.Right.InvalidMask != 0);
+            // T18: poor tracking is the owning hand's while a hand owns the interaction, otherwise both hands'.
+            bool poor = Session?.Owner != null ? Session.PoorTracking
+                : (frame.Left == null || frame.Left.InvalidMask != 0) && (frame.Right == null || frame.Right.InvalidMask != 0);
             bool waitingOnPlayer = Stage == DirectorStage.Interacting || Stage == DirectorStage.AwaitingWithdrawal;
             hints.Step(!waitingOnPlayer || events.Count > 0, waitingOnPlayer && poor);
             if (waitingOnPlayer) { if (hints.HintDue) Emit(GameEventKind.HintDue); if (hints.QualityPromptDue) Emit(GameEventKind.QualityPromptDue); }
