@@ -109,9 +109,10 @@ namespace Palmfolk.Core
             if (tree == null || clearance == null || settings == null || ends == null || ends.Count == 0 || !Enum.IsDefined(typeof(TravelerKind), kind)) throw new ArgumentException("Invalid validation input.");
             var failures = new List<ValidationFailure>();
             var reached = new bool[ends.Count];
-            double minWidth = MinimumWidth(kind);
-            double maxSlope = kind == TravelerKind.Walker ? 35 : 25;
-            double minHeight = kind == TravelerKind.Cart ? 0.05 : 0.035;
+            var rule = settings.Rule(kind);
+            // Distance along the walk from the root to the start of each curve, for end ramps.
+            var offsets = new double[tree.Curves.Count];
+            for (int c = 1; c < tree.Curves.Count; c++) offsets[c] = offsets[tree.Parents[c]] + tree.Curves[tree.Parents[c]].Length;
             for (int c = 0; c < tree.Curves.Count; c++)
             {
                 var route = tree.Curves[c];
@@ -119,16 +120,19 @@ namespace Palmfolk.Core
                 bool endAnchored = false;
                 if (leaf) for (int e = 0; e < ends.Count; e++) if (ends[e].Contains(route.End)) { reached[e] = true; endAnchored = true; }
                 if ((c == 0 && !start.Contains(route.Start)) || (leaf && !endAnchored)) failures.Add(new ValidationFailure(Refusal.Unanchored, c, 0));
-                if (route.Length > settings.MaximumRouteLength) failures.Add(new ValidationFailure(Refusal.TooLong, c, 0));
+                if (offsets[c] + route.Length > settings.MaximumRouteLength) failures.Add(new ValidationFailure(Refusal.TooLong, c, 0));
+                double along = offsets[c], toEnd = leaf ? route.Length : double.PositiveInfinity;
                 for (int i = 0; i < route.Widths.Count; i++)
                 {
-                    Vec3 a = route.Points[i], b = route.Points[i + 1], delta = b - a;
-                    if (route.Widths[i] < minWidth) failures.Add(new ValidationFailure(Refusal.TooNarrow, c, i));
+                    Vec3 a = route.Points[i], b = route.Points[i + 1], delta = b - a; double length = delta.Length;
+                    if (route.Widths[i] < rule.MinimumWidth) failures.Add(new ValidationFailure(Refusal.TooNarrow, c, i));
                     double slope = Math.Atan2(Math.Abs(delta.Y), Math.Sqrt(delta.X * delta.X + delta.Z * delta.Z)) * 180 / Math.PI;
-                    if (slope > maxSlope) failures.Add(new ValidationFailure(Refusal.TooSteep, c, i));
-                    if (clearance.MinimumHeadroom(a, b, route.Widths[i]) < minHeight) failures.Add(new ValidationFailure(Refusal.LowClearance, c, i));
+                    bool ramp = settings.EndRampLength > 0 && (along + length <= settings.EndRampLength || (leaf && toEnd <= settings.EndRampLength));
+                    if (slope > rule.MaximumSlopeDegrees && !ramp) failures.Add(new ValidationFailure(Refusal.TooSteep, c, i));
+                    if (clearance.MinimumHeadroom(a, b, route.Widths[i]) < rule.MinimumClearance) failures.Add(new ValidationFailure(Refusal.LowClearance, c, i));
                     for (int j = i + 2; j < route.Widths.Count; j++)
                         if (SegmentDistance(a, b, route.Points[j], route.Points[j + 1]) < 0.001) failures.Add(new ValidationFailure(Refusal.SelfCrossing, c, i));
+                    along += length; toEnd -= length;
                 }
             }
             // An end zone no branch reaches (a missing Fork branch) is reported on the root curve.
@@ -136,7 +140,8 @@ namespace Palmfolk.Core
                 if (!reached[e] && !failures.Exists(f => f.Reason == Refusal.Unanchored)) failures.Add(new ValidationFailure(Refusal.Unanchored, 0, 0));
             return failures.AsReadOnly();
         }
-        public static double MinimumWidth(TravelerKind kind) => kind == TravelerKind.Walker ? 0.01 : 0.025;
+        // The default capacity table's width; GameSettings.Rule(kind) holds the configured one.
+        public static double MinimumWidth(TravelerKind kind) => new GameSettings().Rule(kind).MinimumWidth;
         private static double SegmentDistance(Vec3 p, Vec3 q, Vec3 r, Vec3 s)
         {
             Vec3 u = q - p, v = s - r, w = p - r;

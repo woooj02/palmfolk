@@ -44,6 +44,13 @@ namespace Palmfolk.Core
         public Route FilteredHandRoute { get; }
         public Route GhostRoute { get; }
         public Route Scaffold { get; }
+        // D4: the whole scaffold and live shape as trees (a fork has a trunk and branches; Scaffold and
+        // FilteredHandRoute show its first branch). ActiveEdges lists every edge of a fork, by branch.
+        public CurveTree ScaffoldTree { get; }
+        public CurveTree HandTree { get; }
+        public IReadOnlyList<string> ActiveEdges { get; } = Array.Empty<string>();
+        // A refused fork branch whose siblings were baked; Refusals index into it while it is shown.
+        public CurveTree RefusedScaffold { get; }
         public BuildPhase? BuildPhase { get; }
         public double BuildProgress { get; }
         public double ScaffoldRemovalProgress { get; }
@@ -71,8 +78,11 @@ namespace Palmfolk.Core
             Paused = game.IsPaused; WaitingForHands = game.WaitingForHands; ShowStartupText = game.ShowStartupText;
             var session = game.Session;
             PutControllersDown = game.PuzzleIndex == 0 && session != null && !session.Owner.HasValue && game.ControllersInHand;
-            Refusals = session?.Refusals ?? Array.Empty<ValidationFailure>();
+            Refusals = session?.Refusals ?? game.RefusedFailures;
+            RefusedScaffold = session?.RefusedTree ?? game.RefusedScaffold;
             if (session == null) return;
+            ActiveEdges = session.Edges; HandTree = session.ActiveTree;
+            ScaffoldTree = session.Build?.Phase == Core.BuildPhase.Removed ? null : session.Build?.FrozenTree();
             ActiveEdge = session.Edge; Source = session.Source; Destination = session.Destination; Rule = session.Rule;
             HandOwner = session.Owner; FilteredHandRoute = session.ActiveRoute; GhostRoute = session.Recovery?.Ghost; RouteTier = session.RouteTier;
             Scaffold = session.Build?.Phase == Core.BuildPhase.Removed ? null : session.Build?.FrozenRoute();

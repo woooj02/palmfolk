@@ -25,10 +25,23 @@ namespace Palmfolk.Tests
             EdgeSpec.Between("S-A", A, S, Zone, Zone),
             EdgeSpec.Between("A-C", A, C, Zone, Zone),
             EdgeSpec.Between("C-Sanctuary", C, Sanctuary, Zone, Zone),
-            EdgeSpec.Between("C-L1", C, L1, Zone, LookoutZone),
-            EdgeSpec.Between("C-L2", C, L2, Zone, LookoutZone),
+            Fork("C-L1", L1), Fork("C-L2", L2),
             EdgeSpec.Between("C-E", C, E, Zone, Zone),
         };
+
+        // The Fork's edges share one anchor on C's rim, facing between the two lookouts, so one spread hand's wrist
+        // sits in both (D4). Each lookout's anchor faces C.
+        public static AnchorZone ForkAnchor()
+        {
+            var a = new Vec3(L1.Top.X - C.Top.X, 0, L1.Top.Z - C.Top.Z).Normalized; var b = new Vec3(L2.Top.X - C.Top.X, 0, L2.Top.Z - C.Top.Z).Normalized;
+            return new AnchorZone(C.Top + (a + b).Normalized * C.Radius, Zone);
+        }
+        private static EdgeSpec Fork(string id, IslandSpec lookout)
+        {
+            var anchor = ForkAnchor();
+            var toward = new Vec3(lookout.Top.X - anchor.Centre.X, 0, lookout.Top.Z - anchor.Centre.Z).Normalized;
+            return new EdgeSpec(id, "C", lookout.Id, anchor, new AnchorZone(lookout.Top - toward * lookout.Radius, LookoutZone));
+        }
 
         public static Obstacle Rock()
         {
@@ -66,12 +79,54 @@ namespace Palmfolk.Tests
         public static Shape DefaultPlan(PuzzleKind puzzle, string edge, int attempt) =>
             puzzle == PuzzleKind.FirstBridge ? Shape.Rope : puzzle == PuzzleKind.Arch ? Shape.Arch : puzzle == PuzzleKind.Fork ? Shape.Straight : Shape.Plank;
 
+        // For a fork: extra height at the knuckle of each branch (by the session's edges), to make a branch steep.
+        public Func<string[], int, double[]> Kinks;
+
+        // A fork hand: wrist on `source`, index and middle together toward one end, ring and little together toward
+        // the other (two surfaces, each two fingers wide). The end further along the little-finger side gets ring
+        // and little. kinks[k] raises branch k's knuckle.
+        public static HandSample Forked(Vec3 source, Vec3[] ends, HandSide side, long tick = 0, double tremor = 0, double[] kinks = null)
+        {
+            if (ends.Length != 2) throw new ArgumentException("Two ends.");
+            double sign = side == HandSide.Left ? 1 : -1;
+            var middle = (ends[0] + ends[1]) * 0.5;
+            var d = new Vec3(middle.X - source.X, 0, middle.Z - source.Z).Normalized;
+            var lateral = Vec3.Cross(Vec3.Up, d).Normalized * sign;
+            int indexEnd = Vec3.Dot(ends[0] - source, lateral) <= Vec3.Dot(ends[1] - source, lateral) ? 0 : 1;
+            var jitter = Planted.Jitter(tick, 99) * tremor; var down = new Vec3(0, -0.006, 0);
+            var flags = JointFlags.PositionValid | JointFlags.RotationValid | JointFlags.HighConfidence | JointFlags.RadiusValid;
+            var joints = new JointSample[26];
+            JointSample J(Vec3 p, double r = 0.006) => new JointSample(p + down + jitter, Rotation.Identity, r, flags);
+            var wrist = source; var metacarpals = new Vec3[4];
+            for (int f = 0; f < 4; f++) metacarpals[f] = wrist + d * 0.03 + lateral * ((f - 1.5) * 0.012);
+            for (int g = 0; g < 2; g++)
+            {
+                int end = g == 0 ? indexEnd : 1 - indexEnd;
+                var basePoint = (metacarpals[2 * g] + metacarpals[2 * g + 1]) * 0.5;
+                var target = ends[end]; var along = target - basePoint;
+                var across = Vec3.Cross(Vec3.Up, new Vec3(along.X, 0, along.Z)).Normalized * sign;
+                double kink = kinks == null ? 0 : kinks[end];
+                for (int k = 0; k < 2; k++)
+                {
+                    int f = 2 * g + k; var offset = across * (k == 0 ? -0.009 : 0.009);
+                    double[] t = { 1, 0.75, 0.5, 0.25 }; // tip, distal, intermediate, proximal
+                    for (int bone = 0; bone < 4; bone++)
+                        joints[6 + f * 5 + (4 - bone)] = J(basePoint + along * t[bone] + offset * (t[bone] < 1 ? 1 : 0.5) + new Vec3(0, bone == 3 ? kink : 0, 0));
+                    joints[6 + f * 5] = J(metacarpals[f]);
+                }
+            }
+            joints[1] = J(wrist, 0.03); joints[0] = J(wrist + d * 0.02, 0.03);
+            for (int bone = 0; bone < 4; bone++) joints[2 + bone] = J(wrist - lateral * 0.05 + d * (0.01 * bone));
+            return new HandSample(side, joints);
+        }
+
         public HandSample Hand(ValleySimulation game, long tick)
         {
             var session = game.Session;
             if (game.Stage != DirectorStage.Interacting || session == null) return null;
             Attempts.TryGetValue(session.Edge, out int attempt);
             var shape = Plan(game.Puzzle.Kind, session.Edge, attempt);
+            if (session.IsFork) return Forked(session.Source.Centre, session.Destinations.Select(d => d.Centre).ToArray(), Side, tick, Tremor, Kinks?.Invoke(session.Edges.ToArray(), attempt));
             var from = session.Source.Centre; var to = session.Destination.Centre;
             bool level = Math.Abs(from.Y - to.Y) < 1e-9;
             // Level gaps use Sam's S1 fixtures; sloped and arched decks need a shaped hand (see Shaped).
@@ -284,15 +339,21 @@ namespace Palmfolk.Tests
         public void FinaleStaysCompletableWhateverHappenedToABridge(string edge, string kind)
         {
             var progress = BeforeFinale(); Assert.That(progress.CompletedPuzzles, Is.EqualTo(5));
-            var tree = progress.Bridges[edge]; var route = tree.Curves[0];
+            var tree = progress.Bridges[edge];
+            // Every curve of the tree changes the same way; "steep" lifts the leaf's far end.
+            CurveTree Map(Func<Route, bool, Route> change) => new CurveTree(tree.Curves.Select((r, i) => change(r, i == tree.Curves.Count - 1)).ToArray(), tree.Parents.ToArray());
             switch (kind)
             {
                 case "missing": progress.Bridges.Remove(edge); break;
-                case "narrow": progress.Bridges[edge] = CurveTree.Single(new Route(route.CopyPoints(), route.CopyWidths().Select(w => w * 0.3).ToArray(), route.Finger, route.Reversed)); break;
+                case "narrow": progress.Bridges[edge] = Map((r, _) => new Route(r.CopyPoints(), r.CopyWidths().Select(w => w * 0.3).ToArray(), r.Finger, r.Reversed)); break;
                 case "steep":
-                    var points = route.CopyPoints(); points[points.Length - 1] += new Vec3(0, 0.1, 0);
-                    progress.Bridges[edge] = CurveTree.Single(new Route(points, route.CopyWidths(), route.Finger, route.Reversed)); break;
-                case "moved": progress.Bridges[edge] = CurveTree.Single(new Route(route.CopyPoints().Select(p => p + new Vec3(0.05, 0, 0)).ToArray(), route.CopyWidths(), route.Finger, route.Reversed)); break;
+                    progress.Bridges[edge] = Map((r, leaf) =>
+                    {
+                        if (!leaf) return r;
+                        var points = r.CopyPoints(); points[points.Length - 1] += new Vec3(0, 0.1, 0);
+                        return new Route(points, r.CopyWidths(), r.Finger, r.Reversed);
+                    }); break;
+                case "moved": progress.Bridges[edge] = Map((r, _) => new Route(r.CopyPoints().Select(p => p + new Vec3(0.05, 0, 0)).ToArray(), r.CopyWidths(), r.Finger, r.Reversed)); break;
             }
             var (game, player) = Play(6, resume: progress);
             Assert.That(game.IsComplete, Is.True);

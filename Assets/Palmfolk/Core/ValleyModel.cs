@@ -161,6 +161,7 @@ namespace Palmfolk.Core
                     throw new ArgumentException(puzzle.Kind + " edges must start at " + puzzle.TravelerFrom + ".");
             }
             if (Puzzles[0].Edges.Count != 1) throw new ArgumentException("Board carries Pip across one edge.");
+            if (Puzzles[3].Edges.Count < 2 || Puzzles[3].Edges.Count > 4) throw new ArgumentException("The Fork has two to four branches.");
             if (Puzzles[5].Traveler != TravelerKind.Cart || Puzzles[5].Rule != TravelerKind.Cart || Puzzles[5].TravelerFrom != Camp) throw new ArgumentException("The finale is Bram's cart from the camp.");
             string at = Camp;
             foreach (var id in Puzzles[5].Edges)

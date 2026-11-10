@@ -69,6 +69,13 @@ namespace Palmfolk.Core
         void Step(HandFrame frame);
     }
 
+    // What a traveler needs from a deck (the capacity table). Lengths at default world scale.
+    public readonly struct CapacityRule
+    {
+        public readonly double MinimumWidth, MaximumSlopeDegrees, MinimumClearance;
+        public CapacityRule(double minimumWidth, double maximumSlopeDegrees, double minimumClearance)
+        { MinimumWidth = minimumWidth; MaximumSlopeDegrees = maximumSlopeDegrees; MinimumClearance = minimumClearance; }
+    }
     public sealed class GameSettings
     {
         public const int TickRate = 60;
@@ -105,6 +112,15 @@ namespace Palmfolk.Core
         public double MaximumHandScale { get; set; } = 1.3;
         public double WorldScaleAdjustment { get; set; } = 1;
 
+        // The capacity table (Definitions). H1 may change these after the Arch playtest; the rock, span and anchor
+        // heights are valley content. EndRampLength > 0 lets Pip add end ramps: deck within that distance (along the
+        // route) of either anchored end is not slope-checked.
+        public CapacityRule WalkerRule { get; set; } = new CapacityRule(0.01, 35, 0.035);
+        public CapacityRule GroupRule { get; set; } = new CapacityRule(0.025, 25, 0.035);
+        public CapacityRule CartRule { get; set; } = new CapacityRule(0.025, 25, 0.05);
+        public double EndRampLength { get; set; }
+        public CapacityRule Rule(TravelerKind kind) => kind == TravelerKind.Walker ? WalkerRule : kind == TravelerKind.Group ? GroupRule : kind == TravelerKind.Cart ? CartRule : throw new ArgumentException("Unknown traveler.");
+
         public GameSettings Copy() => (GameSettings)MemberwiseClone();
         public void Validate()
         {
@@ -115,6 +131,10 @@ namespace Palmfolk.Core
             if (!Vec3.Finite(PlantMaximumTiltDegrees) || PlantMaximumTiltDegrees <= 0 || PlantMaximumTiltDegrees >= 90 ||
                 !Vec3.Finite(FingerStraightness) || FingerStraightness <= 0 || FingerStraightness > 1 || MinimumHandScale > MaximumHandScale ||
                 !Vec3.Finite(WorldScaleAdjustment) || WorldScaleAdjustment < 0.5 || WorldScaleAdjustment > 2) throw new ArgumentException("Invalid planting or scale settings.");
+            foreach (var rule in new[] { WalkerRule, GroupRule, CartRule })
+                if (!Vec3.Finite(rule.MinimumWidth) || rule.MinimumWidth <= 0 || !Vec3.Finite(rule.MaximumSlopeDegrees) || rule.MaximumSlopeDegrees <= 0 ||
+                    rule.MaximumSlopeDegrees >= 90 || !Vec3.Finite(rule.MinimumClearance) || rule.MinimumClearance < 0) throw new ArgumentException("Invalid capacity rule.");
+            if (!Vec3.Finite(EndRampLength) || EndRampLength < 0 || EndRampLength > 0.05) throw new ArgumentException("Invalid end ramp length.");
             int[] ticks = { ConnectTicks, StillnessTicks, BuildTicks, ScaffoldTicks, RemovalTicks, AlignmentTicks, BlendTicks, RecoveryTicks, ReturnTicks, PlantTicks };
             foreach (int v in ticks) if (v < 1 || v > 36000) throw new ArgumentException("Invalid tick setting.");
         }

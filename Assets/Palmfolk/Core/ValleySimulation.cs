@@ -93,6 +93,9 @@ namespace Palmfolk.Core
         // V3: edges on the needed route that fail their traveler's rules and must be rebuilt.
         public IReadOnlyList<string> FailingEdges { get; private set; } = Array.Empty<string>();
         public IReadOnlyList<string> PendingEdges => pending.AsReadOnly();
+        // A fork branch refused while its siblings were baked (D4): drawn glowing and taken down, until the next interaction.
+        public CurveTree RefusedScaffold { get; private set; }
+        public IReadOnlyList<ValidationFailure> RefusedFailures { get; private set; } = Array.Empty<ValidationFailure>();
         public double LedgeWidth => Valley.Ledge == null ? double.PositiveInfinity : progress.LedgeWidened ? Valley.Ledge.WideWidth : Valley.Ledge.NarrowWidth;
         public double WideningProgress => Valley.Ledge == null ? 1 : progress.LedgeWidened ? 1 : (double)wideningTicks / Valley.Ledge.WideningTicks;
         public bool IsPaused => paused || !hasFocus;
@@ -188,6 +191,7 @@ namespace Palmfolk.Core
         private void BeginPuzzle()
         {
             pending.Clear(); built.Clear(); travelers.Clear(); Session = null; withdrawnObserved = false; FailingEdges = Array.Empty<string>();
+            RefusedScaffold = null; RefusedFailures = Array.Empty<ValidationFailure>();
             if (progress.CompletedPuzzles >= 6) { Stage = DirectorStage.Complete; return; }
             var puzzle = Puzzle;
             if (!announce) Emit(GameEventKind.PuzzleStarted);
@@ -245,16 +249,35 @@ namespace Palmfolk.Core
             var source = edge.AnchorAt(sourceIsland); var destination = edge.AnchorAt(edge.Other(sourceIsland));
             bool carry = puzzle.Kind == PuzzleKind.Board;
             double cap = Valley.Ledge != null && Valley.Ledge.Edge == edge.Id ? LedgeWidth : double.PositiveInfinity;
-            Session = new EdgeSession(edge.Id, carry, source, destination, puzzle.Rule, cap, Pip, settings, Valley.Clearance, Emit);
+            RefusedScaffold = null; RefusedFailures = Array.Empty<ValidationFailure>();
+            Session = ForkSession(cap) ?? new EdgeSession(edge.Id, carry, source, destination, puzzle.Rule, cap, Pip, settings, Valley.Clearance, Emit);
             Stage = DirectorStage.Interacting;
+        }
+
+        // D4: in the Fork puzzle, every open edge from Pip's island is built with one spread hand, when their
+        // source anchors overlap (the root must sit in all of them). Otherwise the edges are built one at a time.
+        private EdgeSession ForkSession(double cap)
+        {
+            if (Puzzle.Kind != PuzzleKind.Fork) return null;
+            var ids = pending.Where(id => Valley.Edge(id).Touches(sourceIsland)).ToArray();
+            if (ids.Length < 2) return null;
+            var sources = ids.Select(id => Valley.Edge(id).AnchorAt(sourceIsland)).ToArray();
+            var destinations = ids.Select(id => { var e = Valley.Edge(id); return e.AnchorAt(e.Other(sourceIsland)); }).ToArray();
+            var centre = Vec3.Zero; foreach (var a in sources) centre += a.Centre; centre = centre * (1.0 / sources.Length);
+            double radius = sources.Min(a => a.Radius - Vec3.Distance(a.Centre, centre));
+            if (radius < 0.005) return null;
+            return new EdgeSession(ids, false, new AnchorZone(centre, radius), sources, destinations, Puzzle.Rule, cap, Pip, settings, Valley.Clearance, Emit);
         }
 
         private void Baked(HandFrame frame)
         {
-            // R4: the old bridge is replaced only now, after the new one passed.
-            progress.Bridges[Session.Edge] = Session.Result;
-            progress.PipIsland = Valley.Edge(Session.Edge).Other(sourceIsland);
-            pending.RemoveAt(0); Session = null;
+            // R4: the old bridge is replaced only now, after the new one passed. A fork stores one tree per edge
+            // (the shared trunk and that edge's branch); refused branches leave their edges open.
+            foreach (var pair in Session.Results) { progress.Bridges[pair.Key] = pair.Value; pending.Remove(pair.Key); }
+            RefusedScaffold = Session.RefusedTree; RefusedFailures = Session.Refusals;
+            // Pip stands at the end of the first branch; if that branch was refused he walks back from there.
+            progress.PipIsland = Session.Results.ContainsKey(Session.Edge) ? Valley.Edge(Session.Edge).Other(sourceIsland) : sourceIsland;
+            Session = null;
             if (Puzzle.Kind == PuzzleKind.Finale) FailingEdges = FailingEdges.Where(pending.Contains).ToList().AsReadOnly();
             if (pending.Count > 0) { NextEdge(); return; }
             Stage = DirectorStage.AwaitingWithdrawal;

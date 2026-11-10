@@ -5,46 +5,77 @@ namespace Palmfolk.Core
 {
     public enum SessionResult { Continue, Carried, Baked }
 
-    // One hand interaction across one gap: Board's carry, or building a bridge. This is M1's hand loop
-    // (T2 connection, T3 build, T4 validation, T5 recovery) with the anchors, the rules and the width cap
-    // supplied by the valley instead of fixed. Positions are valley-local.
+    // One hand interaction: Board's carry, a bridge across one gap, or (D4) a fork across several gaps from one
+    // island. This is M1's hand loop (T2 connection, T3 build, T4 validation, T5 recovery) with the anchors, the
+    // rules and the width cap supplied by the valley. Positions are valley-local.
+    //
+    // A fork is a trunk from the wrist with one branch per destination. Each branch is judged with the trunk on its
+    // own (T4 "per branch"): branches that pass are baked, branches that fail are refused and their edges stay open.
     public sealed class EdgeSession
     {
         private readonly GameSettings settings;
         private readonly IClearanceField clearance;
         private readonly Action<GameEventKind> emit;
         private readonly HandFilter leftFilter = new HandFilter(), rightFilter = new HandFilter();
-        private readonly ConnectionWatcher leftContact = new ConnectionWatcher(), rightContact = new ConnectionWatcher(), destinationContact = new ConnectionWatcher();
+        private readonly ConnectionWatcher leftContact = new ConnectionWatcher(), rightContact = new ConnectionWatcher();
+        private readonly ConnectionWatcher[] destinationContacts;
         private readonly StillnessWatcher stillness;
         private readonly WidthWatcher width = new WidthWatcher();
+        private readonly string[] edges;
+        private readonly AnchorZone[] sources, destinations;
         private Route activeRoute;
+        private CurveTree activeTree;
+        private ForkLayout layout, leftLayout, rightLayout;
         private RouteCursor cursor;
         private bool attached, transferring;
+        private Dictionary<string, CurveTree> results = new Dictionary<string, CurveTree>();
 
-        public string Edge { get; }
+        public string Edge => edges[0];
+        public IReadOnlyList<string> Edges => edges;
         public bool Carry { get; }
+        public bool IsFork => edges.Length > 1;
+        // Where the hand's root must connect. For a fork, the part shared by every edge's source anchor.
         public AnchorZone Source { get; }
-        public AnchorZone Destination { get; }
+        public AnchorZone Destination => destinations[0];
+        public IReadOnlyList<AnchorZone> Destinations => destinations;
         public TravelerKind Rule { get; }
         public double WidthCap { get; }
         public HandSide? Owner { get; private set; }
         public Vec3 Pip { get; private set; }
-        public BridgeBuild Build { get; private set; }
+        public TreeBuild Build { get; private set; }
         public Recovery Recovery { get; private set; }
+        // The live route the hand loop follows (for a fork: the trunk and the first branch).
         public Route ActiveRoute => activeRoute;
+        // The live shape: one curve, or the fork's trunk and branches.
+        public CurveTree ActiveTree => activeTree;
         public WidthTier RouteTier => width.Tier;
+        // Failures from the last validation. Curve indices refer to RefusedTree (for a fork: 0 trunk, k+1 branch k).
         public IReadOnlyList<ValidationFailure> Refusals { get; private set; } = Array.Empty<ValidationFailure>();
-        // The baked bridge, set on the tick Step returns Baked.
-        public CurveTree Result { get; private set; }
+        public CurveTree RefusedTree { get; private set; }
+        // Edges whose branch was refused in the last validation.
+        public IReadOnlyList<string> RefusedEdges { get; private set; } = Array.Empty<string>();
+        // Set on the tick Step returns Baked: the new bridge for each edge that passed. Fork bridges share their trunk.
+        public IReadOnlyDictionary<string, CurveTree> Results => results;
+        public CurveTree Result => results.TryGetValue(Edge, out var tree) ? tree : null;
 
         public EdgeSession(string edge, bool carry, AnchorZone source, AnchorZone destination, TravelerKind rule, double widthCap,
             Vec3 pip, GameSettings settings, IClearanceField clearance, Action<GameEventKind> emit)
+            : this(new[] { edge }, carry, source, new[] { source }, new[] { destination }, rule, widthCap, pip, settings, clearance, emit) { }
+
+        public EdgeSession(string[] edges, bool carry, AnchorZone source, AnchorZone[] sources, AnchorZone[] destinations, TravelerKind rule,
+            double widthCap, Vec3 pip, GameSettings settings, IClearanceField clearance, Action<GameEventKind> emit)
         {
-            if (string.IsNullOrWhiteSpace(edge) || !Enum.IsDefined(typeof(TravelerKind), rule) || !(widthCap > 0) || !pip.IsFinite) throw new ArgumentException("Invalid edge session.");
+            if (edges == null || sources == null || destinations == null || edges.Length == 0 || edges.Length > 4 || sources.Length != edges.Length ||
+                destinations.Length != edges.Length || (carry && edges.Length > 1) || !Enum.IsDefined(typeof(TravelerKind), rule) || !(widthCap > 0) || !pip.IsFinite)
+                throw new ArgumentException("Invalid edge session.");
+            foreach (var id in edges) if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("Invalid edge session.");
             this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
             this.clearance = clearance ?? throw new ArgumentNullException(nameof(clearance));
             this.emit = emit ?? throw new ArgumentNullException(nameof(emit));
-            Edge = edge; Carry = carry; Source = source; Destination = destination; Rule = rule; WidthCap = widthCap; Pip = pip;
+            this.edges = (string[])edges.Clone(); this.sources = (AnchorZone[])sources.Clone(); this.destinations = (AnchorZone[])destinations.Clone();
+            Carry = carry; Source = source; Rule = rule; WidthCap = widthCap; Pip = pip;
+            destinationContacts = new ConnectionWatcher[edges.Length];
+            for (int i = 0; i < edges.Length; i++) destinationContacts[i] = new ConnectionWatcher();
             stillness = new StillnessWatcher(settings.StillnessTicks);
         }
 
@@ -57,23 +88,45 @@ namespace Palmfolk.Core
         // Controllers in hand before anyone owns Pip (E19): nothing connects.
         public void HoldForControllers() { leftContact.Reset(); rightContact.Reset(); }
 
+        // The hand read with the owner's fixed topology (finger and direction, or fork layout).
+        private CurveTree Read(HandSample hand, out Route spine)
+        {
+            spine = null;
+            if (hand == null || activeRoute == null) return null;
+            if (layout == null)
+            {
+                spine = HandRoutes.Create(hand, activeRoute.Finger, activeRoute.Reversed, settings);
+                return spine == null ? null : CurveTree.Single(spine);
+            }
+            var tree = HandRoutes.Fork(hand, layout, settings);
+            if (tree != null) spine = HandRoutes.Spine(tree);
+            return tree;
+        }
+        private uint RequiredMask()
+        {
+            if (layout == null) return HandRoutes.RequiredJointMask(activeRoute.Finger);
+            uint mask = 0; foreach (var branch in layout.Branches) foreach (int f in branch) mask |= HandRoutes.RequiredJointMask(f);
+            return mask;
+        }
+
         public SessionResult Step(HandFrame frame, double stillnessThreshold)
         {
             var left = leftFilter.Step(frame.Left, settings); var right = rightFilter.Step(frame.Right, settings);
             var hand = Owner == HandSide.Left ? left : right;
-            Route live = Owner.HasValue && activeRoute != null ? HandRoutes.Create(hand, activeRoute.Finger, activeRoute.Reversed, settings) : null;
+            CurveTree liveTree = null; Route live = null;
+            if (Owner.HasValue && activeRoute != null) liveTree = Read(hand, out live);
             if (Owner.HasValue)
             {
                 // Test raw data too: smoothing must not make a returning hand look aligned for a tick.
                 var rawHand = frame.Hand(Owner.Value);
-                var raw = HandRoutes.Create(rawHand, activeRoute.Finger, activeRoute.Reversed, settings);
-                bool poorTracking = rawHand == null || (rawHand.InvalidMask & HandRoutes.RequiredJointMask(activeRoute.Finger)) != 0;
+                Read(rawHand, out var raw);
+                bool poorTracking = rawHand == null || (rawHand.InvalidMask & RequiredMask()) != 0;
                 if (raw == null && Recovery == null) BeginRecovery(poorTracking);
                 if (Recovery != null)
                 {
                     var previous = Recovery.Phase;
                     var aligned = live != null && Recovery.Ghost.Difference(live) < settings.ConnectDistance ? raw : null;
-                    Vec3 support = live == null ? Pip : (Build != null && !Carry ? Build.BuilderPosition(live) : live.Evaluate(cursor));
+                    Vec3 support = live == null ? Pip : (Build != null && !Carry ? Build.BuilderPosition(liveTree) : live.Evaluate(cursor));
                     Recovery.Step(aligned, support); Pip = Recovery.Position;
                     if (Build != null) Build.Step(null, false, false);
                     if (previous != Recovery.Phase && Recovery.Phase == RecoveryPhase.Blending) emit(GameEventKind.RecoveryAligned);
@@ -82,7 +135,7 @@ namespace Palmfolk.Core
                     else if (Recovery.Phase == RecoveryPhase.Returned) { Pip = Source.Centre; transferring = false; ReleaseHand(); Recovery = null; }
                     return SessionResult.Continue;
                 }
-                if (live != null) { activeRoute = live; width.Step(live.MinimumWidth); }
+                if (live != null) { activeRoute = live; activeTree = liveTree; width.Step(MinimumWidth(liveTree)); }
             }
             if (transferring)
             {
@@ -111,43 +164,67 @@ namespace Palmfolk.Core
             return Carry ? StepCarry() : StepBuild(stillnessThreshold);
         }
 
+        private static double MinimumWidth(CurveTree tree)
+        {
+            double w = double.PositiveInfinity; foreach (var c in tree.Curves) w = Math.Min(w, c.MinimumWidth); return w;
+        }
+
         private void Acquire(HandSample left, HandSample right)
         {
-            var a = HandRoutes.Best(left, Source.Centre, Destination.Centre, settings); var b = HandRoutes.Best(right, Source.Centre, Destination.Centre, settings);
+            CurveTree ta, tb; Route a, b;
+            if (IsFork)
+            {
+                var ends = new Vec3[destinations.Length]; for (int i = 0; i < ends.Length; i++) ends[i] = destinations[i].Centre;
+                ta = HandRoutes.BestFork(left, Source.Centre, ends, settings, out leftLayout); tb = HandRoutes.BestFork(right, Source.Centre, ends, settings, out rightLayout);
+                a = ta == null ? null : HandRoutes.Spine(ta); b = tb == null ? null : HandRoutes.Spine(tb);
+            }
+            else
+            {
+                a = HandRoutes.Best(left, Source.Centre, Destination.Centre, settings); b = HandRoutes.Best(right, Source.Centre, Destination.Centre, settings);
+                ta = a == null ? null : CurveTree.Single(a); tb = b == null ? null : CurveTree.Single(b);
+            }
             double da = a == null ? double.PositiveInfinity : Source.ConnectionDistance(a.Start, settings);
             double db = b == null ? double.PositiveInfinity : Source.ConnectionDistance(b.Start, settings);
             leftContact.Step(da, a != null, settings); rightContact.Step(db, b != null, settings);
             if (!leftContact.Connected && !rightContact.Connected) return;
             bool chooseLeft = leftContact.Connected && (!rightContact.Connected || da <= db);
-            Owner = chooseLeft ? HandSide.Left : HandSide.Right; activeRoute = chooseLeft ? a : b;
-            width.Step(activeRoute.MinimumWidth);
-            cursor = new RouteCursor(0, 0); attached = false; stillness.Reset(); destinationContact.Reset();
+            Owner = chooseLeft ? HandSide.Left : HandSide.Right; activeRoute = chooseLeft ? a : b; activeTree = chooseLeft ? ta : tb;
+            layout = IsFork ? (chooseLeft ? leftLayout : rightLayout) : null;
+            width.Step(MinimumWidth(activeTree));
+            cursor = new RouteCursor(0, 0); attached = false; stillness.Reset(); foreach (var c in destinationContacts) c.Reset();
         }
 
         private SessionResult StepCarry()
         {
             double distance = Destination.ConnectionDistance(activeRoute.End, settings);
-            destinationContact.Step(distance, true, settings);
+            destinationContacts[0].Step(distance, true, settings);
             cursor = activeRoute.Advance(cursor, settings.TravelerSpeed * GameSettings.Delta);
             Pip = activeRoute.Evaluate(cursor);
-            if (activeRoute.AtEnd(cursor) && destinationContact.Connected && distance < settings.ConnectDistance) transferring = true;
+            if (activeRoute.AtEnd(cursor) && destinationContacts[0].Connected && distance < settings.ConnectDistance) transferring = true;
             return SessionResult.Continue;
         }
 
         private SessionResult StepBuild(double stillnessThreshold)
         {
-            bool still = stillness.Step(activeRoute.Reversed ? activeRoute.End : activeRoute.Start, stillnessThreshold);
+            // Stillness is read at the fingertip end (a fork: the first branch's tip).
+            bool still = stillness.Step(IsFork ? activeRoute.End : activeRoute.Reversed ? activeRoute.End : activeRoute.Start, stillnessThreshold);
             var sourceContact = Owner == HandSide.Left ? leftContact : rightContact;
-            sourceContact.Step(Source.ConnectionDistance(activeRoute.Start, settings), true, settings);
-            destinationContact.Step(Destination.ConnectionDistance(activeRoute.End, settings), true, settings);
-            bool connected = sourceContact.Connected && destinationContact.Connected;
+            sourceContact.Step(Source.ConnectionDistance(activeTree.Curves[0].Start, settings), true, settings);
+            bool connected = sourceContact.Connected;
+            for (int i = 0; i < destinations.Length; i++)
+            {
+                var end = IsFork ? activeTree.Curves[i + 1].End : activeRoute.End;
+                destinationContacts[i].Step(destinations[i].ConnectionDistance(end, settings), true, settings);
+                connected &= destinationContacts[i].Connected;
+            }
             if (Build == null)
             {
                 if (!connected || !still) return SessionResult.Continue;
-                Build = new BridgeBuild(activeRoute, settings); Refusals = Array.Empty<ValidationFailure>(); emit(GameEventKind.BuildStarted);
+                Build = new TreeBuild(activeTree, settings); Refusals = Array.Empty<ValidationFailure>(); RefusedTree = null; RefusedEdges = Array.Empty<string>();
+                emit(GameEventKind.BuildStarted);
             }
             var phase = Build.Phase; int sections = Build.FrozenSections;
-            Build.Step(activeRoute, connected, still);
+            Build.Step(activeTree, connected, still);
             if (Build.Phase == BuildPhase.Paused && phase != BuildPhase.Paused) emit(GameEventKind.BuildPaused);
             if (Build.FrozenSections > sections) emit(GameEventKind.SectionCommitted);
             if (Build.Phase == BuildPhase.Removing)
@@ -157,19 +234,35 @@ namespace Palmfolk.Core
             }
             if (Build.Phase == BuildPhase.Building || Build.Phase == BuildPhase.Complete)
             {
-                Pip = Build.BuilderPosition(activeRoute);
+                Pip = Build.BuilderPosition(activeTree);
                 double parameter = Build.Progress * (activeRoute.Points.Count - 1); int segment = Math.Min(activeRoute.Points.Count - 2, (int)parameter);
                 cursor = new RouteCursor(segment, parameter - segment);
             }
             if (Build.Phase != BuildPhase.Complete) return SessionResult.Continue;
-            var tree = CurveTree.Single(Cap(Build.FrozenRoute(), WidthCap));
-            Refusals = BridgeValidator.Validate(tree, Source, new[] { Destination }, Rule, settings, clearance);
-            if (Refusals.Count > 0)
+            return Judge(Cap(Build.FrozenTree(), WidthCap));
+        }
+
+        // T4: validate each branch with the trunk, against its own anchors.
+        private SessionResult Judge(CurveTree tree)
+        {
+            var failures = new List<ValidationFailure>(); var refused = new List<string>(); results = new Dictionary<string, CurveTree>();
+            for (int k = 0; k < edges.Length; k++)
+            {
+                var walk = IsFork ? new CurveTree(new[] { tree.Curves[0], tree.Curves[k + 1] }, new[] { -1, 0 }) : tree;
+                var found = BridgeValidator.Validate(walk, sources[k], new[] { destinations[k] }, Rule, settings, clearance);
+                if (found.Count == 0) { results[edges[k]] = walk; continue; }
+                refused.Add(edges[k]);
+                foreach (var f in found) failures.Add(new ValidationFailure(f.Reason, IsFork && f.Curve == 1 ? k + 1 : f.Curve, f.Segment));
+            }
+            Refusals = failures.AsReadOnly(); RefusedEdges = refused.AsReadOnly(); RefusedTree = refused.Count > 0 ? tree : null;
+            if (results.Count == 0)
             {
                 Build.Remove(); BeginRecovery(false); Recovery.ReturnToCheckpoint(); emit(GameEventKind.Refused); emit(GameEventKind.ReturningToCheckpoint);
                 return SessionResult.Continue;
             }
-            Result = tree; Build = null; emit(GameEventKind.BridgeBaked); ReleaseHand();
+            // Some branches passed: they stay; a refused branch is taken down by the views from RefusedTree.
+            if (refused.Count > 0) emit(GameEventKind.Refused);
+            Build = null; emit(GameEventKind.BridgeBaked); ReleaseHand();
             return SessionResult.Baked;
         }
 
@@ -181,6 +274,13 @@ namespace Palmfolk.Core
             for (int i = 0; i < widths.Length; i++) if (widths[i] > widthCap) { widths[i] = widthCap; changed = true; }
             return changed ? new Route(route.CopyPoints(), widths, route.Finger, route.Reversed) : route;
         }
+        public static CurveTree Cap(CurveTree tree, double widthCap)
+        {
+            if (double.IsPositiveInfinity(widthCap)) return tree;
+            var curves = new Route[tree.Curves.Count]; var parents = new int[curves.Length];
+            for (int i = 0; i < curves.Length; i++) { curves[i] = Cap(tree.Curves[i], widthCap); parents[i] = tree.Parents[i]; }
+            return new CurveTree(curves, parents);
+        }
 
         private void BeginRecovery(bool trackingLost)
         {
@@ -190,7 +290,8 @@ namespace Palmfolk.Core
         }
         private void ReleaseHand()
         {
-            Owner = null; attached = false; activeRoute = null; leftContact.Reset(); rightContact.Reset(); destinationContact.Reset(); stillness.Reset();
+            Owner = null; attached = false; activeRoute = null; activeTree = null; layout = null;
+            leftContact.Reset(); rightContact.Reset(); foreach (var c in destinationContacts) c.Reset(); stillness.Reset();
             emit(GameEventKind.HandReleased);
         }
         internal static Vec3 MoveTowards(Vec3 from, Vec3 to, double distance) => Vec3.Distance(from, to) <= distance ? to : from + (to - from).Normalized * distance;

@@ -118,15 +118,41 @@ The finale first has Pip walk to the ledge and widen it (`Widening`, `WideningPr
 against the cart's rules (V3). Edges that fail, are missing or were damaged in a save are in `FailingEdges` and
 are rebuilt; edges off the route are never asked for. Bram then crosses each bridge on the route.
 
-`Check(route, kind)` and `Passes(edge, kind)` validate stored bridges. Fork in D3 is two single-curve edges built
-in turn; branching curve trees come with D4. `M1Simulation` stays for the M1 slice.
+`Check(route, kind)` and `Passes(edge, kind)` validate stored bridges. `M1Simulation` stays for the M1 slice.
+
+### Forks and arches (D4)
+
+- **Fork shape (`HandRoutes.BestFork`, `Fork`, `Clusters`).** Index to little fingers are grouped into surfaces:
+  neighbours with a gap under 1 cm merge. A fork is a curve tree: a trunk from the wrist to a junction at the
+  metacarpal joints (width: the branches' widths added), then one branch per destination from the junction through
+  the knuckle to the fingertips of one surface. Fingers not aimed at a destination aren't built. `ForkLayout` fixes
+  which fingers make each branch when the hand is first read; fingers merging or splitting later is a shape change
+  (the build pauses, T3).
+- **Fork puzzle.** When the Fork's open edges from Pip's island have source anchors that overlap, one `EdgeSession`
+  builds them all (`IsFork`, `Edges`, `Destinations`, `ActiveTree`). Content should give the Fork's edges one shared
+  anchor; if the anchors don't overlap by at least 5 mm, the edges are built one at a time.
+- **Building a tree (`TreeBuild`, now `EdgeSession.Build`).** One curve builds exactly as before. A fork builds its
+  trunk first, then all branches at once from the frozen junction, in `BuildTicks` overall. `FrozenTree()` is the
+  scaffold; `FrozenRoute()` is the trunk plus the first branch.
+- **Per-branch judgement (T4).** Each branch is validated with the trunk against its own anchors. Branches that
+  pass are baked; each edge stores the trunk plus its branch, and the edges of one fork share the same trunk `Route`
+  object (draw it once). A refused branch's edge stays open and is built next on its own. The refused scaffold is
+  `ValleySimulation.RefusedScaffold` with `RefusedFailures` (curve 0 trunk, k+1 branch k) until the next
+  interaction starts: glow the failing branch, then take it down.
+- **Validation.** Width, slope and clearance are checked per segment of every curve; the maximum length counts the
+  walk from the root to each leaf.
+- **Arch and H1.** The capacity table is in `GameSettings` (`WalkerRule`, `GroupRule`, `CartRule`: minimum width,
+  maximum slope, minimum clearance) with `EndRampLength` (0 = no end ramps; otherwise deck within that distance of
+  an anchored end isn't slope-checked). The rock, span and anchor heights are valley content. Clearance is judged
+  on the deck geometry only, so any hand shape that clears the rock passes (I7).
 
 ### `ValleyPresentation`
 
 What the views draw for a valley game: `new ValleyPresentation(palmfolkGame, alpha)` (or from a
 `ValleySimulation`). Fields: `Puzzle`, `PuzzleIndex`, `Stage`, `Complete`, `Pip`, `Bram`, `Travelers` (`Kind`,
 `Destination`, `Position`, `Arrived`), `Bridges` by edge id, `FailingEdges` (glow, V3), `ActiveEdge`, `Source`,
-`Destination` (anchor zones), `Rule`, `LedgeWidth`, `WideningProgress`, then the M1 hand and build fields
+`Destination` (anchor zones), `Rule`, `LedgeWidth`, `WideningProgress`, `ActiveEdges`, `HandTree`, `ScaffoldTree`,
+`RefusedScaffold` (D4), then the M1 hand and build fields
 (`HandOwner`, `FilteredHandRoute`, `GhostRoute`, `Scaffold`, `BuildPhase`, `BuildProgress`,
 `ScaffoldRemovalProgress`, `RouteTier`, `Refusals`), the E19 fields, and the planting fields (`PlantingStage`,
 `Pose`, `PlantProgress`, `PlantingHand`). `WorldPresentation(PalmfolkGame)` throws for a valley game.
@@ -170,3 +196,10 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   `ValleyPresentation`, `TravelerView`; `ObstacleField` (split from `LevelGeometry`, which uses it); the zone
   overload of `BridgeValidator.Validate` and `BridgeValidator.MinimumWidth`; `PalmfolkGame.Simulation` and
   `Valley`; the events above. `PalmfolkGame.Puzzle` is `null` for a valley game. Nothing removed or renamed.
+- **D4, Nov 10.** Added `ForkLayout`, `HandRoutes.Clusters`, `BestFork`, `Fork`, `Spine`; `TreeBuild`;
+  `CapacityRule`, `GameSettings.WalkerRule`, `GroupRule`, `CartRule`, `Rule(kind)`, `EndRampLength`;
+  `EdgeSession.Edges`, `Destinations`, `IsFork`, `ActiveTree`, `Results`, `RefusedTree`, `RefusedEdges`, the fork
+  constructor and `Cap(CurveTree, cap)`; `ValleySimulation.RefusedScaffold` and `RefusedFailures`; the
+  `ValleyPresentation` fields above. Changed: `EdgeSession.Build` is a `TreeBuild` (same `Phase`, `Progress`,
+  `RemovalProgress`, `FrozenRoute()`); `MaximumRouteLength` counts root to leaf. `ValleySpec` now requires two to four
+  Fork edges.

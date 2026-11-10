@@ -37,9 +37,19 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   20 V3 cases (each side and route bridge missing, narrowed, steepened or moved in a save) all finishing with three
   crossings. Verified in the Unity editor (batch mode): compiles, 135 EditMode tests pass (after rebasing on Sam's latest). Not verified on a headset.
 
+- **D4, Nov 10.** Fork and Arch geometry. A spread hand becomes a branching curve tree (fingers less than 1 cm
+  apart merge into one surface); the Fork puzzle builds both lookouts with one hand, judges each branch with the
+  trunk on its own, bakes the branches that pass and leaves a refused branch's lookout open. The capacity table and
+  end ramps are settings for H1. Verified headless after rebasing on Sam's latest: 153 developer-mode and 145 release-mode tests pass, including
+  Sam's flat and spread fixtures grouping into one and four surfaces, a fork from either hand, one steep branch
+  refused while the other is baked and then rebuilt alone, fingers closing mid-build pausing the fork, and 3000
+  random decks across the Arch gap where every deck that clears the rock (checked by dense sampling, near misses
+  under 2 mm skipped) passes and every blocked one is refused. Verified in the Unity editor (batch mode): compiles,
+  160 EditMode tests pass. Not verified on a headset.
+
 ## Next
 
-- D4, waiting for the owner.
+- D5, Save v2.
 
 ## Notes for later items
 
@@ -48,7 +58,10 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   hands for the Fork and the Arch. If Curved is meant to pass, its first bend needs to be a little flatter.
 - The rock's size in the D3 tests (1.6 cm square, 3.5 cm tall, centred in the C to E gap) is a test choice;
   H1 and Sam's content set the real one.
-- Fork builds two single-curve edges in turn; a branching bridge (one hand, two lookouts) is D4.
+- For Sam and H1: from C, the two lookouts are about 68 degrees apart. That is a wide spread for one hand;
+  the D4 tests use synthetic hands. Fork edges need one shared source anchor on C (see `core-api.md`); the
+  candidate layout's rim anchors facing each lookout are 2 cm apart, which leaves a shared zone only about
+  1 cm across for the wrist.
 
 - The M1 slice still sits at the palm (valley origin). A valley game uses Sam's layout around the palm.
 - `RecordedRun` still records valley-local M1 frames. Recording world frames through `PalmfolkGame` needs a
