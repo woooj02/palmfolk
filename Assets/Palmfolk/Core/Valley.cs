@@ -117,6 +117,13 @@ namespace Palmfolk.Core
         // 0 to 1 over the resting second (PlantTicks speed samples need PlantTicks + 1 positions).
         public double Progress => Math.Min(1, restTicks / (double)(settings.PlantTicks + 1));
 
+        // A4: the player's world-scale setting, used from the next planting.
+        public void SetWorldScale(double adjustment)
+        {
+            if (!Vec3.Finite(adjustment) || adjustment < 0.5 || adjustment > 2) throw new ArgumentOutOfRangeException(nameof(adjustment));
+            settings.WorldScaleAdjustment = adjustment;
+        }
+        public double WorldScale => settings.WorldScaleAdjustment;
         public PlantingDetector(GameSettings settings = null)
         {
             this.settings = (settings ?? new GameSettings()).Copy(); this.settings.Validate();

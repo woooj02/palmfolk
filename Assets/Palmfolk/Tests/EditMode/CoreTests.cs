@@ -355,7 +355,7 @@ namespace Palmfolk.Tests
                 var storage = new DirectorySaveStorage(path); var repository = new SaveRepository(storage); var game = new M1Simulation(Synthetic.Level);
                 repository.Save(game.Capture()); Synthetic.Step(game, Synthetic.Hand(), count: 20); repository.Save(game.Capture());
                 File.WriteAllBytes(Path.Combine(path, "save-b.bin"), new byte[] { 1, 2 });
-                Assert.That(repository.Load(out var state), Is.EqualTo(SaveLoadStatus.RecoveredBackup)); Assert.That(state.Tick, Is.EqualTo(-1));
+                Assert.That(repository.Load(out M1Snapshot state), Is.EqualTo(SaveLoadStatus.RecoveredBackup)); Assert.That(state.Tick, Is.EqualTo(-1));
             }
             finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
         }
@@ -367,7 +367,7 @@ namespace Palmfolk.Tests
                 var repository = new SaveRepository(new DirectorySaveStorage(path)); var game = new M1Simulation(Synthetic.Level);
                 repository.Save(game.Capture()); Synthetic.Step(game, count: 10); repository.Save(game.Capture());
                 var file = Path.Combine(path, "save-a.bin"); var bytes = File.ReadAllBytes(file); bytes[0] = 127; File.WriteAllBytes(file, bytes);
-                Assert.That(repository.Load(out var state), Is.EqualTo(SaveLoadStatus.RecoveredBackup)); Assert.That(state.Tick, Is.EqualTo(9));
+                Assert.That(repository.Load(out M1Snapshot state), Is.EqualTo(SaveLoadStatus.RecoveredBackup)); Assert.That(state.Tick, Is.EqualTo(9));
             }
             finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
         }
@@ -379,7 +379,7 @@ namespace Palmfolk.Tests
                 var repository = new SaveRepository(new DirectorySaveStorage(path)); var game = new M1Simulation(Synthetic.Level);
                 repository.Save(game.Capture()); Synthetic.Step(game, count: 5); repository.Save(game.Capture());
                 Synthetic.Step(game, count: 5); repository.Save(game.Capture());
-                Assert.That(repository.Load(out var state), Is.EqualTo(SaveLoadStatus.Loaded)); Assert.That(state.Tick, Is.EqualTo(9));
+                Assert.That(repository.Load(out M1Snapshot state), Is.EqualTo(SaveLoadStatus.Loaded)); Assert.That(state.Tick, Is.EqualTo(9));
             }
             finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
         }

@@ -150,7 +150,7 @@ namespace Palmfolk.Core
             }
             if (!Owner.HasValue) Acquire(left, right);
             if (!Owner.HasValue || activeRoute == null) return SessionResult.Continue;
-            if (frame.Command == InputCommand.CancelBuild || frame.Command == InputCommand.StartElsewhere)
+            if (frame.Command == InputCommand.CancelBuild || frame.Command == InputCommand.StartElsewhere || frame.Command == InputCommand.Restart)
             {
                 Build?.Remove(); BeginRecovery(false); Recovery.ReturnToCheckpoint(); emit(GameEventKind.ScaffoldRemoving); emit(GameEventKind.ReturningToCheckpoint);
                 return SessionResult.Continue;

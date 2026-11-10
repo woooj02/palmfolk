@@ -29,6 +29,33 @@ namespace Palmfolk.Core
 
         public PalmfolkGame(LevelGeometry level, GameSettings settings = null) : this(new M1Simulation(level, settings), settings) { }
         public PalmfolkGame(ValleySpec valley, GameSettings settings = null, ValleyProgress resume = null) : this(new ValleySimulation(valley, settings, resume), settings) { }
+        // Resume at a known pose (a found spatial anchor, or VR mode's saved pose): play starts without planting.
+        public PalmfolkGame(ValleySpec valley, ValleyPose pose, GameSettings settings = null, ValleyProgress resume = null) : this(valley, settings, resume)
+        {
+            Pose = pose ?? throw new ArgumentNullException(nameof(pose)); Stage = ValleyStage.Playing;
+        }
+        // Opens a save (D5): the valley's progress, the player's settings, and the pose if one is given.
+        public static PalmfolkGame Open(ValleySpec valley, SaveData save, ValleyPose pose = null, GameSettings settings = null)
+        {
+            var applied = (save?.Settings ?? new PlayerSettings()).Apply(settings);
+            return pose == null ? new PalmfolkGame(valley, applied, save?.Valley) : new PalmfolkGame(valley, pose, applied, save?.Valley);
+        }
+        // What to save now. Mode and anchor belong to the platform; they're carried over from `previous`.
+        public SaveData Capture(PlayerSettings player, SaveData previous = null) => new SaveData
+        {
+            Valley = Valley?.Progress ?? previous?.Valley, M1 = Puzzle?.Capture() ?? previous?.M1, Pose = Pose ?? previous?.Pose,
+            Mode = previous?.Mode ?? PlayMode.Table, AnchorId = previous?.AnchorId, Settings = (player ?? previous?.Settings ?? new PlayerSettings()).Copy()
+        };
+        // Applies the player's settings now: stillness tolerance at once, world scale by rescaling the valley about its
+        // origin (bridges are valley-local, so nothing moves relative to the valley).
+        public void Apply(PlayerSettings player)
+        {
+            if (player == null) throw new ArgumentNullException(nameof(player));
+            player.Validate();
+            Valley?.SetStillnessTolerance(player.StillnessToleranceStep); Puzzle?.SetStillnessTolerance(player.StillnessToleranceStep);
+            double before = Planting.WorldScale; Planting.SetWorldScale(player.WorldScale);
+            if (Pose != null && player.WorldScale != before) Pose = new ValleyPose(Pose.Origin, Pose.Forward, Pose.Scale * player.WorldScale / before);
+        }
         private PalmfolkGame(ITickSimulation simulation, GameSettings settings)
         {
             Simulation = simulation;

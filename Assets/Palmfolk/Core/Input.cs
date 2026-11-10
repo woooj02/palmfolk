@@ -44,7 +44,8 @@ namespace Palmfolk.Core
             get { uint mask = 0; for (int i = 0; i < 26; i++) if (!joints[i].Usable) mask |= 1u << i; return mask; }
         }
     }
-    public enum InputCommand { None, Pause, Resume, CancelBuild, StartElsewhere, Replant }
+    // Restart (D5): take the current scaffold down and return Pip to his island; bridges stay. RingBell: call the next visitor (D8).
+    public enum InputCommand { None, Pause, Resume, CancelBuild, StartElsewhere, Replant, Restart, RingBell }
     public sealed class HandFrame
     {
         public long Tick { get; }

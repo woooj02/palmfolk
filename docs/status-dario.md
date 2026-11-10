@@ -47,9 +47,19 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   under 2 mm skipped) passes and every blocked one is refused. Verified in the Unity editor (batch mode): compiles,
   160 EditMode tests pass. Not verified on a headset.
 
+- **D5, Nov 10.** Save v2. The save holds every bridge's curve tree in valley space, the ledge, the visitor
+  fields D8 will fill, mode, anchor id, last pose and the player's settings; version 1 saves load as the M1 slice
+  and are rewritten as version 2. `PalmfolkGame` opens a save with or without a pose, captures one, and applies
+  settings. `Restart` takes the scaffold down and keeps the bridges. Verified headless: 163 developer-mode and 155
+  release-mode tests pass, including a full valley with fork trees round-tripping bit for bit, a v1 slot file
+  migrating through the repository, 400 random bit flips and six truncations all rejected, quitting during the
+  Fork (one branch baked) and finishing after reloading from disk, a save made in Table mode opening in VR, and a
+  save from other content dropping edges it doesn't know. Verified in the Unity editor (batch mode): compiles,
+  170 EditMode tests pass. Not verified on a headset.
+
 ## Next
 
-- D5, Save v2.
+- D6, live input and the clock.
 
 ## Notes for later items
 
@@ -66,8 +76,8 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
 - The M1 slice still sits at the palm (valley origin). A valley game uses Sam's layout around the palm.
 - `RecordedRun` still records valley-local M1 frames. Recording world frames through `PalmfolkGame` needs a
   recording format version bump; planned with the replay work.
-- Saving the pose (and the Table mode anchor, MR2/MR3) is not done; bridges are already valley-local, so a save
-  only needs to add the pose.
+- For Sam (S4): the settings, restart and bell commands are in `core-api.md` (Saves). Mode switching, quit and
+  finding the anchor are platform work (D9); the save keeps `Mode` and `AnchorId` for it.
 - Defaults to check on the headset (H2): reference hand length 18 cm, scale clamp 0.75 to 1.3, palm half
   thickness 1.5 cm, and whether a 20 degree tilt limit is right on a lap.
 

@@ -4,7 +4,8 @@ using System.Security.Cryptography;
 
 namespace Palmfolk.Core
 {
-    public static class SaveCodec
+    // Version 1: the M1 slice snapshot (Encode/Decode, also embedded in recordings). Version 2: SaveData (SaveData.cs).
+    public static partial class SaveCodec
     {
         private const int Magic = 0x50464B31;
         public const int Version = 1;
@@ -140,7 +141,7 @@ namespace Palmfolk.Core
     {
         private readonly ISaveStorage storage;
         public SaveRepository(ISaveStorage storage) { this.storage = storage ?? throw new ArgumentNullException(nameof(storage)); }
-        private bool Read(string slot, out long generation, out M1Snapshot state, out bool exists)
+        private bool Read(string slot, out long generation, out SaveData state, out bool exists)
         {
             generation = -1; state = null; byte[] data = storage.Read(slot); exists = data != null;
             if (!exists || data.Length < 40) return false;
@@ -155,26 +156,38 @@ namespace Palmfolk.Core
                 using (var stream = new MemoryStream(data, false)) using (var reader = new BinaryReader(stream))
                 {
                     generation = reader.ReadInt64(); if (generation < 0) return false;
-                    state = SaveCodec.Decode(reader.ReadBytes(data.Length - 40)); return true;
+                    state = SaveCodec.DecodeSave(reader.ReadBytes(data.Length - 40)); return true;
                 }
             }
             catch (InvalidDataException) { return false; }
         }
+        // The M1 slice's state from the newest save (null if that save has none).
         public SaveLoadStatus Load(out M1Snapshot state)
+        {
+            var status = Load(out SaveData save); state = save?.M1; return status;
+        }
+        // Saves the M1 slice's state, keeping everything else in the newest save.
+        public void Save(M1Snapshot state)
+        {
+            Load(out SaveData save);
+            save = save ?? new SaveData(); save.M1 = state; Save(save);
+        }
+        // Loads the newest valid save of either version (v1 saves migrate, see SaveCodec.DecodeSave).
+        public SaveLoadStatus Load(out SaveData state)
         {
             bool a = Read("save-a.bin", out long ga, out var sa, out bool ea), b = Read("save-b.bin", out long gb, out var sb, out bool eb);
             state = a && (!b || ga >= gb) ? sa : sb;
             if (!a && !b) return ea || eb ? SaveLoadStatus.Corrupt : SaveLoadStatus.Missing;
             return (ea && !a) || (eb && !b) ? SaveLoadStatus.RecoveredBackup : SaveLoadStatus.Loaded;
         }
-        public void Save(M1Snapshot state)
+        public void Save(SaveData state)
         {
             bool a = Read("save-a.bin", out long ga, out _, out bool ea), b = Read("save-b.bin", out long gb, out _, out bool eb);
             if (!a && !b && (ea || eb)) throw new InvalidDataException("Existing saves are corrupt; explicit recovery is required before replacing them.");
             long generation = checked(Math.Max(ga, gb) + 1);
             using (var stream = new MemoryStream()) using (var writer = new BinaryWriter(stream))
             {
-                writer.Write(generation); writer.Write(SaveCodec.Encode(state));
+                writer.Write(generation); writer.Write(SaveCodec.EncodeSave(state));
                 using (var sha = SHA256.Create()) writer.Write(sha.ComputeHash(stream.ToArray()));
                 storage.WriteAtomic(!a || (b && ga <= gb) ? "save-a.bin" : "save-b.bin", stream.ToArray());
             }

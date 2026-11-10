@@ -68,6 +68,11 @@ namespace Palmfolk.Core
         public Route PreviousRoute { get; private set; }
         public WidthTier RouteTier => width.Tier;
         public GameSettings Settings => settings.Copy();
+        public void SetStillnessTolerance(int step)
+        {
+            if (step < 0 || step > 2) throw new ArgumentOutOfRangeException(nameof(step));
+            settings.StillnessToleranceStep = step;
+        }
         public IReadOnlyList<GameEvent> Events => events.AsReadOnly();
         public IReadOnlyList<ValidationFailure> Refusals { get; private set; } = Array.Empty<ValidationFailure>();
         public bool IsPaused => paused || !hasFocus;

@@ -13,7 +13,17 @@ namespace Palmfolk.Core
         public string PipIsland;
         public bool LedgeWidened;
         public Dictionary<string, CurveTree> Bridges = new Dictionary<string, CurveTree>();
-        public ValleyProgress Copy() => new ValleyProgress { CompletedPuzzles = CompletedPuzzles, PipIsland = PipIsland, LedgeWidened = LedgeWidened, Bridges = new Dictionary<string, CurveTree>(Bridges) };
+        // After the finale (R1-R3, D8): the visitor now in the valley (-1: none), visitors helped and windows lit
+        // (bit i = visitor i), and each bridge's visitor marks (bit i = visitor i crossed it).
+        public int CurrentVisitor = -1;
+        public int VisitorsHelped;
+        public int LitWindows;
+        public Dictionary<string, int> BridgeMarks = new Dictionary<string, int>();
+        public ValleyProgress Copy() => new ValleyProgress
+        {
+            CompletedPuzzles = CompletedPuzzles, PipIsland = PipIsland, LedgeWidened = LedgeWidened, Bridges = new Dictionary<string, CurveTree>(Bridges),
+            CurrentVisitor = CurrentVisitor, VisitorsHelped = VisitorsHelped, LitWindows = LitWindows, BridgeMarks = new Dictionary<string, int>(BridgeMarks)
+        };
     }
 
     // A traveler walking a fixed path: bridge curves joined by straight walks across islands.
@@ -110,9 +120,13 @@ namespace Palmfolk.Core
             Valley = valley ?? throw new ArgumentNullException(nameof(valley));
             this.settings = (settings ?? new GameSettings()).Copy(); this.settings.Validate();
             progress = resume?.Copy() ?? new ValleyProgress { PipIsland = valley.Puzzles[0].TravelerFrom };
-            if (progress.CompletedPuzzles < 0 || progress.CompletedPuzzles > 6 || progress.Bridges == null) throw new ArgumentException("Invalid valley progress.");
-            valley.Island(progress.PipIsland);
-            foreach (var pair in progress.Bridges) { valley.Edge(pair.Key); if (pair.Value == null) throw new ArgumentException("Missing bridge for " + pair.Key); }
+            if (progress.CompletedPuzzles < 0 || progress.CompletedPuzzles > 6 || progress.Bridges == null || progress.BridgeMarks == null) throw new ArgumentException("Invalid valley progress.");
+            // A save from other content: bridges on edges this valley doesn't have are dropped, and Pip starts
+            // from the current puzzle's island if his island is gone. Missing or broken bridges are V3's job.
+            foreach (var id in progress.Bridges.Where(p => !valley.HasEdge(p.Key) || p.Value == null).Select(p => p.Key).ToList()) progress.Bridges.Remove(id);
+            foreach (var id in progress.BridgeMarks.Keys.Where(id => !valley.HasEdge(id)).ToList()) progress.BridgeMarks.Remove(id);
+            if (progress.PipIsland == null || !valley.Islands.Any(i => i.Id == progress.PipIsland))
+                progress.PipIsland = valley.Puzzles[Math.Min(progress.CompletedPuzzles, 5)].TravelerFrom;
             var board = valley.Edge(valley.Puzzles[0].Edges[0]);
             Pip = PreviousPip = progress.CompletedPuzzles == 0 ? board.AnchorAt(valley.Puzzles[0].TravelerFrom).Centre : valley.Island(progress.PipIsland).Top;
             BeginPuzzle();
@@ -172,6 +186,13 @@ namespace Palmfolk.Core
             bool waitingOnPlayer = Stage == DirectorStage.Interacting || Stage == DirectorStage.AwaitingWithdrawal;
             hints.Step(!waitingOnPlayer || events.Count > 0, waitingOnPlayer && poor);
             if (waitingOnPlayer) { if (hints.HintDue) Emit(GameEventKind.HintDue); if (hints.QualityPromptDue) Emit(GameEventKind.QualityPromptDue); }
+        }
+
+        // The player's stillness tolerance (A5); takes effect on the next tick.
+        public void SetStillnessTolerance(int step)
+        {
+            if (step < 0 || step > 2) throw new ArgumentOutOfRangeException(nameof(step));
+            settings.StillnessToleranceStep = step;
         }
 
         // V3: which edges of a route fail the traveler's rules (missing, narrow, steep, blocked, unanchored).

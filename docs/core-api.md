@@ -44,7 +44,27 @@ The whole game as one `ITickSimulation`. Feed it world-space `HandFrame`s at 60 
 | `IsPaused` | The player's pause. |
 
 Commands: `InputCommand.Replant` (new) starts replanting from `Playing`; it is ignored while already planting.
-`Pause` and `Resume` work in both stages.
+`Pause` and `Resume` work in both stages. `Restart` takes the current scaffold down (like `CancelBuild`) and keeps
+every baked bridge. `RingBell` is reserved for the visitors (D8) and does nothing yet.
+
+Saves (D5): `PalmfolkGame.Open(valley, save, pose, settings)` opens a `SaveData`. With a pose (a found anchor, or
+VR mode's saved pose) play starts in `Playing`; without one the player plants first and the bridges reappear on
+the new valley. `Capture(playerSettings, previous)` returns what to save now; mode and anchor id are the
+platform's and are carried over from `previous`. `Apply(playerSettings)` applies stillness tolerance at once and
+world scale by rescaling `Pose` about the valley origin.
+
+### Saves (`Assets/Palmfolk/Core/SaveData.cs`, `Persistence.cs`)
+
+| Type | Meaning |
+|---|---|
+| `SaveData` | `Valley` (`ValleyProgress`, `null` before first play), `Mode` (`PlayMode.Table` or `VR`), `AnchorId` (Table mode's spatial anchor, at most 128 characters), `Pose` (last planted pose, world space), `Settings`, `M1` (the M1 slice's state), `LoadedVersion` (1 or 2). |
+| `PlayerSettings` | `StillnessToleranceStep` (0 to 2, default 1), `WorldScale` (0.5 to 2), `ReducedMotion`, `Captions` (default on), `HighContrast`, `XRay`. Core applies the first two; views read the rest. |
+| `SaveCodec.EncodeSave` / `DecodeSave` | Version 2 bytes. Decoding a version 1 save (the M1 slice) gives a `SaveData` with only `M1` set and `LoadedVersion` 1. Anything corrupt, truncated or out of range throws `InvalidDataException`. |
+| `SaveRepository.Save(SaveData)` / `Load(out SaveData)` | Two slots, newest valid one wins; a corrupt newest slot falls back to the other. `Load(out M1Snapshot)` and `Save(M1Snapshot)` still work and keep the rest of the save. |
+
+`ValleyProgress` also holds `CurrentVisitor` (-1: none), `VisitorsHelped` and `LitWindows` (bit i is visitor i)
+and `BridgeMarks` (edge id to the visitors who crossed it), for D8. Resuming with a save from other content drops
+bridges on edges the valley doesn't have; if Pip's island is gone he starts at the current puzzle's island.
 
 ### `ValleyPose` (`Assets/Palmfolk/Core/Valley.cs`)
 
@@ -101,7 +121,8 @@ zones of radius `ConnectDistance`).
 ### `ValleySimulation` (`Assets/Palmfolk/Core/ValleySimulation.cs`)
 
 The six puzzles of one valley (V1 to V3, E4). `new ValleySimulation(spec, settings, resume)`; `resume` is a
-`ValleyProgress` (the D5 save payload: `CompletedPuzzles`, `PipIsland`, `LedgeWidened`, `Bridges` by edge id).
+`ValleyProgress` (saved in `SaveData.Valley`: `CompletedPuzzles`, `PipIsland`, `LedgeWidened`, `Bridges` by edge id,
+and the visitor fields).
 
 Each puzzle runs through `Stage` (`DirectorStage`):
 
@@ -203,3 +224,10 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   `ValleyPresentation` fields above. Changed: `EdgeSession.Build` is a `TreeBuild` (same `Phase`, `Progress`,
   `RemovalProgress`, `FrozenRoute()`); `MaximumRouteLength` counts root to leaf. `ValleySpec` now requires two to four
   Fork edges.
+- **D5, Nov 10.** Added `SaveData`, `PlayerSettings`, `PlayMode`, `SaveCodec.EncodeSave`, `DecodeSave` and
+  `CurrentVersion`; `SaveRepository.Save(SaveData)` and `Load(out SaveData)`; `InputCommand.Restart` and `RingBell`;
+  `PalmfolkGame.Open`, `Capture`, `Apply` and the pose constructor; `ValleyProgress.CurrentVisitor`,
+  `VisitorsHelped`, `LitWindows`, `BridgeMarks`; `ValleySimulation.SetStillnessTolerance`,
+  `M1Simulation.SetStillnessTolerance`, `PlantingDetector.SetWorldScale` and `WorldScale`. Changed: the save file is
+  version 2 (version 1 still loads); `Load(out var x)` is now ambiguous, so name the type. Resuming drops unknown
+  edges instead of throwing.
