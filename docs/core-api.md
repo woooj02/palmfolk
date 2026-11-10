@@ -57,7 +57,7 @@ world scale by rescaling `Pose` about the valley origin.
 
 | Type | Meaning |
 |---|---|
-| `SaveData` | `Valley` (`ValleyProgress`, `null` before first play), `Mode` (`PlayMode.Table` or `VR`), `AnchorId` (Table mode's spatial anchor, at most 128 characters), `Pose` (last planted pose, world space), `Settings`, `M1` (the M1 slice's state), `LoadedVersion` (1 or 2). |
+| `SaveData` | `Valley` (`ValleyProgress`, `null` before first play), `Mode` (`ValleyMode.Table` or `VR`), `AnchorId` (Table mode's spatial anchor, at most 128 characters), `Pose` (last planted pose, world space), `Settings`, `M1` (the M1 slice's state), `LoadedVersion` (1 or 2). |
 | `PlayerSettings` | `StillnessToleranceStep` (0 to 2, default 1), `WorldScale` (0.5 to 2), `ReducedMotion`, `Captions` (default on), `HighContrast`, `XRay`. Core applies the first two; views read the rest. |
 | `SaveCodec.EncodeSave` / `DecodeSave` | Version 2 bytes. Decoding a version 1 save (the M1 slice) gives a `SaveData` with only `M1` set and `LoadedVersion` 1. Anything corrupt, truncated or out of range throws `InvalidDataException`. |
 | `SaveRepository.Save(SaveData)` / `Load(out SaveData)` | Two slots, newest valid one wins; a corrupt newest slot falls back to the other. `Load(out M1Snapshot)` and `Save(M1Snapshot)` still work and keep the rest of the save. |
@@ -65,6 +65,40 @@ world scale by rescaling `Pose` about the valley origin.
 `ValleyProgress` also holds `CurrentVisitor` (-1: none), `VisitorsHelped` and `LitWindows` (bit i is visitor i)
 and `BridgeMarks` (edge id to the visitors who crossed it), for D8. Resuming with a save from other content drops
 bridges on edges the valley doesn't have; if Pip's island is gone he starts at the current puzzle's island.
+
+### Live input and the runner (D6, `Assets/Palmfolk/Platform`)
+
+`PalmfolkRunner` (MonoBehaviour) is the live game. Each rendered frame it reads both hands, runs Core at 60 Hz
+with `FixedTickRunner`, moves `ValleyRoot` to the planted pose, and saves after planting, every bake, every solved
+puzzle, the ledge widening, a settings change, pause and quit. It decides nothing itself.
+
+| Member | Meaning |
+|---|---|
+| `Game` | The `PalmfolkGame`. Opened on `Start` from the newest save in the app's `saves/` folder with `ChapterOne.Greybox()` (`Content` changes it). VR mode resumes at the saved pose; Table mode plants first. |
+| `Ticked` | Event: the events of this frame's ticks (only when there were some). Bind `Consume` here. |
+| `Presented` | Event: once per rendered frame after ticking. Read `Game` and `InterpolationAlpha` and call `Present`. |
+| `Request(command)` | Queues an `InputCommand` for the next tick (at most 8 waiting). The waystone's Pause, Resume, Restart, Replant and Bell go here. |
+| `Apply(playerSettings)` | Applies and saves the player's settings; world scale rescales the valley root. |
+| `ValleyRoot` | Placed at the pose: position `Origin`, rotation `Euler(0, yaw, 0)`, uniform scale `Scale`. Its local space is valley space, so a view parented under it can draw valley-local points directly. Untouched until the first planting. Its parent must be unscaled. |
+| `Capture()`, `SaveNow()` | The save as it stands; write it now. |
+| `Source` | The `LiveFrameSource` (Core): the latest hand sample, held for any tick until the next sample. |
+| `Hands` | `IHandReader`: `XRHandsReader` on the headset; tests supply their own. |
+
+`HandJointMap` maps XR Hands joints to Core's explicitly (Core's order is Palm, Wrist, ...; XR Hands puts Wrist
+first). A joint is valid when XR Hands reports its pose; it is confident when the runtime marks it high-fidelity,
+or, until a hand has reported that flag once, whenever its pose is valid (`ConfidencePolicy`). Radii are passed
+on when reported, scaled with the tracking space. Non-finite poses become invalid joints.
+
+A rendered frame longer than 0.1 s counts as 0.1 s: after a hitch or a suspend the game does not fast-forward.
+
+Developer builds also have `SessionRecording` (records from the moment a game opens, only with the tester's consent
+ticked; writes `recordings/session-*.pfr2` and the H3 radius log on pause or quit) and `CoreProbe` (markers for the
+valley origin, planting progress and Pip; every event to the device log). `GameRecording` (Developer) is the
+recording format 2 for the whole game; `GameReplay.Run(recording, valley)` replays it and reports `SameDecisions`
+and `SameFinalState`.
+
+Setup: **Palmfolk > Platform > 1. Enable XR Hands** (turns on the XR Hands OpenXR feature; Android builds fail
+without it) and **2. Add Runner To Open Scene** (wires the camera rig's TrackingSpace and a new Valley Origin).
 
 ### `ValleyPose` (`Assets/Palmfolk/Core/Valley.cs`)
 
@@ -224,10 +258,15 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   `ValleyPresentation` fields above. Changed: `EdgeSession.Build` is a `TreeBuild` (same `Phase`, `Progress`,
   `RemovalProgress`, `FrozenRoute()`); `MaximumRouteLength` counts root to leaf. `ValleySpec` now requires two to four
   Fork edges.
-- **D5, Nov 10.** Added `SaveData`, `PlayerSettings`, `PlayMode`, `SaveCodec.EncodeSave`, `DecodeSave` and
+- **D5, Nov 10.** Added `SaveData`, `PlayerSettings`, `ValleyMode`, `SaveCodec.EncodeSave`, `DecodeSave` and
   `CurrentVersion`; `SaveRepository.Save(SaveData)` and `Load(out SaveData)`; `InputCommand.Restart` and `RingBell`;
   `PalmfolkGame.Open`, `Capture`, `Apply` and the pose constructor; `ValleyProgress.CurrentVisitor`,
   `VisitorsHelped`, `LitWindows`, `BridgeMarks`; `ValleySimulation.SetStillnessTolerance`,
   `M1Simulation.SetStillnessTolerance`, `PlantingDetector.SetWorldScale` and `WorldScale`. Changed: the save file is
   version 2 (version 1 still loads); `Load(out var x)` is now ambiguous, so name the type. Resuming drops unknown
   edges instead of throwing.
+- **D6, Nov 10.** Added `LiveFrameSource` (Core); the Platform assembly (`PalmfolkRunner`, `IHandReader`,
+  `XRHandsReader`, `HandJointMap`, `RawJoint`, `ConfidencePolicy`); `GameRecording`, `GameRecorder`,
+  `GameRecordingCodec`, `GameReplay`, `DecisionDigest` (Developer). Renamed: `PlayMode` is now `ValleyMode`
+  (it clashed with `UnityEngine.PlayMode`). Changed: a `ValleyPose` built from a forward that is already level and
+  unit length keeps it exactly, so a pose read back from a save maps hands exactly as before.

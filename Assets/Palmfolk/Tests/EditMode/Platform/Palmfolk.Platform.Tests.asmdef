@@ -1,0 +1,6 @@
+{
+  "name": "Palmfolk.Platform.Tests",
+  "references": ["Palmfolk.Core", "Palmfolk.Platform", "Palmfolk.Platform.Editor", "Palmfolk.Core.Tests", "Palmfolk.Fixtures", "Unity.XR.Hands"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

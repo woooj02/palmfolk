@@ -1,0 +1,5 @@
+{
+  "name": "Palmfolk.Platform",
+  "rootNamespace": "Palmfolk.Platform",
+  "references": ["Palmfolk.Core", "Unity.XR.Hands"]
+}

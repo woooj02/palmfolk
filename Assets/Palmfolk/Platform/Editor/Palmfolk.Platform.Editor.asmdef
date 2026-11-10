@@ -1,0 +1,6 @@
+{
+  "name": "Palmfolk.Platform.Editor",
+  "rootNamespace": "Palmfolk.Platform.Editor",
+  "references": ["Palmfolk.Core", "Palmfolk.Platform", "Unity.XR.Hands", "Unity.XR.OpenXR", "Unity.XR.OpenXR.Editor"],
+  "includePlatforms": ["Editor"]
+}

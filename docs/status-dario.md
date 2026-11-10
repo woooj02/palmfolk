@@ -57,9 +57,23 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   save from other content dropping edges it doesn't know. Verified in the Unity editor (batch mode): compiles,
   170 EditMode tests pass. Not verified on a headset.
 
+- **D6, Nov 10.** Live input and the clock. `PalmfolkRunner` reads XR Hands each rendered frame through an
+  explicit joint map (validity, confidence, radii), runs Core at 60 Hz, places the valley root at the planted pose,
+  and saves. Developer builds record the whole game (format 2) with consent and log joint radii for H3; a
+  recording replays in the editor with identical decisions and final save. Replay found a real bug: a saved pose's
+  facing was re-normalised on load, so a resumed VR session read hands one bit differently; fixed.
+  Verified headless: 175 developer-mode and 162 release-mode tests pass, including a whole valley played from
+  live samples at 72 Hz, the clock giving 60 ticks a second at 50, 72 and 90 Hz, and full live sessions
+  (planted on a table, and resumed in VR mode) replaying with identical decisions. Verified in the Unity editor
+  (batch mode): compiles in both configurations; 187 EditMode tests pass (190 after rebasing on Sam's latest), 203 with `PALMFOLK_DEVELOPMENT`,
+  including the joint map against XR Hands' names, tracking space to world, the runner planting and placing the
+  valley root where Core says, playing the whole valley, coming back after a restart in Table and VR mode, a
+  5 s frame not fast-forwarding, and a session recorded through the runner replaying. Not verified on a
+  headset: needs the owner (below).
+
 ## Next
 
-- D6, live input and the clock.
+- D7, recovery across the whole valley.
 
 ## Notes for later items
 
@@ -78,12 +92,28 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   recording format version bump; planned with the replay work.
 - For Sam (S4): the settings, restart and bell commands are in `core-api.md` (Saves). Mode switching, quit and
   finding the anchor are platform work (D9); the save keeps `Mode` and `AnchorId` for it.
+- For Sam (D6): bind your views to `PalmfolkRunner.Ticked` (events) and `Presented` (frame), and the waystone's
+  requests to `Request` and `Apply` (see `core-api.md`). Your scene setup could call
+  `Palmfolk.Platform.Editor.LiveInputSetup.EnableHands()` from Configure Android, so nobody misses that step.
+  `PlayMode` is now `ValleyMode`, because `UnityEngine.PlayMode` made it ambiguous in any file that uses both
+  namespaces.
 - Defaults to check on the headset (H2): reference hand length 18 cm, scale clamp 0.75 to 1.3, palm half
   thickness 1.5 cm, and whether a 20 degree tilt limit is right on a lap.
 
 ## Blocked
 
-- Nothing.
+- D6's headset check needs the owner (Quest 2):
+  1. In Unity, open the M1 scene (Palmfolk > Slice 0 > 2. Create Scene if there is none), then run
+     **Palmfolk > Platform > 1. Enable XR Hands** and **2. Add Runner To Open Scene**, and save the scene.
+  2. To record, select **Palmfolk Runner** and tick **Tester Consented** on Session Recording (only with the
+     tester's verbal OK).
+  3. Build the Developer APK with `tools/Build-OwnerApk.ps1 -Configuration Developer` (Android scripting defines
+     must include `PALMFOLK_DEVELOPMENT` for that build) and install it.
+  4. On the headset: rest one flat palm, fingers together, for a second. A green disc should appear where the
+     palm was, and an orange dot (Pip) on it. `adb logcat -s Unity` shows a line per Core event
+     (`Palmfolk event: Planted ...`).
+  5. Quit, then copy `/sdcard/Android/data/com.keepsrunning.palmfolk/files/recordings/` into `playtest-logs/`
+     in the repo folder (Git ignores it) and tell me; I'll replay it in the editor and read the radius log (H3).
 
 ## Questions for the owner
 

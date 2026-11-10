@@ -44,7 +44,7 @@ namespace Palmfolk.Core
         public SaveData Capture(PlayerSettings player, SaveData previous = null) => new SaveData
         {
             Valley = Valley?.Progress ?? previous?.Valley, M1 = Puzzle?.Capture() ?? previous?.M1, Pose = Pose ?? previous?.Pose,
-            Mode = previous?.Mode ?? PlayMode.Table, AnchorId = previous?.AnchorId, Settings = (player ?? previous?.Settings ?? new PlayerSettings()).Copy()
+            Mode = previous?.Mode ?? ValleyMode.Table, AnchorId = previous?.AnchorId, Settings = (player ?? previous?.Settings ?? new PlayerSettings()).Copy()
         };
         // Applies the player's settings now: stillness tolerance at once, world scale by rescaling the valley about its
         // origin (bridges are valley-local, so nothing moves relative to the valley).

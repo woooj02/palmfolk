@@ -24,7 +24,7 @@ namespace Palmfolk.Tests
 
         private static SaveData Full() => new SaveData
         {
-            Valley = Finished(), Mode = PlayMode.VR, AnchorId = "3f2a9c1e-anchor", Pose = new ValleyPose(new Vec3(0.2, 0.74, -0.35), new Vec3(0.6, 0, 0.8), 1.1),
+            Valley = Finished(), Mode = ValleyMode.VR, AnchorId = "3f2a9c1e-anchor", Pose = new ValleyPose(new Vec3(0.2, 0.74, -0.35), new Vec3(0.6, 0, 0.8), 1.1),
             Settings = new PlayerSettings { StillnessToleranceStep = 2, WorldScale = 1.25, ReducedMotion = true, Captions = false, HighContrast = true, XRay = true },
             M1 = new M1Simulation(Synthetic.Level).Capture(),
         };
@@ -55,7 +55,7 @@ namespace Palmfolk.Tests
             Assert.That(back.Valley.CompletedPuzzles, Is.EqualTo(6)); Assert.That(back.Valley.LedgeWidened, Is.True);
             Assert.That(back.Valley.CurrentVisitor, Is.EqualTo(2)); Assert.That(back.Valley.VisitorsHelped, Is.EqualTo(3)); Assert.That(back.Valley.LitWindows, Is.EqualTo(3));
             Assert.That(back.Valley.BridgeMarks, Is.EquivalentTo(save.Valley.BridgeMarks));
-            Assert.That(back.Mode, Is.EqualTo(PlayMode.VR)); Assert.That(back.AnchorId, Is.EqualTo("3f2a9c1e-anchor"));
+            Assert.That(back.Mode, Is.EqualTo(ValleyMode.VR)); Assert.That(back.AnchorId, Is.EqualTo("3f2a9c1e-anchor"));
             Assert.That(back.Pose.Origin, Is.EqualTo(save.Pose.Origin)); Assert.That(back.Pose.Forward, Is.EqualTo(save.Pose.Forward)); Assert.That(back.Pose.Scale, Is.EqualTo(1.1));
             Assert.That(back.Settings.StillnessToleranceStep, Is.EqualTo(2)); Assert.That(back.Settings.WorldScale, Is.EqualTo(1.25));
             Assert.That(back.Settings.ReducedMotion && !back.Settings.Captions && back.Settings.HighContrast && back.Settings.XRay, Is.True);
@@ -71,7 +71,7 @@ namespace Palmfolk.Tests
             var save = SaveCodec.DecodeSave(v1);
             Assert.That(save.LoadedVersion, Is.EqualTo(1)); Assert.That(save.Valley, Is.Null);
             Assert.That(SaveCodec.Encode(save.M1), Is.EqualTo(v1));
-            Assert.That(save.Settings.StillnessToleranceStep, Is.EqualTo(1)); Assert.That(save.Mode, Is.EqualTo(PlayMode.Table));
+            Assert.That(save.Settings.StillnessToleranceStep, Is.EqualTo(1)); Assert.That(save.Mode, Is.EqualTo(ValleyMode.Table));
             // Written back, it's a v2 save holding the same M1 state.
             var v2 = SaveCodec.DecodeSave(SaveCodec.EncodeSave(save));
             Assert.That(v2.LoadedVersion, Is.EqualTo(2)); Assert.That(SaveCodec.Encode(v2.M1), Is.EqualTo(v1));
@@ -162,8 +162,8 @@ namespace Palmfolk.Tests
         [Test] public void ASaveMadeInOneModeOpensInTheOther()
         {
             // MR5: mode is only a setting; the bridges are valley-local.
-            var table = Full(); table.Mode = PlayMode.Table;
-            var opened = SaveCodec.DecodeSave(SaveCodec.EncodeSave(table)); opened.Mode = PlayMode.VR;
+            var table = Full(); table.Mode = ValleyMode.Table;
+            var opened = SaveCodec.DecodeSave(SaveCodec.EncodeSave(table)); opened.Mode = ValleyMode.VR;
             var vr = PalmfolkGame.Open(TestValley.Chapter1(), opened, opened.Pose);
             Assert.That(vr.Stage, Is.EqualTo(ValleyStage.Playing)); Assert.That(vr.Pose, Is.SameAs(opened.Pose));
             AssertSameBridges(table.Valley.Bridges, vr.Valley.Bridges);
@@ -171,7 +171,7 @@ namespace Palmfolk.Tests
             var replant = PalmfolkGame.Open(TestValley.Chapter1(), opened);
             Assert.That(replant.Stage, Is.EqualTo(ValleyStage.Planting)); AssertSameBridges(table.Valley.Bridges, replant.Valley.Bridges);
             var captured = vr.Capture(opened.Settings, opened);
-            Assert.That(captured.Mode, Is.EqualTo(PlayMode.VR)); Assert.That(captured.AnchorId, Is.EqualTo(opened.AnchorId));
+            Assert.That(captured.Mode, Is.EqualTo(ValleyMode.VR)); Assert.That(captured.AnchorId, Is.EqualTo(opened.AnchorId));
             AssertSameBridges(table.Valley.Bridges, captured.Valley.Bridges);
         }
 

@@ -1,0 +1,6 @@
+{
+  "name": "Palmfolk.Platform.Developer",
+  "rootNamespace": "Palmfolk.Platform.Developer",
+  "references": ["Palmfolk.Core", "Palmfolk.Developer", "Palmfolk.Platform"],
+  "defineConstraints": ["PALMFOLK_DEVELOPMENT"]
+}

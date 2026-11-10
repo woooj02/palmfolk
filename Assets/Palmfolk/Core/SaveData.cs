@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 
 namespace Palmfolk.Core
 {
-    public enum PlayMode { Table, VR }
+    public enum ValleyMode { Table, VR }
 
     // The player's settings (A1-A8). The waystone (S4) changes them; Core applies the two that affect play.
     public sealed class PlayerSettings
@@ -41,7 +41,7 @@ namespace Palmfolk.Core
     {
         // Null before the valley is first played.
         public ValleyProgress Valley { get; set; }
-        public PlayMode Mode { get; set; }
+        public ValleyMode Mode { get; set; }
         // Table mode's spatial anchor (MR3); null when none was saved.
         public string AnchorId { get; set; }
         // The last planted pose (world space). Used when no anchor is found in VR mode; Table mode replants instead.
@@ -92,8 +92,8 @@ namespace Palmfolk.Core
                 using (var input = new MemoryStream(body, false)) using (var r = new BinaryReader(input))
                 {
                     var save = new SaveData { LoadedVersion = 2 };
-                    int mode = r.ReadInt32(); if (!Enum.IsDefined(typeof(PlayMode), mode)) throw new InvalidDataException("Invalid mode.");
-                    save.Mode = (PlayMode)mode;
+                    int mode = r.ReadInt32(); if (!Enum.IsDefined(typeof(ValleyMode), mode)) throw new InvalidDataException("Invalid mode.");
+                    save.Mode = (ValleyMode)mode;
                     save.AnchorId = ReadString(r);
                     if (r.ReadBoolean()) save.Pose = new ValleyPose(ReadVector(r), ReadVector(r), r.ReadDouble());
                     save.Settings = new PlayerSettings
@@ -114,7 +114,7 @@ namespace Palmfolk.Core
 
         private static void Check(SaveData save)
         {
-            if (!Enum.IsDefined(typeof(PlayMode), save.Mode)) throw new InvalidDataException("Invalid mode.");
+            if (!Enum.IsDefined(typeof(ValleyMode), save.Mode)) throw new InvalidDataException("Invalid mode.");
             if (save.AnchorId != null && (save.AnchorId.Length == 0 || save.AnchorId.Length > 128 || save.AnchorId.Any(char.IsControl))) throw new InvalidDataException("Invalid anchor id.");
             try { (save.Settings ?? new PlayerSettings()).Validate(); } catch (ArgumentException e) { throw new InvalidDataException(e.Message); }
             var v = save.Valley; if (v == null) return;

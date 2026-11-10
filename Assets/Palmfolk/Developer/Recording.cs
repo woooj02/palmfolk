@@ -157,7 +157,7 @@ namespace Palmfolk.Developer
             catch (Exception e) when (e is EndOfStreamException || e is ArgumentException || e is OverflowException) { throw new InvalidDataException("Invalid recording data.", e); }
         }
         private static int Count(BinaryReader r, int max) { int n = r.ReadInt32(); if (n < 0 || n > max) throw new InvalidDataException("Recording collection limit exceeded."); return n; }
-        private static void WriteHand(BinaryWriter w, HandSample hand)
+        internal static void WriteHand(BinaryWriter w, HandSample hand)
         {
             w.Write(hand != null); if (hand == null) return;
             foreach (var j in hand.Joints)
@@ -165,7 +165,7 @@ namespace Palmfolk.Developer
                 SaveCodec.WriteVector(w, j.Position); w.Write(j.Rotation.X); w.Write(j.Rotation.Y); w.Write(j.Rotation.Z); w.Write(j.Rotation.W); w.Write(j.Radius); w.Write((int)j.Flags);
             }
         }
-        private static HandSample ReadHand(BinaryReader r, HandSide side)
+        internal static HandSample ReadHand(BinaryReader r, HandSide side)
         {
             if (!r.ReadBoolean()) return null;
             var joints = new JointSample[26];

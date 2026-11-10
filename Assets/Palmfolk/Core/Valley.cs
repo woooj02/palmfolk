@@ -21,7 +21,9 @@ namespace Palmfolk.Core
             var level = new Vec3(forward.X, 0, forward.Z);
             if (!origin.IsFinite || !forward.IsFinite || level.Length < 1e-6 || !Vec3.Finite(scale) || scale < 0.1 || scale > 10)
                 throw new ArgumentException("Invalid valley pose.");
-            Origin = origin; Forward = level.Normalized; Scale = scale;
+            // A forward that is already level and unit length is kept bit for bit, so a pose read back from a save or
+            // a recording maps hands exactly as the original did.
+            Origin = origin; Forward = level.Equals(forward) && Math.Abs(level.Length - 1) < 1e-12 ? level : level.Normalized; Scale = scale;
         }
 
         public Vec3 ToValley(Vec3 world)
