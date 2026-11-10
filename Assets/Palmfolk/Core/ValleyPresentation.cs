@@ -60,6 +60,18 @@ namespace Palmfolk.Core
         public bool WaitingForHands { get; }
         public bool PutControllersDown { get; }
         public bool ShowStartupText { get; }
+        // R1-R3 (D8). Visitor: who is being helped (null when none). VisitorFigure: that visitor walking in from the
+        // sanctuary and waiting at their island (null before the way in is passable and once their travelers set
+        // off: those are in Travelers). Residents: settled visitors walking their bridges (Bram is in Bram).
+        // Windows: how many sanctuary windows to draw (dark from the finale on); bit i of LitWindows lights window i.
+        // BridgeMarks: by edge, bit i = visitor i crossed it.
+        public VisitorSpec Visitor { get; }
+        public int VisitorIndex { get; } = -1;
+        public TravelerView VisitorFigure { get; }
+        public IReadOnlyList<TravelerView> Residents { get; } = Array.Empty<TravelerView>();
+        public int Windows { get; }
+        public int LitWindows { get; }
+        public IReadOnlyDictionary<string, int> BridgeMarks { get; } = new Dictionary<string, int>();
         // T18: show the one line "Hand tracking works best in a well-lit room, with your hand in view." while
         // QualityPrompt is set, and the loosened-stillness icon while StillnessLoosened is set.
         public bool QualityPrompt { get; }
@@ -84,6 +96,10 @@ namespace Palmfolk.Core
             LedgeWidth = game.LedgeWidth; WideningProgress = game.WideningProgress;
             Paused = game.IsPaused; WaitingForHands = game.WaitingForHands; ShowStartupText = game.ShowStartupText;
             QualityPrompt = game.QualityPromptShowing; StillnessLoosened = game.StillnessLoosened;
+            Visitor = game.Visitor; VisitorIndex = game.VisitorIndex; Windows = game.Valley.Visitors.Count; LitWindows = game.LitWindows;
+            VisitorFigure = game.VisitorArrival == null ? null : new TravelerView(game.VisitorArrival, interpolationAlpha);
+            Residents = game.Residents.Select(t => new TravelerView(t, interpolationAlpha)).ToList().AsReadOnly();
+            BridgeMarks = new Dictionary<string, int>(game.BridgeMarks.ToDictionary(p => p.Key, p => p.Value));
             var session = game.Session;
             PutControllersDown = game.PuzzleIndex == 0 && session != null && !session.Owner.HasValue && game.ControllersInHand;
             Refusals = session?.Refusals ?? game.RefusedFailures;

@@ -141,12 +141,14 @@ Sam's content (`Core/Content`) builds a `ValleySpec`; the director runs it. All 
 | `EdgeSpec(id, from, to, fromAnchor, toAnchor)` | A gap between two islands. `EdgeSpec.Between(id, fromIsland, toIsland, fromZone, toZone)` puts the anchors on the rims facing each other. Pip builds from `From` when he can reach it, otherwise from `To`. |
 | `LedgeSpec(edge, island, narrow, wide, wideningTicks)` | V2. Every bridge on `edge` is capped to the ledge width (whole deck) until Pip widens it before the finale. |
 | `PuzzleSpec(kind, edges, traveler, travelerFrom, rule)` | One puzzle. `rule` (what a bridge must pass) defaults to the traveler's own rules. |
-| `ValleySpec(islands, edges, puzzles, obstacles, ledge, camp, sanctuary)` | The valley. `obstacles` are boxes (the rock) checked for headroom. `FinaleRoute()` is Bram's route as (edge, from, to). |
+| `ValleySpec(islands, edges, puzzles, obstacles, ledge, camp, sanctuary, visitors)` | The valley. `obstacles` are boxes (the rock) checked for headroom. `FinaleRoute()` is Bram's route as (edge, from, to). `visitors` (optional, D8) are the visitors in the order they come. |
+| `VisitorSpec(id, traveler, from, edges...)` | D8. A visitor (R2): who travels (`Walker`, `Group` or `Cart`; their rules are the need), the island they set off from, and one to four distinct edges touching it that they cross (one traveler per edge, away from `from`). |
 
 `ValleySpec` refuses: anything but six puzzles in the order Board, First Bridge, Width, Fork, Arch, Finale; a
 Board with more than one edge; puzzle edges that don't touch `travelerFrom` (except the finale); a finale that is
 not the cart from the camp along a path of edges to the sanctuary; a ledge edge not built in both First Bridge
-and the finale.
+and the finale; more than five visitors (the save holds five), duplicate visitor ids, or a visitor edge that does
+not touch the visitor's island.
 
 `BridgeValidator.Validate(tree, startZone, endZones, kind, settings, clearance)` is the zone form of validation:
 every leaf must end in a zone and every zone must be reached. The point form is unchanged (it wraps points in
@@ -230,6 +232,34 @@ What the views draw for a valley game: `new ValleyPresentation(palmfolkGame, alp
   250 ms or more while carrying or building) and disruptive ones (Pip froze or the build paused). Session
   recording writes them to `session-*-dropouts.txt` next to the recording.
 
+### Visitors and the living valley (D8: R1 to R4, E16)
+
+After the finale (`IsComplete`: six puzzles done) the valley keeps running:
+
+- **E16.** As the sanctuary lights, the first visitor is called. Each later launch calls the next visitor not yet
+  helped; within a session the bell (`InputCommand.RingBell`) calls the next one at once. The bell is ignored
+  while a visitor is here. A visitor still being helped when the game closed carries on after a relaunch.
+- **R2 and V3.** On a call (`VisitorCalled`), every bridge on the visitor's way in from the sanctuary (fewest
+  edges) and every edge they need is checked against the visitor's rules. Failing bridges are in
+  `FailingEdges` (glow, `RebuildNeeded` each) and are rebuilt; missing ones are built; the way in comes first.
+  Several needed edges from one island with a shared source anchor are built with one fork hand. `Visitor` and
+  `VisitorIndex` say who is being helped; `Stage` runs as for a puzzle.
+- **R4.** A rebuilt bridge replaces the old one only once it passes; a refused attempt leaves the old one standing.
+- **The walk in.** Once the way in is passable, the visitor walks from the sanctuary to their island
+  (`VisitorArrival`; `VisitorArrived` when they get there). Their travelers set off only after that and after the
+  player's hand has withdrawn. A need already met just crosses and settles: nothing is built.
+- **R3.** When the travelers arrive (`VisitorSettled`), the visitor's window lights and stays lit (`LitWindows`,
+  bit i for visitor i), and each bridge they crossed carries their mark (`BridgeMarks`, by edge, bit i).
+  `VisitorsHelped` has the same bits. Then `Stage` is `Complete` until the bell or the next launch.
+- **R1.** `Residents`: each settled visitor's travelers go back and forth across the bridges they asked for, and
+  Bram (`Bram`) goes back and forth between the sanctuary and the camp on the finale route. They rest 3 s at each
+  end, and never step onto a bridge that is missing or waiting to be rebuilt. On a relaunch they are already on
+  their way.
+
+`ValleyPresentation` adds `Visitor`, `VisitorIndex`, `VisitorFigure` (the visitor walking in and waiting; their
+travelers are in `Travelers`), `Residents`, `Windows` (how many windows to draw), `LitWindows` and `BridgeMarks`.
+The runner saves on `VisitorCalled` and `VisitorSettled`. All of it is in `ValleyProgress` already (Save v2).
+
 ### Events
 
 `GameEventKind` gains two values, appended at the end so existing numbers don't change:
@@ -242,6 +272,7 @@ What the views draw for a valley game: `new ValleyPresentation(palmfolkGame, alp
 D3 appends `PuzzleStarted`, `PuzzleCompleted`, `LedgeWidening`, `LedgeWidened`, `RebuildNeeded` (once per
 failing edge), `TravelersStarted`, `TravelerArrived`, `CrossingCompleted` (each of Bram's bridges). The valley
 also raises the M1 hand and build events, `PersistentBridgeObserved`, `BramStarted` and `BramFinished`.
+D8 appends `VisitorCalled`, `VisitorArrived` and `VisitorSettled`.
 
 `StartupPromptDue` is also raised during planting, once, when the startup text becomes due.
 
@@ -294,3 +325,10 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   Changed: in the valley, T18's poor tracking is the owning hand's while a hand owns the interaction (before, it
   was both hands always); after boarding, Pip rides the fingertip until the build starts, instead of standing
   where he boarded.
+- **D8, Nov 10.** Added `VisitorSpec`; `ValleySpec.Visitors` and its optional last constructor parameter;
+  `ValleySimulation.Visitor`, `VisitorIndex`, `VisitorArrival`, `Residents`, `VisitorsHelped`, `LitWindows`,
+  `BridgeMarks`; the `ValleyPresentation` fields above; `GameEventKind.VisitorCalled`, `VisitorArrived` and
+  `VisitorSettled`. Changed: `ValleySimulation.IsComplete` now means the six puzzles are done (the valley keeps
+  running for visitors), so `Stage` is no longer always `Complete` when it is true. Events raised while a
+  `ValleySimulation` opens (`RebuildNeeded`, `VisitorCalled`) are raised again on the first tick, so a view
+  subscribed after opening sees them. `PalmfolkRunner` saves on the two visitor events.

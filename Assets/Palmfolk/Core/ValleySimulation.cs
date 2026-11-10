@@ -80,7 +80,8 @@ namespace Palmfolk.Core
         private readonly List<string> pending = new List<string>();
         private readonly List<string> built = new List<string>();
         private readonly List<Traveler> travelers = new List<Traveler>();
-        private Traveler pipWalk;
+        private Traveler pipWalk, arrival;
+        private readonly List<Resident> residents = new List<Resident>();
         private string pipTarget, sourceIsland;
         private bool paused, hasFocus = true, withdrawnObserved, announce = true;
         private int startupWaitTicks, wideningTicks;
@@ -112,7 +113,21 @@ namespace Palmfolk.Core
         public bool ControllersInHand { get; private set; }
         public bool WaitingForHands { get; private set; }
         public bool ShowStartupText => WaitingForHands && startupWaitTicks >= 600;
-        public bool IsComplete => Stage == DirectorStage.Complete;
+        // Chapter 1 is finished (the sanctuary is lit). Visitors may still come and go (R2): see Visitor.
+        public bool IsComplete => progress.CompletedPuzzles >= 6;
+        // R2: the visitor being helped (null when none) and its index. VisitorArrival is the visitor walking in
+        // from the sanctuary (E16), from when the way in passes their rules until their travelers set off.
+        public VisitorSpec Visitor => Visiting ? Valley.Visitors[progress.CurrentVisitor] : null;
+        public int VisitorIndex => Visiting ? progress.CurrentVisitor : -1;
+        public Traveler VisitorArrival => arrival;
+        // R1: settled visitors walking back and forth over the bridges they asked for. Bram walks his route too.
+        public IReadOnlyList<Traveler> Residents => residents.Where(r => !r.IsBram && r.Walk != null).Select(r => r.Walk).ToList().AsReadOnly();
+        // R3: helping visitor i sets bit i and lights window i; a bridge's marks are the visitors who crossed it.
+        public int VisitorsHelped => progress.VisitorsHelped;
+        public int LitWindows => progress.LitWindows;
+        public IReadOnlyDictionary<string, int> BridgeMarks => progress.BridgeMarks;
+        private bool Visiting => progress.CompletedPuzzles >= 6 && progress.CurrentVisitor >= 0 && progress.CurrentVisitor < Valley.Visitors.Count;
+        private TravelerKind CurrentRule => Visiting ? Visitor.Traveler : Puzzle.Rule;
         // T18: the one line about lighting is showing, and the stillness tolerance has loosened one step (shown as an icon).
         public bool QualityPromptShowing => hints.QualityPromptShowing;
         public bool StillnessLoosened => hints.StillnessAdjustment > 0;
@@ -130,6 +145,13 @@ namespace Palmfolk.Core
             foreach (var id in progress.BridgeMarks.Keys.Where(id => !valley.HasEdge(id)).ToList()) progress.BridgeMarks.Remove(id);
             if (progress.PipIsland == null || !valley.Islands.Any(i => i.Id == progress.PipIsland))
                 progress.PipIsland = valley.Puzzles[Math.Min(progress.CompletedPuzzles, 5)].TravelerFrom;
+            // Visitors from other content are dropped. Each launch after the finale brings one visitor (R2).
+            int all = valley.Visitors.Count == 0 ? 0 : (int)((1L << valley.Visitors.Count) - 1);
+            progress.VisitorsHelped &= all; progress.LitWindows &= all;
+            foreach (var id in progress.BridgeMarks.Keys.ToList()) progress.BridgeMarks[id] &= all;
+            if (progress.CurrentVisitor < -1 || progress.CurrentVisitor >= valley.Visitors.Count ||
+                (progress.CurrentVisitor >= 0 && (progress.VisitorsHelped & (1 << progress.CurrentVisitor)) != 0)) progress.CurrentVisitor = -1;
+            if (progress.CompletedPuzzles >= 6 && progress.CurrentVisitor < 0) progress.CurrentVisitor = NextVisitor();
             var board = valley.Edge(valley.Puzzles[0].Edges[0]);
             Pip = PreviousPip = progress.CompletedPuzzles == 0 ? board.AnchorAt(valley.Puzzles[0].TravelerFrom).Centre : valley.Island(progress.PipIsland).Top;
             BeginPuzzle();
@@ -138,9 +160,11 @@ namespace Palmfolk.Core
         public void Step(HandFrame frame)
         {
             if (frame == null || frame.Tick != Tick + 1) throw new ArgumentException("Feed exactly one sequential frame per 60 Hz tick.");
+            // Events raised while opening (RebuildNeeded, VisitorCalled) are raised again on the first tick.
+            var opening = announce ? events.Select(e => e.Kind).ToList() : null;
             Tick = frame.Tick; events.Clear(); PreviousPip = Pip;
-            if (announce) { announce = false; if (Stage != DirectorStage.Complete) Emit(GameEventKind.PuzzleStarted); }
-            foreach (var t in travelers) t.Settle(); Bram?.Settle();
+            if (announce) { announce = false; if (!IsComplete) Emit(GameEventKind.PuzzleStarted); foreach (var kind in opening) Emit(kind); }
+            foreach (var t in travelers) t.Settle(); Bram?.Settle(); arrival?.Settle(); foreach (var r in residents) r.Walk?.Settle();
             hasFocus = frame.HasFocus; ControllersInHand = frame.ControllersInHand;
             if (frame.Command == InputCommand.Pause) paused = true;
             if (frame.Command == InputCommand.Resume) paused = false;
@@ -153,6 +177,13 @@ namespace Palmfolk.Core
             if (startupWaitTicks == 600) Emit(GameEventKind.StartupPromptDue);
 
             double step = settings.TravelerSpeed * GameSettings.Delta;
+            // R2: the bell calls the next visitor at once when none is here.
+            if (frame.Command == InputCommand.RingBell && IsComplete && !Visiting && Stage == DirectorStage.Complete)
+            {
+                int next = NextVisitor();
+                if (next >= 0) { progress.CurrentVisitor = next; BeginPuzzle(); }
+            }
+            if (IsComplete) { StepArrival(step); StepResidents(step); }
             switch (Stage)
             {
                 case DirectorStage.Walking:
@@ -173,7 +204,9 @@ namespace Palmfolk.Core
                     if (!HandNear(frame.Left) && !HandNear(frame.Right))
                     {
                         if (!withdrawnObserved) { withdrawnObserved = true; Emit(GameEventKind.PersistentBridgeObserved); }
-                        if (PuzzleIndex == 5) StartBram(); else StartTravelers();
+                        // A visitor's travelers set off once the visitor has walked in.
+                        if (Visiting) { if (arrival != null && arrival.Arrived) StartTravelers(); }
+                        else if (PuzzleIndex == 5) StartBram(); else StartTravelers();
                     }
                     break;
                 case DirectorStage.TravelersCrossing:
@@ -218,7 +251,7 @@ namespace Palmfolk.Core
         {
             pending.Clear(); built.Clear(); travelers.Clear(); Session = null; withdrawnObserved = false; FailingEdges = Array.Empty<string>();
             RefusedScaffold = null; RefusedFailures = Array.Empty<ValidationFailure>();
-            if (progress.CompletedPuzzles >= 6) { Stage = DirectorStage.Complete; return; }
+            if (progress.CompletedPuzzles >= 6) { BeginVisitor(); return; }
             var puzzle = Puzzle;
             if (!announce) Emit(GameEventKind.PuzzleStarted);
             if (puzzle.Kind == PuzzleKind.Board) { pending.Add(puzzle.Edges[0]); NextEdge(); return; }
@@ -252,7 +285,7 @@ namespace Palmfolk.Core
             var edge = Valley.Edge(pending[0]);
             // Board starts where Pip stands. A bridge is built from the edge's From island when Pip can walk
             // there, otherwise from its To island (a saved bridge may be missing).
-            string from = Puzzle.Kind == PuzzleKind.Board ? Puzzle.TravelerFrom
+            string from = !Visiting && Puzzle.Kind == PuzzleKind.Board ? Puzzle.TravelerFrom
                 : Reachable(progress.PipIsland, edge.From) ? edge.From : Reachable(progress.PipIsland, edge.To) ? edge.To : edge.From;
             sourceIsland = from;
             if (progress.PipIsland == from && Vec3.Distance(Pip, edge.AnchorAt(from).Centre) < 1e-9) { ArrivedAtSource(); return; }
@@ -273,10 +306,10 @@ namespace Palmfolk.Core
             { Stage = DirectorStage.Widening; Emit(GameEventKind.LedgeWidening); return; }
             var edge = Valley.Edge(pending[0]); var puzzle = Puzzle;
             var source = edge.AnchorAt(sourceIsland); var destination = edge.AnchorAt(edge.Other(sourceIsland));
-            bool carry = puzzle.Kind == PuzzleKind.Board;
+            bool carry = !Visiting && puzzle.Kind == PuzzleKind.Board;
             double cap = Valley.Ledge != null && Valley.Ledge.Edge == edge.Id ? LedgeWidth : double.PositiveInfinity;
             RefusedScaffold = null; RefusedFailures = Array.Empty<ValidationFailure>();
-            Session = ForkSession(cap) ?? new EdgeSession(edge.Id, carry, source, destination, puzzle.Rule, cap, Pip, settings, Valley.Clearance, Emit);
+            Session = ForkSession(cap) ?? new EdgeSession(edge.Id, carry, source, destination, CurrentRule, cap, Pip, settings, Valley.Clearance, Emit);
             Stage = DirectorStage.Interacting;
         }
 
@@ -284,15 +317,15 @@ namespace Palmfolk.Core
         // source anchors overlap (the root must sit in all of them). Otherwise the edges are built one at a time.
         private EdgeSession ForkSession(double cap)
         {
-            if (Puzzle.Kind != PuzzleKind.Fork) return null;
-            var ids = pending.Where(id => Valley.Edge(id).Touches(sourceIsland)).ToArray();
+            if (!Visiting && Puzzle.Kind != PuzzleKind.Fork) return null;
+            var ids = pending.Where(id => built.Contains(id) && Valley.Edge(id).Touches(sourceIsland)).ToArray();
             if (ids.Length < 2) return null;
             var sources = ids.Select(id => Valley.Edge(id).AnchorAt(sourceIsland)).ToArray();
             var destinations = ids.Select(id => { var e = Valley.Edge(id); return e.AnchorAt(e.Other(sourceIsland)); }).ToArray();
             var centre = Vec3.Zero; foreach (var a in sources) centre += a.Centre; centre = centre * (1.0 / sources.Length);
             double radius = sources.Min(a => a.Radius - Vec3.Distance(a.Centre, centre));
             if (radius < 0.005) return null;
-            return new EdgeSession(ids, false, new AnchorZone(centre, radius), sources, destinations, Puzzle.Rule, cap, Pip, settings, Valley.Clearance, Emit);
+            return new EdgeSession(ids, false, new AnchorZone(centre, radius), sources, destinations, CurrentRule, cap, Pip, settings, Valley.Clearance, Emit);
         }
 
         private void Baked(HandFrame frame)
@@ -304,20 +337,20 @@ namespace Palmfolk.Core
             // Pip stands at the end of the first branch; if that branch was refused he walks back from there.
             progress.PipIsland = Session.Results.ContainsKey(Session.Edge) ? Valley.Edge(Session.Edge).Other(sourceIsland) : sourceIsland;
             Session = null;
-            if (Puzzle.Kind == PuzzleKind.Finale) FailingEdges = FailingEdges.Where(pending.Contains).ToList().AsReadOnly();
+            if (Puzzle.Kind == PuzzleKind.Finale || Visiting) FailingEdges = FailingEdges.Where(pending.Contains).ToList().AsReadOnly();
             if (pending.Count > 0) { NextEdge(); return; }
             Stage = DirectorStage.AwaitingWithdrawal;
         }
 
         private void StartTravelers()
         {
-            var puzzle = Puzzle;
+            string from = Visiting ? Visitor.From : Puzzle.TravelerFrom; var kind = Visiting ? Visitor.Traveler : Puzzle.Traveler;
             foreach (var id in built)
             {
-                var edge = Valley.Edge(id); string to = edge.Other(puzzle.TravelerFrom);
-                travelers.Add(new Traveler(puzzle.Traveler, to, Valley.Island(puzzle.TravelerFrom).Top,
-                    Legs(id, puzzle.TravelerFrom, to), Valley.Island(to).Top));
+                var edge = Valley.Edge(id); string to = edge.Other(from);
+                travelers.Add(new Traveler(kind, to, Valley.Island(from).Top, Legs(id, from, to), Valley.Island(to).Top));
             }
+            arrival = null;
             Stage = DirectorStage.TravelersCrossing; Emit(GameEventKind.TravelersStarted);
         }
 
@@ -331,9 +364,133 @@ namespace Palmfolk.Core
 
         private void CompletePuzzle()
         {
+            if (Visiting) { SettleVisitor(); return; }
             Emit(GameEventKind.PuzzleCompleted);
             progress.CompletedPuzzles++;
+            // E16: as the sanctuary lights, the first visitor is already walking in.
+            if (progress.CompletedPuzzles == 6) progress.CurrentVisitor = NextVisitor();
             BeginPuzzle();
+        }
+
+        // R2: the next visitor not yet helped, in order; -1 when all have been.
+        private int NextVisitor()
+        {
+            for (int i = 0; i < Valley.Visitors.Count; i++) if ((progress.VisitorsHelped & (1 << i)) == 0) return i;
+            return -1;
+        }
+
+        // R2 and V3: every edge of the visitor's way in from the sanctuary and every edge they need is checked
+        // against their rules. Failing bridges glow and are rebuilt, missing ones are built, the way in first.
+        private void BeginVisitor()
+        {
+            EnsureResidents();
+            if (!Visiting) { arrival = null; Stage = DirectorStage.Complete; return; }
+            var visitor = Visitor; Emit(GameEventKind.VisitorCalled);
+            var needed = Approach(visitor.From).Concat(visitor.Edges).ToList();
+            var failing = needed.Where(id => !Passes(id, visitor.Traveler)).ToList();
+            FailingEdges = failing.Where(progress.Bridges.ContainsKey).ToList().AsReadOnly();
+            foreach (var id in FailingEdges) Emit(GameEventKind.RebuildNeeded);
+            pending.AddRange(failing); built.AddRange(visitor.Edges);
+            arrival = null; StepArrival(0);
+            if (pending.Count == 0) { Stage = DirectorStage.AwaitingWithdrawal; return; }
+            NextEdge();
+        }
+
+        // The edges from the sanctuary to an island, fewest first, whether built or not.
+        private List<string> Approach(string island)
+        {
+            var previous = new Dictionary<string, (string Island, string Edge)> { [Valley.Sanctuary] = (null, null) };
+            var queue = new Queue<string>(); queue.Enqueue(Valley.Sanctuary);
+            while (queue.Count > 0)
+            {
+                var at = queue.Dequeue(); if (at == island) break;
+                foreach (var edge in Valley.Edges)
+                    if (edge.Touches(at) && !previous.ContainsKey(edge.Other(at))) { previous[edge.Other(at)] = (at, edge.Id); queue.Enqueue(edge.Other(at)); }
+            }
+            var route = new List<string>();
+            if (!previous.ContainsKey(island)) return route;
+            for (string at = island; previous[at].Island != null; at = previous[at].Island) route.Insert(0, previous[at].Edge);
+            return route;
+        }
+
+        // E16: the visitor sets off from the sanctuary once every bridge of the way in passes their rules.
+        private void StepArrival(double step)
+        {
+            if (!Visiting || Stage == DirectorStage.TravelersCrossing) return;
+            var visitor = Visitor;
+            if (arrival == null)
+            {
+                if (Approach(visitor.From).Any(id => pending.Contains(id) || !progress.Bridges.ContainsKey(id))) return;
+                var start = Valley.Island(Valley.Sanctuary).Top;
+                arrival = new Traveler(visitor.Traveler, visitor.From, start, Path(Valley.Sanctuary, visitor.From), Valley.Island(visitor.From).Top);
+            }
+            bool was = arrival.Arrived;
+            arrival.Step(step);
+            if (!was && arrival.Arrived) Emit(GameEventKind.VisitorArrived);
+        }
+
+        // R3: the visitor settles in: their window lights and stays lit, and each bridge they crossed carries their mark.
+        private void SettleVisitor()
+        {
+            int bit = 1 << progress.CurrentVisitor;
+            foreach (var id in Visitor.Edges) { progress.BridgeMarks.TryGetValue(id, out int marks); progress.BridgeMarks[id] = marks | bit; }
+            progress.VisitorsHelped |= bit; progress.LitWindows |= bit; progress.CurrentVisitor = -1; arrival = null;
+            Emit(GameEventKind.VisitorSettled);
+            BeginPuzzle();
+        }
+
+        // R1: who walks the valley after the finale. Bram goes back and forth between the sanctuary and the camp;
+        // each settled visitor's travelers go back and forth across the bridges they asked for. They set off only
+        // over bridges that exist and aren't waiting to be rebuilt, and rest 3 s at each end.
+        private sealed class Resident
+        {
+            public const int RestTicks = 180;
+            public TravelerKind Kind; public string[] Edges; public string[] Ends; public int At, Rest; public bool IsBram; public int Visitor = -1;
+            public Traveler Walk;
+        }
+
+        private void EnsureResidents()
+        {
+            if (!IsComplete) return;
+            if (!residents.Any(r => r.IsBram))
+            {
+                var route = Valley.FinaleRoute();
+                residents.Add(new Resident { Kind = TravelerKind.Cart, IsBram = true, Edges = route.Select(r => r.Edge.Id).ToArray(), Ends = new[] { Valley.Camp, Valley.Sanctuary }, At = 1,
+                    Rest = Tick < 0 ? 0 : Resident.RestTicks });
+            }
+            for (int i = 0; i < Valley.Visitors.Count; i++)
+            {
+                if ((progress.VisitorsHelped & (1 << i)) == 0 || residents.Any(r => r.Visitor == i)) continue;
+                var visitor = Valley.Visitors[i];
+                // A visitor settling now rests first at the far end, where they just arrived. On launch, everyone
+                // is already on their way (R1).
+                foreach (var id in visitor.Edges)
+                    residents.Add(new Resident { Kind = visitor.Traveler, Visitor = i, Edges = new[] { id }, Ends = new[] { visitor.From, Valley.Edge(id).Other(visitor.From) }, At = 1,
+                        Rest = Tick < 0 ? 0 : Resident.RestTicks });
+            }
+            // Bram's finished finale crossing is his first walk.
+            var bram = residents.First(r => r.IsBram); if (bram.Walk == null && Bram != null && Bram.Arrived) bram.Walk = Bram;
+            foreach (var r in residents)
+                if (r.Walk == null) { var at = Valley.Island(r.Ends[r.At]).Top; r.Walk = new Traveler(r.Kind, r.Ends[r.At], at, new List<Route>(), at); r.Walk.Step(0); }
+            Bram = residents.First(r => r.IsBram).Walk;
+        }
+
+        private void StepResidents(double step)
+        {
+            foreach (var r in residents)
+            {
+                if (r.Walk.Arrived)
+                {
+                    if (r.Rest > 0) { r.Rest--; continue; }
+                    if (r.Edges.Any(id => pending.Contains(id) || !progress.Bridges.ContainsKey(id))) continue;
+                    string from = r.Ends[r.At], to = r.Ends[1 - r.At];
+                    var legs = new List<Route>(); string at = from;
+                    foreach (var id in r.At == 1 ? r.Edges.Reverse() : r.Edges) { var edge = Valley.Edge(id); legs.AddRange(Legs(id, at, edge.Other(at))); at = edge.Other(at); }
+                    r.Walk = new Traveler(r.Kind, to, Valley.Island(from).Top, legs, Valley.Island(to).Top); r.At = 1 - r.At; r.Rest = Resident.RestTicks;
+                    if (r.IsBram) Bram = r.Walk;
+                }
+                r.Walk.Step(step);
+            }
         }
 
         // The bridge's curves oriented from one island to the other. A tree (D4) walks root to the leaf that lands there.

@@ -87,9 +87,25 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   (batch mode): 204 EditMode tests pass, 221 with `PALMFOLK_DEVELOPMENT`. The editor runs the sweep every 15 ticks, because it is about eight times
   slower. Not verified on a headset: owner-checks Slice 9 needs the owner and Sam's views.
 
+- **D8, Nov 10.** Visitors and the living valley. After the finale the first visitor is called at once (E16);
+  each launch then brings the next, and the bell calls one at once when nobody is here. On a call, every bridge
+  on the visitor's way in and every edge they need is checked against their rules; failing bridges glow and
+  are rebuilt (the old one stays until the new one passes, R4), missing ones are built. The visitor walks in
+  from the sanctuary, their travelers cross, their window lights and their bridges get their mark (R3). Settled
+  visitors and Bram then walk the valley's bridges, and are already walking on a relaunch (R1). Saves already
+  held all of it. The tests use the five starting visitors on Sam's G, G1 and G2 layout: Gardener (walker, A to
+  G), Merchant (cart, rebuild C to E over the rock), Twins (walkers, one fork hand from G to G1 and G2),
+  Stargazer (walker, L1 to L2) and Lantern-maker (cart, A to G again). All five are helped with the left hand
+  alone and with the right hand alone. Before each visitor, every saved bridge in turn is removed or swapped for
+  another edge's bridge, and the visitor can still be helped (V3). Five deliberately planted bugs (bell while a
+  visitor is here, no rebuild check, no visitor on relaunch, residents not walking on relaunch, marks
+  overwritten) each made the tests fail. Verified headless: 209 developer-mode and 195 release-mode tests pass.
+  Verified in the Unity editor (batch mode): 224 EditMode tests pass, 241 with `PALMFOLK_DEVELOPMENT`. Not
+  verified on a headset: needs Sam's visitor views and content, then the owner.
+
 ## Next
 
-- D8, visitors and the living valley.
+- D9, the table mode platform.
 
 ## Notes for later items
 
@@ -116,6 +132,19 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
 - For Sam (D7): T5 and T18 now have presentation flags to draw: `Recovering` and `RecoveryPhase` (the still
   ghost from `GhostRoute`, Bram's gesture), `QualityPrompt` (the one line of text, P8's exception) and
   `StillnessLoosened` (the icon). See `core-api.md`.
+- For Sam (D8): `ChapterOne` needs its visitors: pass a `VisitorSpec[]` as the last `ValleySpec` argument (see
+  `core-api.md`, Visitors). The tests' version is `TestValley.Visitors()` in `ValleyDirectorTests.cs`. Views to
+  draw: `VisitorFigure`, `Residents`, the windows (`Windows`, `LitWindows`), `BridgeMarks`, and the bell on the
+  waystone sending `RingBell`.
+- For Sam and H1 (D8 designs):
+  - The Lantern-maker's cart needs a plank road from A to G. If the player built the Gardener's bridge wide
+    already, her need is met and she just crosses. The tests cover both. If she must always ask for something,
+    she needs another edge.
+  - The Merchant's cart over the rock: the arch must clear the rock's headroom within the cart's 25 degree
+    slope. The tests' hand rises 2.5 cm over the first two fifths of the gap and comes down the same way. On the
+    headset that is a careful hand; H1 should check whether a rock that size is fair for a cart.
+  - The Stargazer's "clearance above the Fork": bridges are not obstacles for other bridges, so a Fork branch
+    under L1 to L2 is not checked. If the design needs it, it is a new rule (tell me).
 - Defaults to check on the headset (H2): reference hand length 18 cm, scale clamp 0.75 to 1.3, palm half
   thickness 1.5 cm, and whether a 20 degree tilt limit is right on a lap.
 

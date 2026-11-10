@@ -159,7 +159,8 @@ namespace Palmfolk.Platform
             int ticks = Clock.Advance(Math.Min(Math.Max(0, renderedSeconds), MaximumFrameSeconds), Source, StepTarget ?? Game);
             bool save = false;
             foreach (var e in Clock.Events)
-                save |= e.Kind == GameEventKind.Planted || e.Kind == GameEventKind.BridgeBaked || e.Kind == GameEventKind.PuzzleCompleted || e.Kind == GameEventKind.LedgeWidened;
+                save |= e.Kind == GameEventKind.Planted || e.Kind == GameEventKind.BridgeBaked || e.Kind == GameEventKind.PuzzleCompleted || e.Kind == GameEventKind.LedgeWidened ||
+                    e.Kind == GameEventKind.VisitorCalled || e.Kind == GameEventKind.VisitorSettled;
             Place();
             if (Clock.Events.Count > 0) Ticked?.Invoke(Clock.Events);
             Presented?.Invoke(this);

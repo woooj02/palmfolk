@@ -60,6 +60,30 @@ namespace Palmfolk.Tests
             new PuzzleSpec(PuzzleKind.Finale, new[] { "S-A", "A-C", "C-Sanctuary" }, TravelerKind.Cart, "S"),
         };
 
+        // D8: Chapter 1 with Sam's visitor islands (G, G1, G2) and edges from his layout, and the five starting
+        // visitor designs (R2): Gardener, Merchant, Twins, Stargazer, Lantern-maker.
+        public static IslandSpec G = new IslandSpec("G", new Vec3(-0.25, 0.02, 0.03), 0.025);
+        public static IslandSpec G1 = new IslandSpec("G1", new Vec3(-0.105, 0.02, 0.15), 0.02);
+        public static IslandSpec G2 = new IslandSpec("G2", new Vec3(-0.07, 0.02, 0.07), 0.02);
+        public static VisitorSpec[] Visitors() => new[]
+        {
+            new VisitorSpec("Gardener", TravelerKind.Walker, "A", "A-G"),
+            new VisitorSpec("Merchant", TravelerKind.Cart, "C", "C-E"),
+            new VisitorSpec("Twins", TravelerKind.Walker, "G", "G-G1", "G-G2"),
+            new VisitorSpec("Stargazer", TravelerKind.Walker, "L1", "L1-L2"),
+            new VisitorSpec("Lantern-maker", TravelerKind.Cart, "A", "A-G"),
+        };
+        public static ValleySpec WithVisitors(VisitorSpec[] visitors = null)
+        {
+            var garden = new Vec3(G1.Top.X - G.Top.X, 0, G1.Top.Z - G.Top.Z).Normalized + new Vec3(G2.Top.X - G.Top.X, 0, G2.Top.Z - G.Top.Z).Normalized;
+            var gardenSource = new AnchorZone(G.Top + new Vec3(garden.X, 0, garden.Z).Normalized * G.Radius, Zone);
+            EdgeSpec Garden(string id, IslandSpec plot)
+            { var rim = EdgeSpec.Between(id, G, plot, Zone, LookoutZone); return new EdgeSpec(id, "G", plot.Id, gardenSource, rim.ToAnchor); }
+            var edges = Edges().Concat(new[] { EdgeSpec.Between("A-G", A, G, Zone, Zone), Garden("G-G1", G1), Garden("G-G2", G2), EdgeSpec.Between("L1-L2", L1, L2, Zone, Zone) }).ToArray();
+            return new ValleySpec(new[] { S, A, C, Sanctuary, L1, L2, E, G, G1, G2 }, edges, Puzzles(), new[] { Rock() },
+                new LedgeSpec("S-A", "A", 0.015, 0.06, 180), "S", "Sanctuary", visitors ?? Visitors());
+        }
+
         public static ValleySpec Chapter1(PuzzleSpec[] puzzles = null, LedgeSpec ledge = null, string sanctuary = "Sanctuary") =>
             new ValleySpec(new[] { S, A, C, Sanctuary, L1, L2, E }, Edges(), puzzles ?? Puzzles(), new[] { Rock() },
                 ledge ?? new LedgeSpec("S-A", "A", 0.015, 0.06, 180), "S", sanctuary);
@@ -68,13 +92,20 @@ namespace Palmfolk.Tests
     // A headless player: holds a hand across whatever gap the director is asking for, and withdraws otherwise.
     public sealed class TestPlayer
     {
-        public enum Shape { Plank, Rope, Straight, Arch }
+        public enum Shape { Plank, Rope, Straight, Arch, CartArch }
         // Which shape to use for an edge, by puzzle; attempt counts refusals on that edge so far.
         public Func<PuzzleKind, string, int, Shape> Plan = DefaultPlan;
         public HandSide Side = HandSide.Left;
         public double Tremor = 0.0003;
         public readonly Dictionary<string, int> Attempts = new Dictionary<string, int>();
         public readonly List<GameEvent> Events = new List<GameEvent>();
+
+        // For visitors (D8): which shape to use, by visitor, edge and attempt.
+        public Func<VisitorSpec, string, int, Shape> VisitorPlan = DefaultVisitorPlan;
+        public static Shape DefaultVisitorPlan(VisitorSpec visitor, string edge, int attempt) =>
+            visitor.Traveler == TravelerKind.Cart && edge == "C-E" ? Shape.CartArch : visitor.Traveler == TravelerKind.Walker ? Shape.Rope : Shape.Plank;
+        // A deck that clears the rock within the cart's 25 degree slope: heights at fifths of the way across.
+        public static readonly double[] CartArchProfile = { 0, 0.0125, 0.025, 0.025, 0.0125, 0 };
 
         public static Shape DefaultPlan(PuzzleKind puzzle, string edge, int attempt) =>
             puzzle == PuzzleKind.FirstBridge ? Shape.Rope : puzzle == PuzzleKind.Arch ? Shape.Arch : puzzle == PuzzleKind.Fork ? Shape.Straight : Shape.Plank;
@@ -125,12 +156,13 @@ namespace Palmfolk.Tests
             var session = game.Session;
             if (game.Stage != DirectorStage.Interacting || session == null) return null;
             Attempts.TryGetValue(session.Edge, out int attempt);
-            var shape = Plan(game.Puzzle.Kind, session.Edge, attempt);
+            var shape = game.Visitor != null ? VisitorPlan(game.Visitor, session.Edge, attempt) : Plan(game.Puzzle.Kind, session.Edge, attempt);
             if (session.IsFork) return Forked(session.Source.Centre, session.Destinations.Select(d => d.Centre).ToArray(), Side, tick, Tremor, Kinks?.Invoke(session.Edges.ToArray(), attempt));
             var from = session.Source.Centre; var to = session.Destination.Centre;
             bool level = Math.Abs(from.Y - to.Y) < 1e-9;
             // Level gaps use Sam's S1 fixtures; sloped and arched decks need a shaped hand (see Shaped).
             if (level && (shape == Shape.Plank || shape == Shape.Rope)) return Fixture(from, to, shape == Shape.Plank ? HandShape.Flat : HandShape.Spread, tick);
+            if (shape == Shape.CartArch) return Shaped(from, to, true, 0, Side, tick, Tremor, CartArchProfile);
             return Shaped(from, to, shape == Shape.Plank, shape == Shape.Arch ? 0.03 : 0, Side, tick, Tremor);
         }
 
@@ -146,12 +178,12 @@ namespace Palmfolk.Tests
         }
 
         // A hand whose index chain lies on the line (or arch) from `from` (fingertip) to `to` (wrist).
-        public static HandSample Shaped(Vec3 from, Vec3 to, bool flat, double arch, HandSide side, long tick = 0, double tremor = 0)
+        public static HandSample Shaped(Vec3 from, Vec3 to, bool flat, double arch, HandSide side, long tick = 0, double tremor = 0, double[] profile = null)
         {
             var d = from - to; var lateral = Vec3.Cross(Vec3.Up, d).Normalized * (side == HandSide.Left ? 1 : -1);
             double spacing = flat ? 0.018 : 0.08;
             var jitter = Planted.Jitter(tick, 99) * tremor;
-            Vec3 At(double t) => Vec3.Lerp(from, to, t) + new Vec3(0, arch * Math.Sin(Math.PI * t) - 0.006, 0) + jitter;
+            Vec3 At(double t) => Vec3.Lerp(from, to, t) + new Vec3(0, (profile == null ? arch * Math.Sin(Math.PI * t) : profile[(int)Math.Round(t * 5)]) - 0.006, 0) + jitter;
             var joints = new JointSample[26];
             var flags = JointFlags.PositionValid | JointFlags.RotationValid | JointFlags.HighConfidence | JointFlags.RadiusValid;
             double[] t = { 0.8, 0.6, 0.4, 0.2, 0 }; // metacarpal, proximal, intermediate, distal, tip

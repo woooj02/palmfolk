@@ -104,6 +104,23 @@ namespace Palmfolk.Core
         }
     }
 
+    // R2: a visitor after the finale. Each edge is one traveler's crossing away from From, to the Traveler's rules
+    // (the Twins are two edges and two walkers). The need is whatever those edges fail when the visitor arrives:
+    // a missing bridge is a new crossing, a failing one is rebuilt (V3, R4).
+    public sealed class VisitorSpec
+    {
+        public string Id { get; }
+        public TravelerKind Traveler { get; }
+        public string From { get; }
+        public IReadOnlyList<string> Edges { get; }
+        public VisitorSpec(string id, TravelerKind traveler, string from, params string[] edges)
+        {
+            if (string.IsNullOrWhiteSpace(id) || !Enum.IsDefined(typeof(TravelerKind), traveler) || string.IsNullOrWhiteSpace(from) || edges == null ||
+                edges.Length == 0 || edges.Length > 4 || edges.Any(string.IsNullOrWhiteSpace) || edges.Distinct().Count() != edges.Length) throw new ArgumentException("Invalid visitor.");
+            Id = id; Traveler = traveler; From = from; Edges = Array.AsReadOnly((string[])edges.Clone());
+        }
+    }
+
     // The whole valley. Obstacles (the rock) are axis-aligned boxes in valley-local space.
     public sealed class ValleySpec
     {
@@ -116,9 +133,15 @@ namespace Palmfolk.Core
         public LedgeSpec Ledge { get; }
         public string Camp { get; }
         public string Sanctuary { get; }
+        // R2: the visitors, in the order they come (at most five, as the save holds). Visitor i lights window i (R3).
+        public IReadOnlyList<VisitorSpec> Visitors { get; }
 
-        public ValleySpec(IslandSpec[] islands, EdgeSpec[] edges, PuzzleSpec[] puzzles, Obstacle[] obstacles, LedgeSpec ledge, string camp, string sanctuary)
+        public ValleySpec(IslandSpec[] islands, EdgeSpec[] edges, PuzzleSpec[] puzzles, Obstacle[] obstacles, LedgeSpec ledge, string camp, string sanctuary,
+            VisitorSpec[] visitors = null)
         {
+            if (visitors != null && (visitors.Length > 5 || visitors.Any(v => v == null) || visitors.Select(v => v.Id).Distinct().Count() != visitors.Length))
+                throw new ArgumentException("Invalid visitors.");
+            Visitors = Array.AsReadOnly(visitors == null ? Array.Empty<VisitorSpec>() : (VisitorSpec[])visitors.Clone());
             if (islands == null || edges == null || puzzles == null || obstacles == null || islands.Any(i => i == null) || edges.Any(e => e == null) || puzzles.Any(p => p == null))
                 throw new ArgumentException("Incomplete valley.");
             foreach (var island in islands) if (!this.islands.ContainsKey(island.Id)) this.islands.Add(island.Id, island); else throw new ArgumentException("Duplicate island " + island.Id);
@@ -171,6 +194,12 @@ namespace Palmfolk.Core
                 at = edge.Other(at);
             }
             if (at != Sanctuary) throw new ArgumentException("The finale route must end at the sanctuary.");
+            foreach (var visitor in Visitors)
+            {
+                Island(visitor.From);
+                foreach (var id in visitor.Edges)
+                    if (!Edge(id).Touches(visitor.From)) throw new ArgumentException("Visitor " + visitor.Id + "'s edges must start at " + visitor.From + ".");
+            }
             if (Ledge != null)
             {
                 var edge = Edge(Ledge.Edge);

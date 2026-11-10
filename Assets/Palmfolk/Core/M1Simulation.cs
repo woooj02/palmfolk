@@ -10,7 +10,8 @@ namespace Palmfolk.Core
         ScaffoldRemoving, BridgeBaked, Refused, BramStarted, BramFinished, TrackingLost,
         RecoveryAligned, RecoveryCompleted, ReturningToCheckpoint, HintDue, QualityPromptDue, PersistentBridgeObserved, StartupPromptDue,
         Planted, ReplantStarted,
-        PuzzleStarted, PuzzleCompleted, LedgeWidening, LedgeWidened, RebuildNeeded, TravelersStarted, TravelerArrived, CrossingCompleted
+        PuzzleStarted, PuzzleCompleted, LedgeWidening, LedgeWidened, RebuildNeeded, TravelersStarted, TravelerArrived, CrossingCompleted,
+        VisitorCalled, VisitorArrived, VisitorSettled
     }
     public readonly struct GameEvent
     {
