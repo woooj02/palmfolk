@@ -10,10 +10,16 @@ from a later frame when processing a backlog. Call `FootContact(worldPosition)` 
 actual contact, and `Play` for explicit platform/director connection/visitor signals. Do not map boarding
 or build-start to a missing connection-lock event. Such events are not currently exposed by Core.
 
-Footsteps use a spatial source at the contact point, not the player's head. Independent captions remain
-with each cue and expire; toggling captions off hides every active caption. Voice instances are reused
-after their sound and caption finish. Do not call `Play` every rendered frame for a persistent state.
+Footsteps use a spatial source at the contact point, not the player's head. Configure `ContactAudioBinding`
+with the audio presenter and **only** the relevant view's content root; it binds newly created/pool rigs
+without scanning the whole scene. Rig callbacks already supply world positions. Voices reuse after playback;
+repeated same-kind sounds extend one stable caption instead of spawning many labels. Captions expire and
+the toggle hides all of them. Do not call `Play` every rendered frame for a persistent state.
 
-Unbound: exact connection-lock event, visitor arrivals, foot contacts from final rigs, night music progression
-and real scene integration. Sound-alone completion recognition, caption legibility and spatial placement
+`NightMusic` is an original synthesized loop with captions, driven by D3 puzzle count/finale state. It fades
+up as night advances, settles in the finale and pauses with the game. It implements the valley view port.
+This is a placeholder arrangement to listen/review, not a finished music or headset-audio claim.
+Music owns a child source/caption root; it never moves the platform's shared scene root or camera.
+
+Unbound: exact connection-lock event, visitor arrivals and real scene integration. Sound-alone completion recognition, caption legibility and spatial placement
 need the owner to listen/inspect in editor and on Quest 2. Original synthesized placeholders still need P11 polish.

@@ -94,11 +94,17 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   Bram and group travelers. Synthetic tests prove moving-hand reprojection without false steps,
   landing timing and valley-to-world conversion. Compile exits 0/no `error CS`; 146/146 Unity tests,
   headless 141 / 133 and source checks pass. No live foot-contact, legibility or audio quality pass claimed.
+- **S5/S9 audio follow-up, Nov 10 — Unity editor.** Original night loop follows the actual director
+  count/finale and pauses with the game; meaningful changes have captions. Added a scoped contact-audio
+  binder for world-space rig landings. Repeated taps/steps extend one caption instead of many labels.
+  No external samples/assets. Compile exits 0/no `error CS`; 148 release / 157 developer Unity tests
+  pass, including recording/stats gate checks, original samples and scoped binding. Headless 141 / 133,
+  source checks and 28 manifest regressions pass. Listening/headset quality remains owner verification.
 
 ## Next
 
-- D3 chapter data and full-valley view bindings are merged. Remaining source work: contact treatment
-  and original night music; see dependency and owner checks below. Waystone input side is implemented.
+- Source implementations against the current published contracts are prepared. Next integration needs
+  Dario's remaining platform/save/visitor contracts, then owner-run M1 and quality review below.
   S4 is blocked on the command/save contract below.
 
 ## Blocked
@@ -111,12 +117,12 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   or save-setting contract. Need Dario's published input/save adapter (D3/D5) and ISDK poke/gaze source
   binding (D6/D10) before a full-session waystone can be verified. Do not mutate Core from a view or
   add substitute puzzle-solving menu commands. Required row geometry remains ≤4 × ≥6° targets + ≥1° gaps.
-- S5 final binding needs explicit connection-lock/visitor events, actual rig foot contacts and the night
-  music state. Current Core has no such event payloads. Owner must judge audio/caption quality and
+- S5 final binding needs explicit connection-lock/visitor events and the live scene driver. Foot-contact
+  and night-music ports are implemented. Owner must judge audio/caption quality and
   sound-alone build-completion recognition; procedural cues remain placeholders until polished.
 - S6 route-relative foot planting/callbacks are implemented. Surface transitions, final contact treatment/
   props and 3 cm readability still need owner editor/headset review; do not claim a live sliding-free pass.
-- S9 counts and bridge binding use D3; visitor windows await D8. Night music and final art remain unfinished.
+- S9 counts/bridges/music use D3; visitor windows await D8. Final art and audio-quality review remain open.
   Actual passthrough dimming stays disabled until Dario's platform integration and owner edge-visibility test.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified
   from coordinates. Actual Fork/Arch clearance also needs D4, H1 and owner-run reach/comfort checks.

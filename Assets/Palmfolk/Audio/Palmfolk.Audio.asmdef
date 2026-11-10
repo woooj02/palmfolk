@@ -1,4 +1,4 @@
 {
   "name": "Palmfolk.Audio",
-  "references": ["Palmfolk.Core"]
+  "references": ["Palmfolk.Core", "Palmfolk.Views"]
 }

@@ -50,9 +50,11 @@ namespace Palmfolk.Audio
 
     public sealed class AudioPresenter : MonoBehaviour
     {
-        private sealed class Voice { public AudioSource Source; public TextMesh Caption; public float Until; }
+        private sealed class Voice { public AudioSource Source; }
+        private sealed class CaptionState { public TextMesh Text; public float Until; }
         private readonly List<Voice> voices = new List<Voice>();
         private readonly Dictionary<Cue, AudioClip> clips = new Dictionary<Cue, AudioClip>();
+        private readonly Dictionary<Cue, CaptionState> captions = new Dictionary<Cue, CaptionState>();
         public bool Captions { get; set; } = true;
         public float Volume { get; set; } = 0.5f;
         public void Consume(IReadOnlyList<GameEvent> events, WorldPresentation frame)
@@ -74,23 +76,29 @@ namespace Palmfolk.Audio
                 var samples = CueCatalog.Samples(cue);
                 clip = AudioClip.Create("Original " + cue, samples.Length, 1, 22050, false); clip.SetData(samples, 0); clips.Add(cue, clip);
             }
-            Voice voice = voices.Find(v => !v.Source.isPlaying && v.Until <= Time.unscaledTime);
+            Voice voice = voices.Find(v => !v.Source.isPlaying);
             if (voice == null)
             {
                 var emitter = new GameObject("Cue and caption"); emitter.transform.SetParent(transform, false);
                 var source = emitter.AddComponent<AudioSource>(); source.spatialBlend = 1; source.playOnAwake = false;
                 source.minDistance = 0.05f; source.maxDistance = 2;
-                var text = new GameObject("In-world caption").AddComponent<TextMesh>(); text.transform.SetParent(emitter.transform, false);
-                text.transform.localPosition = Vector3.up * 0.035f; text.characterSize = 0.002f; text.fontSize = 32; text.anchor = TextAnchor.MiddleCenter;
-                voice = new Voice { Source = source, Caption = text }; voices.Add(voice);
+                voice = new Voice { Source = source }; voices.Add(voice);
             }
             voice.Source.transform.position = new Vector3((float)worldPosition.X, (float)worldPosition.Y, (float)worldPosition.Z);
             voice.Source.volume = Mathf.Clamp01(Volume); voice.Source.clip = clip; voice.Source.Play();
-            voice.Caption.text = CueCatalog.Caption(cue); voice.Caption.gameObject.SetActive(Captions); voice.Until = Time.unscaledTime + 1.3f;
+            if (!captions.TryGetValue(cue, out var caption))
+            {
+                var text = new GameObject("In-world " + cue + " caption").AddComponent<TextMesh>(); text.transform.SetParent(transform, false);
+                text.characterSize = 0.002f; text.fontSize = 32; text.anchor = TextAnchor.MiddleCenter;
+                caption = new CaptionState { Text = text }; captions.Add(cue, caption);
+            }
+            // Repeated footsteps/taps extend one caption, rather than spawning a cloud of text.
+            if (caption.Until <= Time.unscaledTime) caption.Text.transform.position = voice.Source.transform.position + Vector3.up * 0.035f;
+            caption.Text.text = CueCatalog.Caption(cue); caption.Text.gameObject.SetActive(Captions); caption.Until = Time.unscaledTime + 1.3f;
         }
         private void Update()
         {
-            foreach (var voice in voices) voice.Caption.gameObject.SetActive(Captions && voice.Until > Time.unscaledTime);
+            foreach (var caption in captions.Values) caption.Text.gameObject.SetActive(Captions && caption.Until > Time.unscaledTime);
         }
         private void OnDestroy() { foreach (var clip in clips.Values) DestroyImmediate(clip); }
     }
