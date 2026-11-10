@@ -4,8 +4,10 @@
 
 - The `m1-gameplay` core is merged into `main`. The v1.3 requirements and build plan govern from here; the
   core was written against v1.2 and is being extended to v1.3 (valley, planting, puzzles, visitors).
-- Two developers work in parallel, a Lead and a Partner, and both merge to `main` on GitHub.
-  See [`team-plan.md`](team-plan.md). Each keeps a status file (`status-lead.md`, `status-partner.md`).
+- Two developers work in parallel, Dario and Sam, each in their own folder, and both merge to `main` on GitHub.
+  See [`team-plan.md`](team-plan.md). Each keeps a status file (`status-dario.md`, `status-sam.md`).
+  Branches start with the developer's name (`dario/valley-model`, `sam/views-bridge-mesh`).
+- Work starts when the owner says so.
 - Later slices may be prepared in parallel with M1 so the journey can be finished by the deadline.
   This changes the order of preparation only: every slice still needs its Quest 2 result, and M1 sign-off is
   still the owner's, on the headset.

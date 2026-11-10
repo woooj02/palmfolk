@@ -1,21 +1,21 @@
-# Lead status
+# Dario status
 
-Work items: [`team-plan.md`](team-plan.md#lead-work). Labels: headless, Unity editor, simulator, Quest 2.
+Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity editor, simulator, Quest 2.
 
 ## Done
 
-- **L1, Nov 10.** Merged `m1-gameplay` into `main` under the v1.3 requirements. `README.md` updated;
+- **D1, Nov 10.** Merged `m1-gameplay` into `main` under the v1.3 requirements. `README.md` updated;
   `tools/check_source.py` now pins the v1.3 requirements and build plan alongside v1.2. Verified headless: 59
   developer-mode and 51 release-mode tests pass with .NET 8 on Windows. `check_source.py` not run locally (no Python
   on this PC); CI runs it.
 
-## In progress
+## Next
 
-- **L2:** valley-local space and planting.
+- D2, valley-local space and planting, once the owner says start.
 
 ## Blocked
 
-- L6, L9, L10 need Unity 6000.0.66f2 on this PC (owner installs).
+- D6, D9, D10 need Unity 6000.0.66f2 on this PC (owner installs).
 
 ## Questions for the owner
 
