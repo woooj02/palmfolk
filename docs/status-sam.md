@@ -14,15 +14,21 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   Unity fixture/test assembly compile exited 0, with no `error CS` lines. Tests exercise an M1
   build/withdraw/cart crossing and loss/far-return recovery. No headset result is claimed.
   The fixture API is ready for Dario's D2–D4 tests; their adoption remains Dario's work.
+- **S7 layout handoff, Nov 10 — headless calculations only.** `testing/valley-layout.md` supplies
+  island/deck coordinates, radii, anchor construction, ten 12–15 cm gaps, six puzzle and five visitor
+  mappings within a 60 × 45 cm bound. Main cart route has exactly three crossings. Source checks
+  and both headless configurations pass (67 / 59). No runtime content or reach/FoV pass claimed.
 
 ## Next
 
-- Owner authorized work. Next: S7 layout numbers, S10 tooling, S11 owner sheets, S12 submission draft,
+- Owner authorized work. Next: S10 tooling, S11 owner sheets, S12 submission draft,
   then the remaining Unity items in team-plan order.
 
 ## Blocked
 
 - S7 executable puzzle/visitor data awaits D3's published content types. Layout numbers can proceed.
+- S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified
+  from coordinates. Actual Fork/Arch clearance also needs D4, H1 and owner-run reach/comfort checks.
 
 ## Questions for the owner
 
