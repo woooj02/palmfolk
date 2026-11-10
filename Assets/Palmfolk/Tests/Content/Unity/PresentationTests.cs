@@ -11,6 +11,19 @@ namespace Palmfolk.Tests.Content
 {
     public class PresentationTests
     {
+        [Test] public void CapacityPreviewDistinguishesGroupFromCartByHeadroom()
+        {
+            var root = new GameObject("Capacity test");
+            try
+            {
+                var level = new LevelGeometry(new Vec3(-0.06, 0.006, 0), new Vec3(0.06, 0.006, 0), new Obstacle(new Vec3(-0.01, 0.045, -0.1), new Vec3(0.01, 0.08, 0.1)));
+                var game = new M1Simulation(level); var source = new HandSequence();
+                for (long i = 0; i < 20; i++) { source.TryRead(i, out var frame); game.Step(frame); }
+                var view = root.AddComponent<PalmfolkView>(); view.Configure(level); view.Present(new WorldPresentation(game, 1));
+                Assert.That(view.PreviewCapacity, Is.EqualTo(TravelerKind.Group));
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
         [Test] public void RuntimePresentationTemplatesAreCommittedResources()
         {
             foreach (string name in new[] { "StandardOpaque", "StandardTransparent", "Glow", "HighContrast", "Lines" })
@@ -54,6 +67,11 @@ namespace Palmfolk.Tests.Content
                 var frame = new ValleyPresentation(game, 0.5); view.Present(frame);
                 Assert.That(view.RenderedBridgeCount, Is.EqualTo(game.Bridges.Count));
                 Assert.That(view.ValleyRoot.Find("Pip").localPosition.x, Is.EqualTo((float)frame.Pip.X).Within(1e-6));
+                Assert.That(view.RenderedUniqueCurveCount, Is.EqualTo(game.Bridges.Values.Sum(t => t.Curves.Count) - 1), "Shared Fork trunk is drawn once.");
+                var saved = SaveCodec.DecodeSave(SaveCodec.EncodeSave(new SaveData { Valley = game.Progress }));
+                var reopened = new ValleySimulation(game.Valley, null, saved.Valley);
+                view.Present(new ValleyPresentation(reopened, 1));
+                Assert.That(view.RenderedUniqueCurveCount, Is.EqualTo(game.Bridges.Values.Sum(t => t.Curves.Count) - 1), "Deserialized equal trunks also draw once.");
                 var xray = root.AddComponent<XRayView>(); xray.SetVisible(true); xray.Present(frame);
                 Assert.That(root.GetComponentsInChildren<LineRenderer>().Length, Is.GreaterThan(10));
                 var night = root.AddComponent<NightView>(); night.Configure(game.Valley.Island("Sanctuary").Top); night.Present(frame);

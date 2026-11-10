@@ -17,6 +17,7 @@ namespace Palmfolk.Views
         private bool finale;
         private float start = 1, target = 1, elapsed = 1;
         private float verifiedLimit;
+        private readonly HashSet<Route> drawn = new HashSet<Route>(RouteGeometryComparer.Instance);
         public bool ReducedMotion { get; set; }
         public bool TableMode { get; set; }
         public float Intensity { get; private set; } = 1;
@@ -84,8 +85,10 @@ namespace Palmfolk.Views
             windows.gameObject.SetActive(solved >= 5 || lit > 0);
             for (int i = 0; i < 5; i++) windows.GetChild(i).GetComponent<Renderer>().sharedMaterial = i < lit ? litWindow : darkWindow;
             int index = 0;
+            drawn.Clear();
             if (finale) foreach (var tree in bridges) foreach (var curve in tree.Curves)
             {
+                if (!drawn.Add(curve)) continue;
                 if (index == bridgeLights.Count)
                 {
                     var line = new GameObject("Finale along saved bridge").AddComponent<LineRenderer>(); line.transform.SetParent(valley, false);

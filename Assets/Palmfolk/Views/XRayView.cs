@@ -14,6 +14,7 @@ namespace Palmfolk.Views
         private TextMesh progress;
         private LevelGeometry level;
         private int used;
+        private readonly HashSet<Route> drawn = new HashSet<Route>(RouteGeometryComparer.Instance);
         public bool Visible { get; private set; }
         public double ConnectDistance { get; set; } = 0.02;
         public double BreakDistance { get; set; } = 0.04;
@@ -45,8 +46,10 @@ namespace Palmfolk.Views
                 var line = Next(Color.gray, 0.0005f); line.positionCount = 2;
                 line.SetPosition(0, PalmfolkView.V(edge.FromAnchor.Centre)); line.SetPosition(1, PalmfolkView.V(edge.ToAnchor.Centre));
             }
-            Route(frame.FilteredHandRoute, Color.white, 0.001f); Route(frame.Scaffold, Color.yellow, 0.003f); Route(frame.GhostRoute, Color.gray, 0.0015f);
-            foreach (var bridge in frame.Bridges.Values) foreach (var curve in bridge.Curves) Route(curve, Color.cyan, 0.002f);
+            if (frame.HandTree != null) foreach (var curve in frame.HandTree.Curves) Route(curve, Color.white, 0.001f); else Route(frame.FilteredHandRoute, Color.white, 0.001f);
+            if (frame.ScaffoldTree != null) foreach (var curve in frame.ScaffoldTree.Curves) Route(curve, Color.yellow, 0.003f); else Route(frame.Scaffold, Color.yellow, 0.003f);
+            Route(frame.GhostRoute, Color.gray, 0.0015f); drawn.Clear();
+            foreach (var bridge in frame.Bridges.Values) foreach (var curve in bridge.Curves) if (drawn.Add(curve)) Route(curve, Color.cyan, 0.002f);
             if (frame.Source.HasValue) { Ring(frame.Source.Value.Centre, frame.Source.Value.Radius, false); Ring(frame.Source.Value.Centre, frame.Source.Value.Radius + BreakDistance - ConnectDistance, true); }
             if (frame.Destination.HasValue) { Ring(frame.Destination.Value.Centre, frame.Destination.Value.Radius, false); Ring(frame.Destination.Value.Centre, frame.Destination.Value.Radius + BreakDistance - ConnectDistance, true); }
             Finish(frame.BuildProgress, frame.ActiveEdge ?? frame.Puzzle.ToString());

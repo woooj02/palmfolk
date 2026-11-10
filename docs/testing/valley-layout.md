@@ -32,20 +32,22 @@ final art bounds. The two garden plots are the Twins' destinations, not extra pu
 
 For each edge, take the horizontal unit vector from source centre to destination centre. Put its
 source anchor at source centre + source radius × unit vector, its destination anchor at destination
-centre - destination radius × unit vector. Each anchor's Y is its island's top height. Thus horizontal
-gap = centre distance minus the two radii. Keep the anchors distinct for separate branches.
+centre - destination radius × unit vector. Each anchor's Y is its island's top height. Fork edges are
+the exception: C→L1/L2 share one full source zone, and G→G1/G2 share another, facing between the two
+destinations. The source direction is the horizontal normalization of the sum of normalized destination
+vectors; destinations retain their rim anchors. Separate branch destinations remain distinct.
 
 | Edge | Horizontal gap (cm) | Height change (cm) | Use |
 |---|---:|---:|---|
 | S → A | 12.763 | 0 | Board, First Bridge, finale rebuild |
 | A → C | 12.000 | 0 | Width, reused by Bram |
 | C → Sanctuary | 12.763 | 0 | Finale new plank |
-| C → L1 | 12.000 | +4 | Fork branch |
-| C → L2 | 13.493 | +4 | Fork branch |
+| C → L1 | 12.301 | +4 | Fork branch, shared source |
+| C → L2 | 13.786 | +4 | Fork branch, shared source |
 | C → E | 14.601 | 0 | Arch; Merchant cart later |
 | A → G | 14.605 | 0 | Gardener; Lantern-maker later |
-| G → G1 | 14.322 | 0 | Twins branch |
-| G → G2 | 13.939 | 0 | Twins branch |
+| G → G1 | 14.403 | 0 | Twins branch, shared source |
+| G → G2 | 14.021 | 0 | Twins branch, shared source |
 | L1 → L2 | 12.553 | 0 | Stargazer, above the existing Fork |
 
 Even including the 4 cm elevation changes, straight anchor distances stay within 12–15 cm.
@@ -93,5 +95,7 @@ Use `ChapterOne.Create(measuredObstacles)` for explicit obstacle data. `Greybox(
 D3 test rock: 1.6 cm square, 3.5 cm top height, centred in C→E. It is labelled greybox and does not settle H1.
 Content tests use Dario's public `TestPlayer` helper to run the **actual** director to completion with
 each hand and validate Bram's three crossings against cart rules. No Dario file or Core model was edited.
-Visitor routes are reserved, but visitor data still waits for D8 types. D4's single-hand branching,
-owner-run reach/comfort, H1 and FoV verification remain open. No runtime model was invented in parallel.
+Visitor routes are reserved, but visitor data still waits for D8 types. D4's single-hand branching is
+now integrated with full shared source zones. The approximately 68° lookout spread is still synthetic
+test evidence only: owner-run natural spread/reach/comfort, H1 and FoV verification remain open.
+No runtime model was invented in parallel.

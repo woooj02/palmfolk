@@ -13,7 +13,8 @@ No collider remains on a presentation primitive. This greybox is not final P1/P6
 The bridge drawer reads **every curve** in a `CurveTree`; a shared branch junction is Core data. Rope has
 a thin cord deck and rails; planks have separate wide boards. Posts use captured route joints; a tip knot
 respects the route's reversed flag. Transparent preview has a width/capacity shape (thin post versus cart-size
-block); capacity uses full cart validation against the configured level. Crossed animated bars identify refusal
+block with wheels); a group has three posts and no valid capacity has a cross. Capacity uses full width,
+slope and clearance rules against the configured level. Crossed animated bars identify refusal
 segments without relying on colour. `ReducedMotion` keeps the shape but removes its pulse.
 
 The recovery route is still and jointed. A separately supplied `HintRoute` uses disconnected moving beads;
@@ -73,6 +74,12 @@ the input adapter, never a view mutation of Core. No live driver or shared scene
 The preview is geometric: Core does not expose the destination connection watcher's locked state, so no
 explicit connection-lock chime/event is fabricated. Visitor rigs, full recovery skeleton, solution hint pose,
 true single-hand Fork and headset performance/feel remain open dependencies or owner checks.
+
+D4 binding: the live and frozen scaffolds use full curve trees, refused branch indices address the correct
+curve/segment, and rejected scaffold has a short removal. Persisted shared trunks draw once, including
+after Save v2 reconstructs equal Route objects. Only leaf fingertips receive knots; a shared wrist/trunk
+does not. X-ray and finale lighting also deduplicate trunks. Call `Configure(actualGameSettings)` on
+`ValleyView` (or pass settings to M1 `Configure`) so H1's capacity rules match the actual simulation.
 
 ## Contrast and retained materials
 

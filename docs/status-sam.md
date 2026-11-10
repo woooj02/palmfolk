@@ -2,9 +2,10 @@
 
 Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity editor, simulator, Quest 2.
 
-Latest verification, Nov 10: **headless** 141 developer / 133 release tests; Python 3.12 source checks;
-28 manifest regressions. **Unity editor**: compile exit 0/no `error CS`, 160 developer / 151 release tests
-pass; the release run confirms stats are absent again after the developer run. No simulator, Quest 2, Quest 3/3S,
+Latest verification, Nov 10 after D4/D5: **headless** 164 developer / 156 release tests; Python 3.12 source
+checks; 28 manifest regressions. **Unity editor**: compile exit 0/no `error CS`, 175 release tests pass.
+The developer gate last passed before this integration and will be checked with the D5 menu binding.
+No simulator, Quest 2, Quest 3/3S,
 APK, installed build or M1 sign-off is claimed. Individual results below are historical by item.
 
 ## Done
@@ -112,11 +113,18 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
   assets committed. Small shared README change adds status/integration links. Full Unity checks pass
   (160 developer / 151 release); shader behavior and cluttered-table readability still need the owner APK pass.
 
+- **S2/S7 D4 integration, Nov 10 — headless / Unity editor.** Fork and future Twins edges share full
+  source zones. Live/frozen/refused branch trees render correctly; shared trunks draw once before/after
+  save round-trip; tip knots only mark leaves. Capacity icons use actual configurable rules and distinguish
+  walker, group, cart or refusal. Headless 164 / 156, source checks, compile and 175 Unity tests pass.
+  Cleaned Unity-generated material whitespace. Wide natural Fork spread remains an owner check.
+
 ## In progress
 
 - Source implementations against the current published contracts are prepared. Next integration needs
   Dario's remaining platform/save/visitor contracts, then owner-run M1 and quality review below.
   S4 is blocked on the command/save contract below.
+  D5 is now available; its menu/save binding is next before the source handoff.
 
 ## Blocked
 
@@ -138,8 +146,9 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
   contact guarantee; no Core type was changed to guess it.
 - S9 counts/bridges/music use D3; visitor windows await D8. Final art and audio-quality review remain open.
   Actual passthrough dimming stays disabled until Dario's platform integration and owner edge-visibility test.
-- S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified
-  from coordinates. Actual Fork/Arch clearance also needs D4, H1 and owner-run reach/comfort checks.
+- S7's Stargazer gap is diagonal mostly in depth (25° off forward); the Lookout Fork spans about 68°.
+  T14 and V5 cannot be certified from coordinates. D4 geometry is integrated; H1 and owner-run natural
+  spread/reach/comfort remain open.
 
 ## Questions for the owner
 

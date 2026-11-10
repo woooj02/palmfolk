@@ -7,6 +7,13 @@ namespace Palmfolk.Tests.Content
 {
     public class ChapterContentTests
     {
+        [Test] public void ForkEdgesShareOneFullSourceZone()
+        {
+            var valley = ChapterOne.Greybox();
+            Assert.That(valley.Edge("C-L1").FromAnchor.Centre, Is.EqualTo(valley.Edge("C-L2").FromAnchor.Centre));
+            Assert.That(valley.Edge("C-L1").FromAnchor.Radius, Is.EqualTo(0.02));
+            Assert.That(valley.Edge("G-G1").FromAnchor.Centre, Is.EqualTo(valley.Edge("G-G2").FromAnchor.Centre));
+        }
         [Test] public void EveryReservedGapAndIslandFitsTheNumericalLayout()
         {
             var valley = ChapterOne.Greybox();

@@ -23,10 +23,19 @@ namespace Palmfolk.Core.Content
             };
             IslandSpec Island(string id) => islands.First(i => i.Id == id);
             EdgeSpec Edge(string id, string from, string to, double endRadius = 0.02) => EdgeSpec.Between(id, Island(from), Island(to), 0.02, endRadius);
+            AnchorZone SharedSource(string from, string a, string b)
+            {
+                Vec3 facing = (Island(a).Top - Island(from).Top).Normalized + (Island(b).Top - Island(from).Top).Normalized;
+                facing = new Vec3(facing.X, 0, facing.Z).Normalized;
+                return new AnchorZone(Island(from).Top + facing * Island(from).Radius, 0.02);
+            }
+            var forkSource = SharedSource("C", "L1", "L2"); var gardenSource = SharedSource("G", "G1", "G2");
+            EdgeSpec Fork(string id, string from, string to, AnchorZone source)
+            { var rim = Edge(id, from, to, 0.03); return new EdgeSpec(id, from, to, source, rim.ToAnchor); }
             var edges = new[] {
                 Edge("S-A", "A", "S"), Edge("A-C", "A", "C"), Edge("C-Sanctuary", "C", "Sanctuary"),
-                Edge("C-L1", "C", "L1", 0.03), Edge("C-L2", "C", "L2", 0.03), Edge("C-E", "C", "E"),
-                Edge("A-G", "A", "G"), Edge("G-G1", "G", "G1", 0.03), Edge("G-G2", "G", "G2", 0.03), Edge("L1-L2", "L1", "L2")
+                Fork("C-L1", "C", "L1", forkSource), Fork("C-L2", "C", "L2", forkSource), Edge("C-E", "C", "E"),
+                Edge("A-G", "A", "G"), Fork("G-G1", "G", "G1", gardenSource), Fork("G-G2", "G", "G2", gardenSource), Edge("L1-L2", "L1", "L2")
             };
             var puzzles = new[] {
                 new PuzzleSpec(PuzzleKind.Board, new[] { "S-A" }, TravelerKind.Walker, "S"),

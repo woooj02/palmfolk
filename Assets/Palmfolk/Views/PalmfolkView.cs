@@ -10,7 +10,7 @@ namespace Palmfolk.Views
     public sealed class PalmfolkView : MonoBehaviour, IPalmfolkView
     {
         private Transform valley, pip, bram, cart, apprentice, capacity;
-        private ShapePool hand, preview, scaffold, bridge, ghost, hint, refusal;
+        private ShapePool hand, preview, scaffold, bridge, ghost, hint, refusal, capacityGlyph;
         private Material wood, cord, skin, translucent, ghostMaterial, hintMaterial, warning;
         private LevelGeometry level;
         private TravelerRig pipRig, bramRig, apprenticeRig;
@@ -25,8 +25,10 @@ namespace Palmfolk.Views
         public Route HintRoute { get; set; }
         public bool ReducedMotion { get; set; }
         public WorldPresentation LastFrame { get; private set; }
+        public TravelerKind? PreviewCapacity { get; private set; }
+        private GameSettings rules = new GameSettings();
 
-        public void Configure(LevelGeometry geometry) { level = geometry; Ensure(); }
+        public void Configure(LevelGeometry geometry, GameSettings actual = null) { level = geometry; rules = (actual ?? new GameSettings()).Copy(); Ensure(); }
         public void Consume(IReadOnlyList<GameEvent> events)
         {
             Ensure(); pipRig.Consume(events); bramRig.Consume(events);
@@ -54,19 +56,20 @@ namespace Palmfolk.Views
             cart.localRotation = bram.localRotation;
             cart.localPosition = V(frame.Bram) + bram.localRotation * Vector3.back * 0.016f;
             apprentice.localPosition = level == null ? Vector3.zero : V(level.End) + new Vector3(0, 0, 0.025f);
-            hand.Begin(); preview.Begin(); scaffold.Begin(); bridge.Begin(); ghost.Begin(); hint.Begin(); refusal.Begin();
+            hand.Begin(); preview.Begin(); scaffold.Begin(); bridge.Begin(); ghost.Begin(); hint.Begin(); refusal.Begin(); capacityGlyph.Begin(); PreviewCapacity = null;
             DrawRoute(hand, frame.FilteredHandRoute, false, handMaterial);
             bool connected = frame.FilteredHandRoute != null && level != null &&
-                ((Vec3.Distance(frame.FilteredHandRoute.Start, level.Start) < 0.02 && Vec3.Distance(frame.FilteredHandRoute.End, level.End) < 0.02) ||
-                (Vec3.Distance(frame.FilteredHandRoute.End, level.Start) < 0.02 && Vec3.Distance(frame.FilteredHandRoute.Start, level.End) < 0.02));
+                ((Vec3.Distance(frame.FilteredHandRoute.Start, level.Start) < rules.ConnectDistance && Vec3.Distance(frame.FilteredHandRoute.End, level.End) < rules.ConnectDistance) ||
+                (Vec3.Distance(frame.FilteredHandRoute.End, level.Start) < rules.ConnectDistance && Vec3.Distance(frame.FilteredHandRoute.Start, level.End) < rules.ConnectDistance));
             if (connected && frame.Bridge == null) DrawRoute(preview, frame.FilteredHandRoute, true, translucent);
             capacity.gameObject.SetActive(connected && frame.Bridge == null);
             if (connected)
             {
                 var route = frame.FilteredHandRoute;
-                bool wide = BridgeValidator.Validate(CurveTree.Single(route), route.Start, route.End, TravelerKind.Cart, new GameSettings(), level).Count == 0;
+                bool Fits(TravelerKind kind) => BridgeValidator.Validate(CurveTree.Single(route), route.Start, route.End, kind, rules, level).Count == 0;
+                PreviewCapacity = Fits(TravelerKind.Cart) ? TravelerKind.Cart : Fits(TravelerKind.Group) ? TravelerKind.Group : Fits(TravelerKind.Walker) ? TravelerKind.Walker : (TravelerKind?)null;
                 capacity.localPosition = V(route.Points[route.Points.Count / 2]) + Vector3.up * 0.025f;
-                capacity.localScale = wide ? new Vector3(0.014f, 0.006f, 0.014f) : new Vector3(0.004f, 0.015f, 0.004f);
+                DrawCapacity(capacityGlyph, PreviewCapacity, wood, warning);
             }
             DrawRoute(scaffold, frame.Scaffold, true, wood, (float)(1 - frame.ScaffoldRemovalProgress));
             if (frame.Bridge != null) foreach (var curve in frame.Bridge.Curves) DrawRoute(bridge, curve, true, null);
@@ -88,7 +91,7 @@ namespace Palmfolk.Views
                 refusal.Box(center, new Vector3(size, 0.003f, 0.003f), Quaternion.Euler(0, 0, 45), warning);
                 refusal.Box(center, new Vector3(size, 0.003f, 0.003f), Quaternion.Euler(0, 0, -45), warning);
             }
-            hand.End(); preview.End(); scaffold.End(); bridge.End(); ghost.End(); hint.End(); refusal.End();
+            hand.End(); preview.End(); scaffold.End(); bridge.End(); ghost.End(); hint.End(); refusal.End(); capacityGlyph.End();
         }
 
         private void Ensure()
@@ -111,7 +114,7 @@ namespace Palmfolk.Views
             apprenticeRig = apprentice.GetComponent<TravelerRig>(); apprenticeRig.Role = TravelerRole.Apprentice;
             cart = Primitive(PrimitiveType.Cube, "Lantern cart", wood, valley);
             cart.localScale = new Vector3(0.02f, 0.014f, 0.016f);
-            capacity = Primitive(PrimitiveType.Cube, "Capacity shape", wood, valley);
+            capacity = new GameObject("Capacity icon").transform; capacity.SetParent(valley, false); capacityGlyph = new ShapePool(capacity, "Capacity glyph");
             if (level != null)
             {
                 Island("S", level.Start, -0.045f); Island("A", level.End, 0.045f);
@@ -136,7 +139,7 @@ namespace Palmfolk.Views
         }
         private void DrawRoute(ShapePool pool, Route route, bool built, Material material, float visible = 1)
             => DrawGeometry(pool, route, built, material, wood, cord, visible);
-        internal static void DrawGeometry(ShapePool pool, Route route, bool built, Material material, Material wood, Material cord, float visible = 1)
+        internal static void DrawGeometry(ShapePool pool, Route route, bool built, Material material, Material wood, Material cord, float visible = 1, bool markTip = true, int? tipIndex = null)
         {
             if (route == null || visible <= 0) return;
             for (int i = 0; i + 1 < route.Points.Count; i++)
@@ -161,8 +164,8 @@ namespace Palmfolk.Views
             for (int i = 0; i < route.Points.Count; i++)
                 if (built) pool.Box(V(route.Points[i]) + Vector3.up * 0.005f, new Vector3(0.003f, 0.01f * visible, 0.003f), Quaternion.identity, material != null ? material : wood);
                 else pool.Sphere(V(route.Points[i]), 0.007f, material);
-            int tip = route.Reversed ? route.Points.Count - 1 : 0;
-            if (built) pool.Sphere(V(route.Points[tip]), 0.006f * visible, material != null ? material : cord);
+            int tip = tipIndex ?? (route.Reversed ? route.Points.Count - 1 : 0);
+            if (built && markTip) pool.Sphere(V(route.Points[tip]), 0.006f * visible, material != null ? material : cord);
         }
 
         private Material Make(Color color)
@@ -181,6 +184,24 @@ namespace Palmfolk.Views
                 result.EnableKeyword("_ALPHABLEND_ON"); result.renderQueue = 3000;
             }
             return result;
+        }
+        internal static void DrawCapacity(ShapePool pool, TravelerKind? kind, Material material, Material warning)
+        {
+            if (kind == TravelerKind.Cart)
+            {
+                pool.Box(Vector3.zero, new Vector3(0.014f, 0.006f, 0.012f), Quaternion.identity, material);
+                pool.Sphere(new Vector3(-0.006f, -0.004f, 0), 0.004f, material); pool.Sphere(new Vector3(0.006f, -0.004f, 0), 0.004f, material);
+            }
+            else if (kind.HasValue)
+            {
+                int count = kind == TravelerKind.Group ? 3 : 1;
+                for (int i = 0; i < count; i++) pool.Box(new Vector3((i - (count - 1) / 2f) * 0.005f, 0, 0), new Vector3(0.003f, 0.012f, 0.003f), Quaternion.identity, material);
+            }
+            else
+            {
+                pool.Box(Vector3.zero, new Vector3(0.014f, 0.003f, 0.003f), Quaternion.Euler(0, 0, 45), warning);
+                pool.Box(Vector3.zero, new Vector3(0.014f, 0.003f, 0.003f), Quaternion.Euler(0, 0, -45), warning);
+            }
         }
         private void ApplyContrast()
         {

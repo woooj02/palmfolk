@@ -11,7 +11,7 @@ namespace Palmfolk.Views
     {
         private Transform valley, islands, pip, bram, cart, ledge, capacity;
         private TravelerRig pipRig, bramRig;
-        private PalmfolkView.ShapePool live, preview, scaffold, ghost, refusals;
+        private PalmfolkView.ShapePool live, preview, scaffold, ghost, refusals, refusedScaffold, capacityGlyph;
         private readonly Dictionary<string, PalmfolkView.ShapePool> bridges = new Dictionary<string, PalmfolkView.ShapePool>();
         private readonly List<Transform> travelers = new List<Transform>();
         private readonly List<Material> materials = new List<Material>();
@@ -20,6 +20,11 @@ namespace Palmfolk.Views
         private Route previousRoute, currentRoute;
         private long routeTick = -2;
         private long? planted;
+        private CurveTree lastRefused, previousTree, currentTree;
+        private long refusedSince;
+        private readonly HashSet<Route> drawn = new HashSet<Route>(RouteGeometryComparer.Instance);
+        private GameSettings rules = new GameSettings();
+        public void Configure(GameSettings actual) { rules = (actual ?? new GameSettings()).Copy(); }
         private Material islandMaterial, handMaterial, backdropMaterial;
         private Transform backdrop;
         private bool? contrastApplied;
@@ -28,6 +33,8 @@ namespace Palmfolk.Views
         public bool TableMode { get; set; }
         public Transform ValleyRoot => valley;
         public int RenderedBridgeCount => bridges.Count;
+        public int RenderedUniqueCurveCount { get; private set; }
+        public TravelerKind? PreviewCapacity { get; private set; }
         public void Consume(IReadOnlyList<GameEvent> events)
         {
             if (pipRig != null) { pipRig.Consume(events); bramRig.Consume(events); }
@@ -57,11 +64,14 @@ namespace Palmfolk.Views
                 }
             for (int i = usedTraveler; i < travelers.Count; i++) travelers[i].gameObject.SetActive(false);
             if (spec.Ledge != null) ledge.localScale = new Vector3((float)frame.LedgeWidth, 0.002f, 0.01f);
-            live.Begin(); preview.Begin(); scaffold.Begin(); ghost.Begin(); refusals.Begin();
+            live.Begin(); preview.Begin(); scaffold.Begin(); ghost.Begin(); refusals.Begin(); refusedScaffold.Begin(); capacityGlyph.Begin(); drawn.Clear(); PreviewCapacity = null;
             foreach (var pool in bridges.Values) pool.Begin();
-            if (frame.Tick != routeTick) { previousRoute = currentRoute; currentRoute = frame.FilteredHandRoute; routeTick = frame.Tick; }
+            if (frame.Tick != routeTick) { previousRoute = currentRoute; currentRoute = frame.FilteredHandRoute; previousTree = currentTree; currentTree = frame.HandTree; routeTick = frame.Tick; }
             var displayed = Blend(previousRoute, currentRoute, handInterpolation);
-            Draw(live, displayed, false, handMaterial); Draw(scaffold, frame.Scaffold, true, wood, (float)(1 - frame.ScaffoldRemovalProgress));
+            var displayedTree = BlendTree(previousTree, currentTree, handInterpolation);
+            if (displayedTree != null) DrawTree(live, displayedTree, false, handMaterial); else Draw(live, displayed, false, handMaterial);
+            if (frame.ScaffoldTree != null) DrawTree(scaffold, frame.ScaffoldTree, true, wood, (float)(1 - frame.ScaffoldRemovalProgress));
+            else Draw(scaffold, frame.Scaffold, true, wood, (float)(1 - frame.ScaffoldRemovalProgress));
             Draw(ghost, frame.GhostRoute, false, carved);
             bool inZones = displayed != null && frame.Source.HasValue && frame.Destination.HasValue && frame.Source.Value.Contains(displayed.Start) && frame.Destination.Value.Contains(displayed.End);
             capacity.gameObject.SetActive(inZones);
@@ -73,24 +83,47 @@ namespace Palmfolk.Views
                     var widths = displayed.CopyWidths(); for (int i = 0; i < widths.Length; i++) widths[i] = Math.Min(widths[i], frame.LedgeWidth);
                     effective = new Route(displayed.CopyPoints(), widths, displayed.Finger, displayed.Reversed);
                 }
-                Draw(preview, effective, true, transparent);
-                bool cartFits = BridgeValidator.Validate(CurveTree.Single(effective), frame.Source.Value, new[] { frame.Destination.Value }, TravelerKind.Cart, new GameSettings(), spec.Clearance).Count == 0;
+                var tree = displayedTree ?? CurveTree.Single(effective);
+                if (frame.ActiveEdge == spec.Ledge?.Edge) tree = EdgeSession.Cap(tree, frame.LedgeWidth);
+                DrawTree(preview, tree, true, transparent);
+                var destinations = new List<AnchorZone>();
+                foreach (string id in frame.ActiveEdges)
+                {
+                    var edge = spec.Edge(id);
+                    bool from = Vec3.Distance(edge.FromAnchor.Centre, frame.Source.Value.Centre) <= Vec3.Distance(edge.ToAnchor.Centre, frame.Source.Value.Centre);
+                    destinations.Add(from ? edge.ToAnchor : edge.FromAnchor);
+                }
+                if (destinations.Count == 0) destinations.Add(frame.Destination.Value);
+                bool Fits(TravelerKind kind) => BridgeValidator.Validate(tree, frame.Source.Value, destinations, kind, rules, spec.Clearance).Count == 0;
+                PreviewCapacity = Fits(TravelerKind.Cart) ? TravelerKind.Cart : Fits(TravelerKind.Group) ? TravelerKind.Group : Fits(TravelerKind.Walker) ? TravelerKind.Walker : (TravelerKind?)null;
                 capacity.localPosition = PalmfolkView.V(effective.Points[effective.Points.Count / 2]) + Vector3.up * 0.025f;
-                capacity.localScale = cartFits ? new Vector3(0.014f, 0.006f, 0.014f) : new Vector3(0.004f, 0.015f, 0.004f);
+                PalmfolkView.DrawCapacity(capacityGlyph, PreviewCapacity, wood, warning);
             }
             foreach (var saved in frame.Bridges)
             {
                 if (!bridges.TryGetValue(saved.Key, out var pool)) { pool = new PalmfolkView.ShapePool(valley, "Bridge " + saved.Key); bridges.Add(saved.Key, pool); }
-                foreach (var curve in saved.Value.Curves) Draw(pool, curve, true, null);
+                for (int c = 0; c < saved.Value.Curves.Count; c++)
+                {
+                    var curve = saved.Value.Curves[c]; if (!drawn.Add(curve)) continue;
+                    bool leaf = true; for (int p = c + 1; p < saved.Value.Parents.Count; p++) if (saved.Value.Parents[p] == c) leaf = false;
+                    Draw(pool, curve, true, null, 1, leaf, saved.Value.Curves.Count > 1 ? curve.Points.Count - 1 : (int?)null);
+                }
             }
+            RenderedUniqueCurveCount = drawn.Count;
+            if (!ReferenceEquals(lastRefused, frame.RefusedScaffold)) { lastRefused = frame.RefusedScaffold; refusedSince = frame.Tick; }
+            if (frame.RefusedScaffold != null) DrawTree(refusedScaffold, frame.RefusedScaffold, true, carved, 1 - Mathf.Clamp01((frame.Tick - refusedSince) / (float)rules.RemovalTicks));
             foreach (string failing in frame.FailingEdges)
             {
                 var edge = spec.Edge(failing); Cross(PalmfolkView.V(Vec3.Lerp(edge.FromAnchor.Centre, edge.ToAnchor.Centre, 0.5)));
             }
             foreach (var failure in frame.Refusals)
-                if (displayed != null && failure.Segment >= 0 && failure.Segment + 1 < displayed.Points.Count)
-                    Cross(PalmfolkView.V(Vec3.Lerp(displayed.Points[failure.Segment], displayed.Points[failure.Segment + 1], 0.5)));
-            live.End(); preview.End(); scaffold.End(); ghost.End(); refusals.End(); foreach (var pool in bridges.Values) pool.End();
+            {
+                var failedTree = frame.RefusedScaffold ?? frame.HandTree;
+                var failedRoute = failedTree != null && failure.Curve >= 0 && failure.Curve < failedTree.Curves.Count ? failedTree.Curves[failure.Curve] : displayed;
+                if (failedRoute != null && failure.Segment >= 0 && failure.Segment + 1 < failedRoute.Points.Count)
+                    Cross(PalmfolkView.V(Vec3.Lerp(failedRoute.Points[failure.Segment], failedRoute.Points[failure.Segment + 1], 0.5)));
+            }
+            live.End(); preview.End(); scaffold.End(); ghost.End(); refusals.End(); refusedScaffold.End(); capacityGlyph.End(); foreach (var pool in bridges.Values) pool.End();
             void Cross(Vector3 center)
             {
                 float width = ReducedMotion ? 0.014f : 0.014f + Mathf.Sin(frame.Tick / 5f) * 0.002f;
@@ -121,7 +154,7 @@ namespace Palmfolk.Views
             }
             pip = Actor("Pip"); bram = Actor("Bram"); pipRig = pip.GetComponent<TravelerRig>(); bramRig = bram.GetComponent<TravelerRig>(); bramRig.Role = TravelerRole.Bram;
             cart = PalmfolkView.Primitive(PrimitiveType.Cube, "Lantern cart", wood, valley); cart.localScale = new Vector3(0.02f, 0.014f, 0.016f);
-            capacity = PalmfolkView.Primitive(PrimitiveType.Cube, "Capacity shape", wood, valley);
+            capacity = new GameObject("Capacity icon").transform; capacity.SetParent(valley, false); capacityGlyph = new PalmfolkView.ShapePool(capacity, "Capacity glyph");
             ledge = PalmfolkView.Primitive(PrimitiveType.Cube, "Widening ledge", wood, valley);
             ledge.gameObject.SetActive(spec.Ledge != null);
             if (spec.Ledge != null)
@@ -131,6 +164,7 @@ namespace Palmfolk.Views
             }
             live = new PalmfolkView.ShapePool(valley, "Displayed route"); preview = new PalmfolkView.ShapePool(valley, "Preview");
             scaffold = new PalmfolkView.ShapePool(valley, "Frozen scaffold"); ghost = new PalmfolkView.ShapePool(valley, "Recovery ghost"); refusals = new PalmfolkView.ShapePool(valley, "Refusal crosses");
+            refusedScaffold = new PalmfolkView.ShapePool(valley, "Refused branch removal");
         }
         private Material Material(Color color) { var value = PalmfolkView.CreateMaterial(color); materials.Add(value); return value; }
         private void ApplyContrast()
@@ -150,7 +184,22 @@ namespace Palmfolk.Views
         {
             var root = new GameObject(name).transform; root.SetParent(valley, false); root.gameObject.AddComponent<TravelerRig>().Initialize(skin); return root;
         }
-        private void Draw(PalmfolkView.ShapePool pool, Route route, bool built, Material material, float visibility = 1) => PalmfolkView.DrawGeometry(pool, route, built, material, wood, cord, visibility);
+        private void Draw(PalmfolkView.ShapePool pool, Route route, bool built, Material material, float visibility = 1, bool markTip = true, int? tip = null) => PalmfolkView.DrawGeometry(pool, route, built, material, wood, cord, visibility, markTip, tip);
+        private void DrawTree(PalmfolkView.ShapePool pool, CurveTree tree, bool built, Material material, float visibility = 1)
+        {
+            for (int c = 0; c < tree.Curves.Count; c++)
+            {
+                bool leaf = true; for (int p = c + 1; p < tree.Parents.Count; p++) if (tree.Parents[p] == c) leaf = false;
+                Draw(pool, tree.Curves[c], built, material, visibility, leaf, tree.Curves.Count > 1 ? tree.Curves[c].Points.Count - 1 : (int?)null);
+            }
+        }
+        private static CurveTree BlendTree(CurveTree previous, CurveTree current, float alpha)
+        {
+            if (previous == null || current == null || previous.Curves.Count != current.Curves.Count) return current;
+            var curves = new Route[current.Curves.Count]; var parents = new int[curves.Length];
+            for (int i = 0; i < curves.Length; i++) { if (previous.Parents[i] != current.Parents[i]) return current; curves[i] = Blend(previous.Curves[i], current.Curves[i], alpha); parents[i] = current.Parents[i]; }
+            try { return new CurveTree(curves, parents); } catch (ArgumentException) { return current; }
+        }
         private static Route Blend(Route previous, Route current, float alpha)
         {
             if (previous == null || current == null || previous.Finger != current.Finger || previous.Reversed != current.Reversed || previous.Points.Count != current.Points.Count) return current;
