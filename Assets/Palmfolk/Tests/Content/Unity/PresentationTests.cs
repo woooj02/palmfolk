@@ -10,6 +10,33 @@ namespace Palmfolk.Tests.Content
 {
     public class PresentationTests
     {
+        [Test] public void StatsTypeMatchesTheCompiledDevelopmentGate()
+        {
+            var stats = System.Type.GetType("Palmfolk.Developer.StatsPanel, Palmfolk.Stats");
+            bool requested = System.Environment.GetEnvironmentVariable("PALMFOLK_CHECK_DEVELOPMENT") == "true";
+            if (System.Environment.GetEnvironmentVariable("PALMFOLK_CHECK_DEVELOPMENT") != null)
+                Assert.That(stats != null, Is.EqualTo(requested), "Gate must match the wrapper's requested configuration.");
+#if PALMFOLK_DEVELOPMENT
+            Assert.That(stats, Is.Not.Null);
+#else
+            Assert.That(stats, Is.Null);
+#endif
+        }
+        [Test] public void ShippingXRayToggleDoesNotMutateCore()
+        {
+            var root = new GameObject("X-ray test");
+            try
+            {
+                var level = new LevelGeometry(new Vec3(-0.06, 0.006, 0), new Vec3(0.06, 0.006, 0));
+                var game = new M1Simulation(level); var xray = root.AddComponent<XRayView>(); xray.Configure(level);
+                xray.SetVisible(true); xray.Present(new WorldPresentation(game, 1));
+                Assert.That(root.GetComponentsInChildren<LineRenderer>().Length, Is.GreaterThan(0));
+                xray.SetVisible(false);
+                Assert.That(root.GetComponentsInChildren<LineRenderer>(), Is.Empty);
+                Assert.That(game.Tick, Is.EqualTo(-1));
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
         [Test] public void ReplayDrivesViewWithoutChangingTheSimulation()
         {
             var level = new LevelGeometry(new Vec3(-0.06, 0.006, 0), new Vec3(0.06, 0.006, 0));

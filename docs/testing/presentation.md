@@ -25,3 +25,14 @@ The temporary objects are not saved; close the window before saving any scene. T
 The Unity integration test drives the same sequence and checks persistence, actor positions, no colliders
 and unchanged simulation ticks. Editor results do not verify live input, headset contact, visual readability
 at 3 cm, or 72 fps. Future D3 contracts must preserve the current M1 fields and add valley data as documented.
+
+`XRayView` is a separate shipping `IPalmfolkView`: configure it with the same level/settings, feed each
+frame and call `SetVisible`. Solid/dashed threshold rings, differing line thickness and frozen joint markers
+remain distinguishable without colour. It displays the M1 routes and bridge tree supplied by Core; it does
+not infer D3 connectivity or invent an undisclosed valley graph. Keep a diagnostic sign facing the viewer.
+
+`Palmfolk.Developer.StatsPanel` lives in a nested, separately gated `Palmfolk.Stats` assembly under the
+shared Developer path (Sam's stats ownership). It writes no files and creates no recorder. Platform code
+calls `Show` with measured fps, total/disruptive per-puzzle counts, puzzle ID, actual gaze source, mode and
+stamped version. Nulls explicitly display “unmeasured”/“unbound”. The release frame has x-ray but no stats
+type. Actual FPS/labels and per-puzzle reset need Dario's platform/director binding.

@@ -10,12 +10,17 @@ py -3.12 tools/check_source.py
 powershell -ExecutionPolicy Bypass -File tools/Test-ManifestChecks.ps1
 powershell -ExecutionPolicy Bypass -File tools/Invoke-UnityChecks.ps1 -Mode Compile
 powershell -ExecutionPolicy Bypass -File tools/Invoke-UnityChecks.ps1 -Mode EditMode
+powershell -ExecutionPolicy Bypass -File tools/Invoke-UnityChecks.ps1 -Mode EditMode -Development
 ```
 
 The Unity wrapper resolves the project from the script location, checks exit status and compiler errors,
 and requires a nonempty all-passing NUnit XML for Edit Mode. It does not pass `-quit` to the test runner.
 Logs/results stay in ignored `Logs/`. If the first clean import crashes once, use the documented setup
 retry; the check itself never turns a crash into a pass. Do not run while that folder is open in Unity.
+The wrapper configures the active editor target's single gate in a preliminary invocation, then verifies
+the compiled stats type in the actual compile/test invocation. It restores the previous project-settings
+bytes in `finally`. `-Development` requests inclusion; without it, absence. No Android setting change is
+committed. Do not confuse this editor gate check with a final APK pass. Reopen/import after interrupted checks.
 
 `Source checks` runs the headless tests on Linux and Windows and planted bad-manifest checks on both.
 Unity checks run locally on the installed/licensed editor, not hosted CI; no CI licence is configured.

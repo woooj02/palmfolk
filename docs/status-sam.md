@@ -39,16 +39,30 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   Synthetic replay integration test passes; Unity 91/91 Edit Mode tests, compile exit 0/no `error CS`.
   Rope and plank QA renders inspected for structural distinction. These are editor/synthetic images,
   never submission or headset footage. Full S2 remains open for D3 valley data and hand/hint bindings.
+- **S3 M1 diagnostics, Nov 10 — Unity editor.** Shipping `XRayView` toggles M1 routes/bridge tree,
+  frozen joint marks, progress and solid/dashed connect/break rings. Added only Sam's stats subfolder
+  under shared Developer; it writes no files and shows unbound measurements honestly. Explicit editor
+  define setup/restore verifies stats presence in developer mode (102/102 tests) and absence with
+  shipping x-ray intact in release mode (93/93). Batch compile exited 0/no `error CS`.
+  Headless 99 / 91 and Python source checks pass. Actual gaze/mode/fps/per-puzzle counters still need
+  the platform/director binding; a full valley graph awaits D3 presentation fields.
 
 ## Next
 
-- Owner authorized work. Next: S3 stats/x-ray, then remaining Unity items in team-plan order.
+- Owner authorized work. Next: S5 audio/captions, S6 body language, then S8 startup and S9 night.
+  S4 is blocked on the command/save contract below.
 
 ## Blocked
 
 - S7 executable puzzle/visitor data awaits D3's published content types. Layout numbers can proceed.
 - S2 full valley/visitor views await D3 presentation fields. The M1 contract exposes a route, not a full
   recovery skeleton or puzzle-specific hint pose; these need a published input/solution binding, not guessed joints.
+- S3 full valley graph and measured stats labels await D3/D6/D10 bindings. M1 diagnostic drawing is
+  explicitly derived from the routes in `WorldPresentation`, not a claim of undisclosed Core connectivity.
+- S4: current `InputCommand` supports pause/resume/replant but no full restart/mode/settings/bell/quit
+  or save-setting contract. Need Dario's published input/save adapter (D3/D5) and ISDK poke/gaze source
+  binding (D6/D10) before a full-session waystone can be verified. Do not mutate Core from a view or
+  add substitute puzzle-solving menu commands. Required row geometry remains ≤4 × ≥6° targets + ≥1° gaps.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified
   from coordinates. Actual Fork/Arch clearance also needs D4, H1 and owner-run reach/comfort checks.
 

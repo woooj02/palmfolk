@@ -2,7 +2,8 @@
 param(
     [ValidateSet('Compile', 'EditMode')][string]$Mode = 'Compile',
     [string]$Unity = 'E:/Unity/Editors/6000.0.66f2/Editor/Unity.exe',
-    [int]$TimeoutSeconds = 1800
+    [int]$TimeoutSeconds = 1800,
+    [switch]$Development
 )
 $ErrorActionPreference = 'Stop'
 $project = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -13,15 +14,30 @@ $log = "$project/Logs/unity-$Mode.log"
 $result = "$project/Logs/editmode-results.xml"
 if ($Mode -eq 'EditMode' -and (Test-Path -LiteralPath $result)) { Remove-Item -LiteralPath $result -Force }
 $arguments = @('-batchmode', '-nographics', '-projectPath', ('"' + $project + '"'), '-logFile', ('"' + $log + '"'))
-if ($Mode -eq 'Compile') { $arguments += '-quit' }
+if ($Mode -eq 'Compile') { $arguments += @('-quit', '-executeMethod', 'Palmfolk.Editor.ValidationDefines.Verify') }
 else { $arguments += @('-runTests', '-testPlatform', 'EditMode', '-testResults', ('"' + $result + '"')) }
-$process = Start-Process -FilePath $Unity -WindowStyle Hidden -PassThru -ArgumentList $arguments
-if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+function Run-Editor([string[]]$EditorArguments) {
+    $process = Start-Process -FilePath $Unity -WindowStyle Hidden -PassThru -ArgumentList $EditorArguments
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
     # Only stop this child process, never an editor belonging to another worktree.
-    Stop-Process -Id $process.Id -Force
-    throw "Unity timed out. See $log"
+        Stop-Process -Id $process.Id -Force
+        throw "Unity timed out. See $log"
+    }
+    if ($process.ExitCode -ne 0) { throw "Unity exited $($process.ExitCode). See $log" }
 }
-if ($process.ExitCode -ne 0) { throw "Unity exited $($process.ExitCode). See $log" }
+$settingsPath = "$project/ProjectSettings/ProjectSettings.asset"
+$settingsExisted = Test-Path -LiteralPath $settingsPath
+$previousSettings = if ($settingsExisted) { [IO.File]::ReadAllBytes($settingsPath) } else { $null }
+$previousGate = $env:PALMFOLK_CHECK_DEVELOPMENT
+try {
+    $env:PALMFOLK_CHECK_DEVELOPMENT = if ($Development) { 'true' } else { 'false' }
+    Run-Editor @('-batchmode', '-quit', '-nographics', '-projectPath', ('"' + $project + '"'), '-logFile', ('"' + "$project/Logs/define-setup.log" + '"'), '-executeMethod', 'Palmfolk.Editor.ValidationDefines.Configure')
+    Run-Editor $arguments
+} finally {
+    $env:PALMFOLK_CHECK_DEVELOPMENT = $previousGate
+    if ($settingsExisted) { [IO.File]::WriteAllBytes($settingsPath, $previousSettings) }
+    elseif (Test-Path -LiteralPath $settingsPath) { Remove-Item -LiteralPath $settingsPath -Force }
+}
 if (-not (Test-Path -LiteralPath $log)) { throw 'Unity did not produce its log.' }
 if (Select-String -LiteralPath $log -Pattern 'error CS\d+|Scripts have compiler errors|Crash!!!' -Quiet) { throw "Unity compilation/import failed. See $log" }
 if ($Mode -eq 'EditMode') {
