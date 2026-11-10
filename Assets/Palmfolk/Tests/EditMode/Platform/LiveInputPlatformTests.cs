@@ -74,7 +74,7 @@ namespace Palmfolk.Tests
     public class PalmfolkRunnerTests
     {
         // Hands from the headless test player, in world space, as XR Hands would deliver them.
-        private sealed class ScriptedHands : IHandReader
+        internal sealed class ScriptedHands : IHandReader
         {
             private readonly PalmfolkRunner runner; private readonly TestPlayer player = new TestPlayer();
             private readonly Planted.Placement table = new Planted.Placement { Height = 0.74, YawDegrees = 37, HandLength = 0.2, Offset = new Vec3(0.2, 0, -0.35) };
@@ -101,6 +101,7 @@ namespace Palmfolk.Tests
         {
             go = new GameObject("runner"); origin = new GameObject("origin");
             runner = go.AddComponent<PalmfolkRunner>(); runner.ValleyRoot = origin.transform; runner.Hands = new ScriptedHands(runner);
+            runner.Passthrough = new TableModeTests.FakePassthrough(); // D9: Table mode needs passthrough; no anchors, so it plants each launch.
             folder = Path.Combine(Path.GetTempPath(), "palmfolk-runner-" + Guid.NewGuid().ToString("N"));
         }
         [TearDown] public void Destroy()

@@ -72,6 +72,42 @@ namespace Palmfolk.Platform.Editor
             Selection.activeObject = go;
             return runner;
         }
+
+        // D9: Table mode needs passthrough (Supported, not Required, so VR still runs without it) and spatial
+        // anchors in the Android manifest, and MetaTableMode next to the runner. Run after 2. Add Runner.
+        [MenuItem("Palmfolk/Platform/3. Enable Table Mode")]
+        public static Palmfolk.Platform.Meta.MetaTableMode EnableTableMode()
+        {
+            var config = OVRProjectConfig.CachedProjectConfig;
+            config.insightPassthroughSupport = OVRProjectConfig.FeatureSupport.Supported;
+            config.anchorSupport = OVRProjectConfig.AnchorSupport.Enabled;
+            OVRProjectConfig.CommitProjectConfig(config);
+            AssetDatabase.SaveAssets();
+            return AddTableMode();
+        }
+
+        // Adds MetaTableMode to the scene's runner (once).
+        public static Palmfolk.Platform.Meta.MetaTableMode AddTableMode()
+        {
+            var runner = UnityEngine.Object.FindAnyObjectByType<PalmfolkRunner>();
+            if (runner == null) { Debug.LogWarning("Passthrough and anchors are on. Add the runner (2. Add Runner To Open Scene), then run this again."); return null; }
+            var mode = runner.GetComponent<Palmfolk.Platform.Meta.MetaTableMode>();
+            if (mode == null)
+            {
+                mode = Undo.AddComponent<Palmfolk.Platform.Meta.MetaTableMode>(runner.gameObject);
+                var s = new SerializedObject(mode); s.FindProperty("runner").objectReferenceValue = runner; s.ApplyModifiedPropertiesWithoutUndo();
+                EditorSceneManager.MarkSceneDirty(runner.gameObject.scene);
+            }
+            Selection.activeObject = runner.gameObject;
+            Debug.Log("Table mode: passthrough supported, spatial anchors on, MetaTableMode on the runner.");
+            return mode;
+        }
+
+        public static bool TableModeEnabled()
+        {
+            var config = OVRProjectConfig.CachedProjectConfig;
+            return config.insightPassthroughSupport != OVRProjectConfig.FeatureSupport.None && config.anchorSupport == OVRProjectConfig.AnchorSupport.Enabled;
+        }
     }
 
     // An Android build without XR Hands would run with no hands at all: stop it with the fix.

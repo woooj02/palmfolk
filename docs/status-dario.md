@@ -103,9 +103,21 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   Verified in the Unity editor (batch mode): 224 EditMode tests pass, 241 with `PALMFOLK_DEVELOPMENT`. Not
   verified on a headset: needs Sam's visitor views and content, then the owner.
 
+- **D9, Nov 10.** Table mode platform. A launch now decides its mode and where the valley starts. Table mode
+  with a saved anchor looks for it for up to 5 s and opens there without planting. If it isn't found, Pip waves and
+  the player replants, and no bridge is lost. Each planting in Table mode saves a new local anchor and erases the old
+  one. Table mode without passthrough runs as VR at the saved pose, and keeps the player's choice; losing
+  passthrough mid-game switches to VR in place. The waystone can switch modes, and a save made in one mode opens in
+  the other. The Meta side (local `OVRSpatialAnchor`s, an `OVRPassthroughLayer` underlay) is its own assembly
+  behind two small interfaces, so Core and the runner stay SDK-free. A setup menu item turns on passthrough
+  (Supported) and anchors. Verified headless: 216 developer-mode and 202 release-mode tests pass (the mode decisions).
+  Verified in the Unity editor (batch mode) with scripted anchors and passthrough: 238 EditMode tests pass, 255
+  with `PALMFOLK_DEVELOPMENT`. The Meta adapters compile against SDK 207 but have not run: that needs the headset
+  (below).
+
 ## Next
 
-- D9, the table mode platform.
+- D10, gaze.
 
 ## Notes for later items
 
@@ -145,6 +157,10 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
     headset that is a careful hand; H1 should check whether a rock that size is fair for a cart.
   - The Stargazer's "clearance above the Fork": bridges are not obstacles for other bridges, so a Fork branch
     under L1 to L2 is not checked. If the design needs it, it is a new rule (tell me).
+- D9, not done here: MR2's snap to a scene-model table plane (only if one already exists; never triggering Space
+  Setup), and MR4's room dimming (passthrough brightness, with Sam's views). The valley is placed once from the
+  anchor; if the headset recentres mid-session the valley doesn't follow the anchor yet. Tell me if the relaunch
+  test shows drift.
 - Defaults to check on the headset (H2): reference hand length 18 cm, scale clamp 0.75 to 1.3, palm half
   thickness 1.5 cm, and whether a 20 degree tilt limit is right on a lap.
 
@@ -167,6 +183,21 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   and the icon. Then, on the Quest 2: hide the hand mid-build, bring it back 20 cm away (Pip must stay put), then
   back in place (he blends back on); hide it for 8 s (he walks back, the scaffold comes down); keep the hand half
   out of view for 20 s (one line of text and the icon). Copy the session's `-dropouts.txt` into `playtest-logs/`.
+
+- D9's headset check (slice 12, build plan default 6) needs the owner (Quest 2):
+  1. In Unity, open the scene with the runner and run **Palmfolk > Platform > 3. Enable Table Mode**, then save the
+     scene.
+  2. Build and install the APK as for D6.
+  3. Plant on a table and build a bridge or two. Quit from the headset menu, relaunch: the valley should come back
+     on the same spot (within 2 cm) with its bridges, without planting.
+  4. Quit, move the table about a metre, relaunch: within 5 s it should ask to replant (Pip waves); after
+     replanting, every bridge is still there.
+  5. Airplane mode (default 6): turn on airplane mode on the headset, relaunch: the valley should still come back.
+     If it doesn't, tell me; Table mode then keeps planting but asks to replant each launch, and I9 isn't claimed.
+  6. Switch to VR mode on the waystone (once Sam's waystone sends `ChooseMode`), relaunch: the night valley, same
+     bridges. Switch back: the room shows again.
+  The views for "looking for your valley" and Pip's wave are Sam's: `runner.WaitingForAnchor`,
+  `runner.Flow.FindProgress` and `runner.Flow.Search == Lost`.
 
 ## Questions for the owner
 

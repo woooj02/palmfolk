@@ -100,6 +100,31 @@ and `SameFinalState`.
 Setup: **Palmfolk > Platform > 1. Enable XR Hands** (turns on the XR Hands OpenXR feature; Android builds fail
 without it) and **2. Add Runner To Open Scene** (wires the camera rig's TrackingSpace and a new Valley Origin).
 
+### Table mode and VR mode (D9: MR1 to MR3, MR5)
+
+`ModeFlow` (Core) decides which mode a launch runs in and where the valley starts; `PalmfolkRunner.Flow` is the
+current one.
+
+- `Chosen` is the player's mode (saved as `SaveData.Mode`); `Running` is what runs. Table mode without passthrough
+  (not supported, not permitted, failed) runs as VR (`FellBack`), and the choice is kept for the next launch.
+  Passthrough failing mid-game switches to VR with the valley where it is.
+- VR (or the fallback) opens at the saved pose, or plants if there is none.
+- Table mode with a saved anchor (`SaveData.AnchorId`): `Search` is `Finding` and `runner.Game` is null while the
+  platform looks for it (`WaitingForAnchor`, `FindProgress`), for up to `FindSeconds` (5 s). `Found`: the game opens
+  on the anchor at the saved scale, without planting. `Lost`: the game opens in planting and Pip waves to replant.
+  Bridges are valley-local, so none are lost either way. An anchor found later is ignored.
+- Every planting in Table mode saves a new anchor where the valley now stands and erases the old one; the save
+  takes the new id once the anchor is stored. If storing fails, the next launch asks to replant.
+- `runner.ChooseMode(mode)` is the waystone's switch: passthrough follows, switching into Table mode anchors the
+  valley where it stands, and the save is written. `runner.ModeChanged` fires when the running mode changes.
+
+The runner takes `ISpatialAnchors` (`Save`, `Find`, `Erase`) and `IPassthrough` (`Available`, `Visible`,
+`SetVisible`) before `Start`. `Palmfolk.Platform.Meta.MetaTableMode` (on the runner; **Palmfolk > Platform > 3.
+Enable Table Mode**) supplies them from the Meta XR Core SDK: local `OVRSpatialAnchor`s, and an
+`OVRPassthroughLayer` underlay on the camera rig with the eye camera clearing to transparent while passthrough
+shows. The menu also sets passthrough to Supported (not Required, so VR mode still runs) and turns anchor
+support on. Without passthrough the runner runs Table saves as VR; without anchors, Table mode plants every launch.
+
 ### `ValleyPose` (`Assets/Palmfolk/Core/Valley.cs`)
 
 `Origin` (world), `Forward` (unit, level), `Right`, `Scale`, `YawRadians`, `Rotation`. Conversions both ways for
@@ -332,3 +357,9 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   running for visitors), so `Stage` is no longer always `Complete` when it is true. Events raised while a
   `ValleySimulation` opens (`RebuildNeeded`, `VisitorCalled`) are raised again on the first tick, so a view
   subscribed after opening sees them. `PalmfolkRunner` saves on the two visitor events.
+- **D9, Nov 10.** Added `ModeFlow` and `AnchorSearch` (Core); `ISpatialAnchors`, `IPassthrough`,
+  `PalmfolkRunner.Anchors`, `Passthrough`, `Flow`, `WaitingForAnchor`, `ChooseMode` and `ModeChanged`; the
+  `Palmfolk.Platform.Meta` assembly (`MetaTableMode`, `MetaPassthrough`, `MetaSpatialAnchors`);
+  `LiveInputSetup.EnableTableMode`, `AddTableMode` and `TableModeEnabled`. Changed: `PalmfolkRunner.Open(valley,
+  storage)` may leave `Game` null for up to 5 s while it looks for the anchor (`Opened` fires when the game opens),
+  and runs a Table save as VR when there is no passthrough. `Capture` writes the flow's mode and anchor.

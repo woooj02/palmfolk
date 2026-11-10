@@ -1,6 +1,6 @@
 {
   "name": "Palmfolk.Platform.Editor",
   "rootNamespace": "Palmfolk.Platform.Editor",
-  "references": ["Palmfolk.Core", "Palmfolk.Platform", "Unity.XR.Hands", "Unity.XR.OpenXR", "Unity.XR.OpenXR.Editor"],
+  "references": ["Palmfolk.Core", "Palmfolk.Platform", "Palmfolk.Platform.Meta", "Oculus.VR", "Oculus.VR.Editor", "Unity.XR.Hands", "Unity.XR.OpenXR", "Unity.XR.OpenXR.Editor"],
   "includePlatforms": ["Editor"]
 }

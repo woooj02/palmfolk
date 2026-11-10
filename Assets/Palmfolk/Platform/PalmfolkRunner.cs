@@ -72,6 +72,10 @@ namespace Palmfolk.Platform
 
         private SaveRepository repository;
         private bool focused = true;
+        // D9: a launch waiting for its anchor opens the game once the flow decides. `generation` drops callbacks
+        // from an earlier Open.
+        private ValleySpec waitingValley; private GameSettings waitingSettings; private bool opening;
+        private int generation;
 
         public PalmfolkGame Game { get; private set; }
         public LiveFrameSource Source { get; } = new LiveFrameSource();
@@ -89,8 +93,18 @@ namespace Palmfolk.Platform
         public Transform TrackingSpace { get => trackingSpace; set { trackingSpace = value; if (Hands is XRHandsReader x) x.TrackingSpace = value; } }
         public Func<ValleySpec> Content { get; set; } = ChapterOne.Greybox;
         public int Saves { get; private set; }
+        // D9: set before Start (MetaTableMode does it in Awake). Without passthrough, Table mode runs as VR (MR5);
+        // without anchors, Table mode plants on every launch.
+        public ISpatialAnchors Anchors { get; set; }
+        public IPassthrough Passthrough { get; set; }
+        // Which mode runs and the anchor search. While `Flow.Search` is Finding, `Game` is null (up to 5 s); when
+        // it is Lost the game opens in planting and Pip waves to replant.
+        public ModeFlow Flow { get; private set; }
+        public bool WaitingForAnchor => Game == null && waitingValley != null;
 
         public event Action<PalmfolkRunner> Opened;
+        // The running mode changed (fallback, or the waystone's choice).
+        public event Action<PalmfolkRunner> ModeChanged;
         public event Action<IReadOnlyList<GameEvent>> Ticked;
         public event Action<PalmfolkRunner> Presented;
 
@@ -105,8 +119,9 @@ namespace Palmfolk.Platform
                 Open(Content(), new DirectorySaveStorage(System.IO.Path.Combine(Application.persistentDataPath, saveFolder)));
         }
 
-        // Opens the newest save in `storage` (or a fresh valley). VR mode resumes at the saved pose; Table mode plants
-        // first (finding the spatial anchor is D9), and the saved bridges appear on the new valley.
+        // Opens the newest save in `storage` (or a fresh valley). D9: VR mode (or Table mode without passthrough)
+        // resumes at the saved pose; Table mode looks for the saved anchor for up to 5 s and opens there, or plants.
+        // The saved bridges appear on the valley either way.
         public void Open(ValleySpec valley, ISaveStorage storage, GameSettings settings = null)
         {
             if (valley == null) throw new ArgumentNullException(nameof(valley));
@@ -114,18 +129,76 @@ namespace Palmfolk.Platform
             SaveData save = null;
             LoadStatus = repository == null ? SaveLoadStatus.Missing : repository.Load(out save);
             if (save == null) save = new SaveData();
-            var pose = save.Mode == ValleyMode.VR ? save.Pose : null;
-            Open(valley, save, pose, settings);
+            int g = ++generation; Game = null; OpenedFrom = save;
+            Flow = new ModeFlow(save, Passthrough != null && Passthrough.Available);
+            Passthrough?.SetVisible(Flow.Passthrough);
+            waitingValley = valley; waitingSettings = settings;
+            if (!Flow.Decided)
+            {
+                if (Anchors == null) Flow.AnchorMissing();
+                else Anchors.Find(save.AnchorId, (found, position, forward) =>
+                {
+                    if (g != generation || !WaitingForAnchor) return;
+                    if (found) Flow.AnchorFound(position, forward); else Flow.AnchorMissing();
+                    if (Flow.Decided) OpenDecided();
+                });
+            }
+            if (Flow.Decided && WaitingForAnchor) OpenDecided();
         }
 
+        private void OpenDecided()
+        {
+            var valley = waitingValley; waitingValley = null;
+            opening = true;
+            try { Open(valley, OpenedFrom, Flow.StartPose, waitingSettings); } finally { opening = false; }
+        }
+
+        // Opens a save at a known pose (null: plant). Called directly, the save's mode runs as saved, without
+        // looking for an anchor.
         public void Open(ValleySpec valley, SaveData save, ValleyPose pose, GameSettings settings = null)
         {
+            if (!opening)
+            {
+                generation++; waitingValley = null;
+                Flow = new ModeFlow(save == null ? null : new SaveData { Mode = save.Mode, AnchorId = null, Pose = pose }, Passthrough != null && Passthrough.Available);
+                if (save?.AnchorId != null) Flow.Anchored(save.AnchorId);
+                Passthrough?.SetVisible(Flow.Passthrough);
+            }
             OpenedFrom = save ?? new SaveData(); OpenedPose = pose; BaseSettings = (settings ?? new GameSettings()).Copy();
             Player = (OpenedFrom.Settings ?? new PlayerSettings()).Copy();
             Game = PalmfolkGame.Open(valley, OpenedFrom, pose, BaseSettings);
             StepTarget = Game; Clock = new FixedTickRunner(); Source.ClearCommands();
             Place();
             Opened?.Invoke(this);
+        }
+
+        // The waystone's mode choice (MR5). Switching into Table mode anchors the valley where it stands.
+        public void ChooseMode(ValleyMode mode)
+        {
+            if (Flow == null) throw new InvalidOperationException("Open a game first.");
+            bool changed = Flow.Choose(mode, Passthrough != null && Passthrough.Available);
+            Passthrough?.SetVisible(Flow.Passthrough);
+            if (changed && Flow.Running == ValleyMode.Table) AnchorHere();
+            if (changed) ModeChanged?.Invoke(this);
+            SaveNow();
+        }
+
+        // D9: a new anchor where the valley now stands; the old one is erased. Saved once the anchor is.
+        private void AnchorHere()
+        {
+            if (Game?.Pose == null || Flow == null || Flow.Running != ValleyMode.Table) return;
+            var old = Flow.Replace();
+            if (old != null) Anchors?.Erase(old);
+            if (Anchors == null) return;
+            int g = generation; var pose = Game.Pose;
+            Anchors.Save(pose.Origin, pose.Forward, id =>
+            {
+                if (id == null) return;
+                bool current = g == generation && Game?.Pose != null && Game.Pose.Origin.Equals(pose.Origin) && Game.Pose.Forward.Equals(pose.Forward) &&
+                    Flow.Running == ValleyMode.Table && Flow.AnchorId == null;
+                if (!current) { Anchors.Erase(id); return; }
+                Flow.Anchored(id); SaveNow();
+            });
         }
 
         public bool Request(InputCommand command) => Source.Request(command);
@@ -136,7 +209,11 @@ namespace Palmfolk.Platform
             Game.Apply(player); Player = player.Copy(); Place(); SaveNow();
         }
 
-        public SaveData Capture() => Game?.Capture(Player, OpenedFrom);
+        public SaveData Capture()
+        {
+            var save = Game?.Capture(Player, OpenedFrom);
+            return save == null || Flow == null ? save : Flow.Into(save);
+        }
 
         public void SaveNow()
         {
@@ -146,14 +223,23 @@ namespace Palmfolk.Platform
 
         private void Update()
         {
-            if (Game == null) return;
+            if (Game == null && !WaitingForAnchor) return;
             Frame(Time.unscaledDeltaTime, Time.realtimeSinceStartupAsDouble);
         }
 
         // One rendered frame: sample, tick, place, present. Public so tests can drive it without the player loop.
         public int Frame(double renderedSeconds, double realtimeSeconds)
         {
+            if (Game == null && WaitingForAnchor)
+            {
+                Flow.Wait(Math.Min(Math.Max(0, renderedSeconds), MaximumFrameSeconds * 10));
+                if (Flow.Decided) OpenDecided();
+                if (Game == null) return 0;
+            }
             if (Game == null) throw new InvalidOperationException("Open a game first.");
+            // Passthrough stopped (failed, or withdrawn): VR carries on with the valley where it is.
+            if (Flow != null && Flow.Running == ValleyMode.Table && Passthrough != null && !Passthrough.Available)
+            { Flow.PassthroughLost(); Passthrough.SetVisible(false); ModeChanged?.Invoke(this); }
             var hands = Hands;
             Source.Sample(hands?.Read(HandSide.Left), hands?.Read(HandSide.Right), (long)(realtimeSeconds * 1e6), focused, hands != null && hands.ControllersInHand);
             int ticks = Clock.Advance(Math.Min(Math.Max(0, renderedSeconds), MaximumFrameSeconds), Source, StepTarget ?? Game);
@@ -161,6 +247,7 @@ namespace Palmfolk.Platform
             foreach (var e in Clock.Events)
                 save |= e.Kind == GameEventKind.Planted || e.Kind == GameEventKind.BridgeBaked || e.Kind == GameEventKind.PuzzleCompleted || e.Kind == GameEventKind.LedgeWidened ||
                     e.Kind == GameEventKind.VisitorCalled || e.Kind == GameEventKind.VisitorSettled;
+            foreach (var e in Clock.Events) if (e.Kind == GameEventKind.Planted) AnchorHere();
             Place();
             if (Clock.Events.Count > 0) Ticked?.Invoke(Clock.Events);
             Presented?.Invoke(this);
