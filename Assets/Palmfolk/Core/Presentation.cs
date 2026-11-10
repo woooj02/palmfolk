@@ -25,6 +25,20 @@ namespace Palmfolk.Core
         public bool PutControllersDown { get; }
         public bool ShowStartupText { get; }
         public bool CartCrossing { get; }
+        // Every position above is valley-local; draw it through Pose.ToWorld. Pose is null before the first planting.
+        public ValleyStage Stage { get; } = ValleyStage.Playing;
+        public ValleyPose Pose { get; } = ValleyPose.Identity;
+        public double PlantProgress { get; }
+        public HandSide? PlantingHand { get; }
+        public WorldPresentation(PalmfolkGame game, double interpolationAlpha) : this(game.Puzzle, interpolationAlpha)
+        {
+            Stage = game.Stage; Pose = game.Pose;
+            if (game.Stage != ValleyStage.Planting) return;
+            // While planting, the startup safeguards (E19) come from the planting detector, not the paused puzzle.
+            Paused = game.IsPaused; PlantProgress = game.Planting.Progress; PlantingHand = game.Planting.Hand;
+            WaitingForHands = game.Planting.WaitingForHands; ShowStartupText = game.Planting.ShowStartupText;
+            PutControllersDown = WaitingForHands && game.Puzzle.ControllersInHand;
+        }
         public WorldPresentation(M1Simulation game, double interpolationAlpha)
         {
             Tick = game.Tick; Phase = game.Phase; Pip = Vec3.Lerp(game.PreviousPip, game.Pip, interpolationAlpha);

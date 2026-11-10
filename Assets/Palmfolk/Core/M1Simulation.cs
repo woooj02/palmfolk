@@ -8,7 +8,8 @@ namespace Palmfolk.Core
     {
         Boarded, CheckpointReached, HandReleased, BuildStarted, BuildPaused, SectionCommitted,
         ScaffoldRemoving, BridgeBaked, Refused, BramStarted, BramFinished, TrackingLost,
-        RecoveryAligned, RecoveryCompleted, ReturningToCheckpoint, HintDue, QualityPromptDue, PersistentBridgeObserved, StartupPromptDue
+        RecoveryAligned, RecoveryCompleted, ReturningToCheckpoint, HintDue, QualityPromptDue, PersistentBridgeObserved, StartupPromptDue,
+        Planted, ReplantStarted
     }
     public readonly struct GameEvent
     {

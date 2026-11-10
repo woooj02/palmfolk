@@ -44,7 +44,7 @@ namespace Palmfolk.Core
             get { uint mask = 0; for (int i = 0; i < 26; i++) if (!joints[i].Usable) mask |= 1u << i; return mask; }
         }
     }
-    public enum InputCommand { None, Pause, Resume, CancelBuild, StartElsewhere }
+    public enum InputCommand { None, Pause, Resume, CancelBuild, StartElsewhere, Replant }
     public sealed class HandFrame
     {
         public long Tick { get; }
@@ -93,13 +93,29 @@ namespace Palmfolk.Core
         public bool UseJointRadii { get; set; }
         public int StillnessToleranceStep { get; set; } = 1;
         public double StillnessThreshold(int adjustment = 0) => StillnessSpeed * (Math.Min(2, StillnessToleranceStep + adjustment) == 0 ? 0.75 : Math.Min(2, StillnessToleranceStep + adjustment) == 1 ? 1 : 1.5);
+
+        // Planting (E21, build plan default 5). Palm speed uses StillnessThreshold(), so the tolerance setting applies. Lengths are world metres.
+        public int PlantTicks { get; set; } = 60;
+        public double PlantMaximumTiltDegrees { get; set; } = 20;
+        public double FingerStraightness { get; set; } = 0.9;
+        public double PalmHalfThickness { get; set; } = 0.015;
+        // Hand-size calibration (T6) and the player's world-scale setting (A4).
+        public double ReferenceHandLength { get; set; } = 0.18;
+        public double MinimumHandScale { get; set; } = 0.75;
+        public double MaximumHandScale { get; set; } = 1.3;
+        public double WorldScaleAdjustment { get; set; } = 1;
+
         public GameSettings Copy() => (GameSettings)MemberwiseClone();
         public void Validate()
         {
-            double[] values = { ConnectDistance, BreakDistance, StillnessSpeed, TremorDistance, TravelerSpeed, MaximumRouteLength, FilterCutoff };
+            double[] values = { ConnectDistance, BreakDistance, StillnessSpeed, TremorDistance, TravelerSpeed, MaximumRouteLength, FilterCutoff,
+                PalmHalfThickness, ReferenceHandLength, MinimumHandScale, MaximumHandScale };
             foreach (double v in values) if (!Vec3.Finite(v) || v <= 0) throw new ArgumentException("Invalid gameplay setting.");
             if (!Vec3.Finite(FilterBeta) || FilterBeta < 0 || ConnectDistance >= BreakDistance || StillnessToleranceStep < 0 || StillnessToleranceStep > 2) throw new ArgumentException("Invalid filter, tolerance or connection settings.");
-            int[] ticks = { ConnectTicks, StillnessTicks, BuildTicks, ScaffoldTicks, RemovalTicks, AlignmentTicks, BlendTicks, RecoveryTicks, ReturnTicks };
+            if (!Vec3.Finite(PlantMaximumTiltDegrees) || PlantMaximumTiltDegrees <= 0 || PlantMaximumTiltDegrees >= 90 ||
+                !Vec3.Finite(FingerStraightness) || FingerStraightness <= 0 || FingerStraightness > 1 || MinimumHandScale > MaximumHandScale ||
+                !Vec3.Finite(WorldScaleAdjustment) || WorldScaleAdjustment < 0.5 || WorldScaleAdjustment > 2) throw new ArgumentException("Invalid planting or scale settings.");
+            int[] ticks = { ConnectTicks, StillnessTicks, BuildTicks, ScaffoldTicks, RemovalTicks, AlignmentTicks, BlendTicks, RecoveryTicks, ReturnTicks, PlantTicks };
             foreach (int v in ticks) if (v < 1 || v > 36000) throw new ArgumentException("Invalid tick setting.");
         }
     }

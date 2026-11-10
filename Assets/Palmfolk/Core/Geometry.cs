@@ -37,6 +37,15 @@ namespace Palmfolk.Core
             X = x; Y = y; Z = z; W = w;
         }
         public static Rotation Identity => new Rotation(0, 0, 0, 1);
+        // Rotation by `radians` about world up (+Y); Unity's Quaternion.Euler(0, degrees, 0).
+        public static Rotation AboutUp(double radians) => new Rotation(0, Math.Sin(radians / 2), 0, Math.Cos(radians / 2));
+        public Rotation Inverse => new Rotation(-X, -Y, -Z, W);
+        // Hamilton product: apply b, then a (same order as Unity's a * b).
+        public static Rotation operator *(Rotation a, Rotation b) => new Rotation(
+            a.W * b.X + a.X * b.W + a.Y * b.Z - a.Z * b.Y,
+            a.W * b.Y - a.X * b.Z + a.Y * b.W + a.Z * b.X,
+            a.W * b.Z + a.X * b.Y - a.Y * b.X + a.Z * b.W,
+            a.W * b.W - a.X * b.X - a.Y * b.Y - a.Z * b.Z);
     }
 
     public readonly struct RouteCursor
