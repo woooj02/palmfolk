@@ -14,6 +14,7 @@ namespace Palmfolk.Views
         private Material wood, cord, skin, translucent, ghostMaterial, hintMaterial, warning;
         private LevelGeometry level;
         private TravelerRig pipRig, bramRig, apprenticeRig;
+        private long? growthStart;
         private readonly List<Material> materials = new List<Material>();
         public Transform ValleyRoot { get { Ensure(); return valley; } }
         public Route HintRoute { get; set; }
@@ -21,7 +22,15 @@ namespace Palmfolk.Views
         public WorldPresentation LastFrame { get; private set; }
 
         public void Configure(LevelGeometry geometry) { level = geometry; Ensure(); }
-        public void Consume(IReadOnlyList<GameEvent> events) { Ensure(); pipRig.Consume(events); bramRig.Consume(events); }
+        public void Consume(IReadOnlyList<GameEvent> events)
+        {
+            Ensure(); pipRig.Consume(events); bramRig.Consume(events);
+            foreach (var e in events)
+            {
+                if (e.Kind == GameEventKind.Planted) growthStart = e.Tick;
+                if (e.Kind == GameEventKind.ReplantStarted) growthStart = null;
+            }
+        }
 
         public void Present(WorldPresentation frame)
         {
@@ -31,7 +40,8 @@ namespace Palmfolk.Views
             if (frame.Pose == null) return;
             var pose = frame.Pose;
             valley.SetPositionAndRotation(V(pose.Origin), new Quaternion((float)pose.Rotation.X, (float)pose.Rotation.Y, (float)pose.Rotation.Z, (float)pose.Rotation.W));
-            valley.localScale = Vector3.one * (float)pose.Scale;
+            float growth = growthStart.HasValue && !ReducedMotion ? Mathf.Max(0.001f, Mathf.SmoothStep(0, 1, (frame.Tick - growthStart.Value) / 30f)) : 1;
+            valley.localScale = Vector3.one * (float)pose.Scale * growth;
             pip.localPosition = V(frame.Pip); bram.localPosition = V(frame.Bram);
             pipRig.ReducedMotion = bramRig.ReducedMotion = apprenticeRig.ReducedMotion = ReducedMotion;
             pipRig.Present(frame); bramRig.Present(frame); apprenticeRig.Present(frame);

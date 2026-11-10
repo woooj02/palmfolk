@@ -1,6 +1,6 @@
 {
   "name": "Palmfolk.View.Tests",
-  "references": ["Palmfolk.Core", "Palmfolk.Fixtures", "Palmfolk.Views", "Palmfolk.Audio"],
+  "references": ["Palmfolk.Core", "Palmfolk.Fixtures", "Palmfolk.Views", "Palmfolk.Audio", "Palmfolk.UI"],
   "includePlatforms": ["Editor"],
   "optionalUnityReferences": ["TestAssemblies"]
 }

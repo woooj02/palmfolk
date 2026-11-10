@@ -58,10 +58,16 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   Actor facing follows travel and cart placement follows Bram. Compile exits 0/no `error CS`;
   96/96 Unity Edit Mode tests pass, including replay/rig checks. Headless 99 / 91 and source checks pass.
   These are greybox poses, not final art/animations or a completed contact/readability pass.
+- **S8 startup implementation, Nov 10 — Unity editor.** Seed-lantern, waving Pip, one descending
+  flat-palm demo, controller put-down silhouettes, delayed short E19 prompts and the exact T18 line.
+  `Planted` drives presentation-only valley growth; reduced motion shows full scale immediately.
+  Three startup states and growth/Core-pose separation tested: 98/98 Unity Edit Mode tests pass;
+  batch compilation exits 0/no `error CS`. Headless 99 / 91 and source checks pass. Platform scene
+  wiring, actual prompt placement, legibility, cold-start and planting times remain unverified.
 
 ## Next
 
-- Owner authorized work. Next: S8 startup and S9 night. S7 runtime content is still waiting on D3.
+- Owner authorized work. Next: S9 night. S7 runtime content is still waiting on D3.
   S4 is blocked on the command/save contract below.
 
 ## Blocked

@@ -1,0 +1,4 @@
+{
+  "name": "Palmfolk.UI",
+  "references": ["Palmfolk.Core", "Palmfolk.Views"]
+}
