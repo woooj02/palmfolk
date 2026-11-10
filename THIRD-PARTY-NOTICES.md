@@ -27,3 +27,8 @@ test project uses NUnit 3.14.0, NUnit3TestAdapter 4.6.0 and Microsoft.NET.Test.S
 17.11.1 through NuGet. Their installed packages retain their licenses. They are
 not runtime gameplay code and are not shipped in the APK. All gameplay algorithms
 in `Assets/Palmfolk/Core` and developer helpers were written for this project.
+
+The placeholder sound cues in `Assets/Palmfolk/Audio` are synthesized from original
+waveform/envelope code for this project. No external recordings, music or sample
+assets were added. They follow the root licence for original code and still need
+the owner's audio-quality pass before any release claim.

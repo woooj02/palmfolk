@@ -1,0 +1,93 @@
+#if UNITY_5_3_OR_NEWER
+using System;
+using System.Collections.Generic;
+using Palmfolk.Core;
+using UnityEngine;
+
+namespace Palmfolk.Audio
+{
+    public enum Cue { Footstep, Hammer, RopeCreak, Connection, BuildDone, Refusal, VisitorArrival, Lantern }
+    public static class CueCatalog
+    {
+        private static readonly string[] captions = { "Footsteps", "Hammer taps", "Rope creaks", "Connection locked", "Bridge finished", "Route refused", "A visitor arrives", "Lantern chime" };
+        public static string Caption(Cue cue) => captions[(int)cue];
+        public static bool TryMap(GameEventKind kind, out Cue cue)
+        {
+            switch (kind)
+            {
+                case GameEventKind.SectionCommitted: cue = Cue.Hammer; return true;
+                case GameEventKind.BridgeBaked: cue = Cue.BuildDone; return true;
+                case GameEventKind.Refused: cue = Cue.Refusal; return true;
+                case GameEventKind.BramFinished: cue = Cue.Lantern; return true;
+                default: cue = default; return false;
+            }
+        }
+        // Original synthesized placeholders: no imported samples or external assets.
+        public static float[] Samples(Cue cue, int rate = 22050)
+        {
+            if (!Enum.IsDefined(typeof(Cue), cue) || rate < 8000 || rate > 96000) throw new ArgumentOutOfRangeException();
+            double duration = cue == Cue.BuildDone ? 0.42 : cue == Cue.Footstep ? 0.065 : 0.22;
+            double[] frequencies = { 170, 480, 90, 880, 660, 220, 1046.5, 784 };
+            var samples = new float[(int)(duration * rate)];
+            uint noise = 37;
+            for (int i = 0; i < samples.Length; i++)
+            {
+                double t = i / (double)rate, u = i / (double)(samples.Length - 1);
+                double envelope = Math.Sin(Math.PI * u) * Math.Exp(-3 * u);
+                double frequency = frequencies[(int)cue];
+                if (cue == Cue.Refusal) frequency *= 1 - u * 0.4;
+                if (cue == Cue.VisitorArrival) frequency *= 1 + u * 0.2;
+                double wave = Math.Sin(2 * Math.PI * frequency * t);
+                if (cue == Cue.BuildDone) wave = (wave + Math.Sin(2 * Math.PI * frequency * 1.5 * t)) / 2;
+                if (cue == Cue.Hammer || cue == Cue.Footstep || cue == Cue.RopeCreak)
+                { noise = unchecked(noise * 1664525u + 1013904223u); wave = wave * 0.7 + (noise / (double)uint.MaxValue * 2 - 1) * 0.3; }
+                samples[i] = (float)(wave * envelope * 0.35);
+            }
+            return samples;
+        }
+    }
+
+    public sealed class AudioPresenter : MonoBehaviour
+    {
+        private sealed class Voice { public AudioSource Source; public TextMesh Caption; public float Until; }
+        private readonly List<Voice> voices = new List<Voice>();
+        private readonly Dictionary<Cue, AudioClip> clips = new Dictionary<Cue, AudioClip>();
+        public bool Captions { get; set; } = true;
+        public float Volume { get; set; } = 0.5f;
+        public void Consume(IReadOnlyList<GameEvent> events, WorldPresentation frame)
+        {
+            if (frame == null || frame.Pose == null) return;
+            foreach (var e in events)
+                if (CueCatalog.TryMap(e.Kind, out var cue)) Play(cue, frame.Pose.ToWorld(frame.Pip));
+        }
+        // Call on actual foot contact; never synthesize step timing from an arbitrary wall clock.
+        public void FootContact(Vec3 worldPosition) { Play(Cue.Footstep, worldPosition); }
+        public void Play(Cue cue, Vec3 worldPosition)
+        {
+            if (!clips.TryGetValue(cue, out var clip))
+            {
+                var samples = CueCatalog.Samples(cue);
+                clip = AudioClip.Create("Original " + cue, samples.Length, 1, 22050, false); clip.SetData(samples, 0); clips.Add(cue, clip);
+            }
+            Voice voice = voices.Find(v => !v.Source.isPlaying && v.Until <= Time.unscaledTime);
+            if (voice == null)
+            {
+                var emitter = new GameObject("Cue and caption"); emitter.transform.SetParent(transform, false);
+                var source = emitter.AddComponent<AudioSource>(); source.spatialBlend = 1; source.playOnAwake = false;
+                source.minDistance = 0.05f; source.maxDistance = 2;
+                var text = new GameObject("In-world caption").AddComponent<TextMesh>(); text.transform.SetParent(emitter.transform, false);
+                text.transform.localPosition = Vector3.up * 0.035f; text.characterSize = 0.002f; text.fontSize = 32; text.anchor = TextAnchor.MiddleCenter;
+                voice = new Voice { Source = source, Caption = text }; voices.Add(voice);
+            }
+            voice.Source.transform.position = new Vector3((float)worldPosition.X, (float)worldPosition.Y, (float)worldPosition.Z);
+            voice.Source.volume = Mathf.Clamp01(Volume); voice.Source.clip = clip; voice.Source.Play();
+            voice.Caption.text = CueCatalog.Caption(cue); voice.Caption.gameObject.SetActive(Captions); voice.Until = Time.unscaledTime + 1.3f;
+        }
+        private void Update()
+        {
+            foreach (var voice in voices) voice.Caption.gameObject.SetActive(Captions && voice.Until > Time.unscaledTime);
+        }
+        private void OnDestroy() { foreach (var clip in clips.Values) DestroyImmediate(clip); }
+    }
+}
+#endif

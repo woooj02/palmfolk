@@ -46,10 +46,16 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   shipping x-ray intact in release mode (93/93). Batch compile exited 0/no `error CS`.
   Headless 99 / 91 and Python source checks pass. Actual gaze/mode/fps/per-puzzle counters still need
   the platform/director binding; a full valley graph awaits D3 presentation fields.
+- **S5 cue/caption implementation, Nov 10 — Unity editor.** Original synthesized placeholders for
+  eight cue kinds, spatial emitters, reusable voices and in-world captions. M1 section commits,
+  bridge completion, refusals and lantern finish map to distinct cues. Tests cover caption completeness,
+  finite/bounded waveforms and meaningful event mapping; 95/95 Unity Edit Mode tests and batch compile
+  pass (exit 0/no `error CS`). Headless 99 / 91 and source checks pass. No audible or headset-quality
+  pass claimed. Binding guide: `testing/audio.md`; original-code notice added without external assets.
 
 ## Next
 
-- Owner authorized work. Next: S5 audio/captions, S6 body language, then S8 startup and S9 night.
+- Owner authorized work. Next: S6 body language, then S8 startup and S9 night.
   S4 is blocked on the command/save contract below.
 
 ## Blocked
@@ -63,6 +69,9 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   or save-setting contract. Need Dario's published input/save adapter (D3/D5) and ISDK poke/gaze source
   binding (D6/D10) before a full-session waystone can be verified. Do not mutate Core from a view or
   add substitute puzzle-solving menu commands. Required row geometry remains ≤4 × ≥6° targets + ≥1° gaps.
+- S5 final binding needs explicit connection-lock/visitor events, actual rig foot contacts and the night
+  music state. Current Core has no such event payloads. Owner must judge audio/caption quality and
+  sound-alone build-completion recognition; procedural cues remain placeholders until polished.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified
   from coordinates. Actual Fork/Arch clearance also needs D4, H1 and owner-run reach/comfort checks.
 

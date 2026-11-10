@@ -1,0 +1,4 @@
+{
+  "name": "Palmfolk.Audio",
+  "references": ["Palmfolk.Core"]
+}
