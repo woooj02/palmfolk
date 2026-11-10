@@ -25,10 +25,14 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   exercise the validator. Local Unity compile: exit 0/no `error CS`; Edit Mode: 58/58 pass.
   Both headless configurations and Python source checks pass (67 / 59). APK script syntax parsed;
   no APK, signing, installed build, final manifest or device/privacy behavior verified.
+- **S11, Nov 10 — documentation prepared, headless checks only.** `testing/owner-checks.md` covers
+  Quest 2 slices 1–14 and links Slice 0. Added all 324 P12 matrix cells, E18 FoV procedure and
+  M1 sign-off template. Every device result is explicitly Not run. Headless 67 / 59 and source
+  checks pass; the owner still executes the procedures and judges M1.
 
 ## Next
 
-- Owner authorized work. Next: S11 owner sheets, S12 submission draft,
+- Owner authorized work. Next: S12 submission draft,
   then the remaining Unity items in team-plan order.
 
 ## Blocked
