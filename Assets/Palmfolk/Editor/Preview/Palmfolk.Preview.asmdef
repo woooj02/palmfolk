@@ -1,0 +1,5 @@
+{
+  "name": "Palmfolk.Preview",
+  "references": ["Palmfolk.Core", "Palmfolk.Views", "Palmfolk.Fixtures"],
+  "includePlatforms": ["Editor"]
+}

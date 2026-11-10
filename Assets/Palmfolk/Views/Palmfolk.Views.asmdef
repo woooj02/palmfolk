@@ -1,0 +1,5 @@
+{
+  "name": "Palmfolk.Views",
+  "rootNamespace": "Palmfolk.Views",
+  "references": ["Palmfolk.Core"]
+}

@@ -33,14 +33,22 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   (tagline, short project text, interaction answer, play notes, metadata and explicit evidence fields),
   timed real-footage/screenshot list and credits/P9 checklist. No unsupported device claims or invented
   metrics. Publication, actual assets, final licence audit, launch date and channel access remain open.
+- **S2 M1 adapter, Nov 10 — Unity editor.** `PalmfolkView` reads interpolated presentations, applies
+  valley pose/scale and draws actors, live/preview/frozen/persistent routes, every curve in a bridge tree,
+  joint posts/tip knots, still recovery route, distinct moving hint and segment refusal crosses.
+  Synthetic replay integration test passes; Unity 91/91 Edit Mode tests, compile exit 0/no `error CS`.
+  Rope and plank QA renders inspected for structural distinction. These are editor/synthetic images,
+  never submission or headset footage. Full S2 remains open for D3 valley data and hand/hint bindings.
 
 ## Next
 
-- Owner authorized work. Next: S2 views, then remaining Unity items in team-plan order.
+- Owner authorized work. Next: S3 stats/x-ray, then remaining Unity items in team-plan order.
 
 ## Blocked
 
 - S7 executable puzzle/visitor data awaits D3's published content types. Layout numbers can proceed.
+- S2 full valley/visitor views await D3 presentation fields. The M1 contract exposes a route, not a full
+  recovery skeleton or puzzle-specific hint pose; these need a published input/solution binding, not guessed joints.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified
   from coordinates. Actual Fork/Arch clearance also needs D4, H1 and owner-run reach/comfort checks.
 
