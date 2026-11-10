@@ -82,5 +82,16 @@ Run the owner sheets in table, lap and air planting, with small/medium/large cal
 and right-only. Measure support time and directional dropouts. Final H1/H2 values override these
 starting numbers. Waystone placement/target angular widths are S4's task and need their own FoV check.
 
-S7 completion still needs D3 data types, a content test through the actual director and cart rules,
-and owner-run reach verification. No runtime content model is invented in parallel with Dario's.
+## Executable handoff
+
+`Palmfolk.Core.Content.ChapterOne` now builds D3's actual `ValleySpec`, including all ten islands/edges
+and the six puzzle definitions. Width explicitly validates the cart rule while transporting the group.
+The 1.5 cm ledge widens to D3's starting 6 cm over 180 ticks. Anchor zones use 2 cm, or 3 cm at branch
+destinations, matching D3's current integration values. These are still subject to headset tuning.
+
+Use `ChapterOne.Create(measuredObstacles)` for explicit obstacle data. `Greybox()` uses the provisional
+D3 test rock: 1.6 cm square, 3.5 cm top height, centred in C→E. It is labelled greybox and does not settle H1.
+Content tests use Dario's public `TestPlayer` helper to run the **actual** director to completion with
+each hand and validate Bram's three crossings against cart rules. No Dario file or Core model was edited.
+Visitor routes are reserved, but visitor data still waits for D8 types. D4's single-hand branching,
+owner-run reach/comfort, H1 and FoV verification remain open. No runtime model was invented in parallel.

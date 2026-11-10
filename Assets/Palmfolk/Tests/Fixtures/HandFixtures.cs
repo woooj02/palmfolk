@@ -88,7 +88,7 @@ namespace Palmfolk.Fixtures
                 for (int bone = 0; bone < 5; bone++)
                 {
                     double z = finger * (shape == HandShape.Spread ? 0.018 + 0.03 * bone / 4 : 0.018);
-                    double y = shape == HandShape.Curved && bone > 0 ? 0.018 * Math.Sin(Math.PI * (x[bone] + 0.06) / 0.12) : 0;
+                    double y = shape == HandShape.Curved && bone > 0 ? 0.016 * Math.Sin(Math.PI * (x[bone] + 0.06) / 0.12) : 0;
                     double px = x[bone];
                     if (shape == HandShape.OneFinger && finger > 0 && bone > 0)
                     { px = 0.025 + bone * 0.002; y = -0.018 - bone * 0.003; }

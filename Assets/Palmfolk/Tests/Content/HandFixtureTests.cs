@@ -9,6 +9,13 @@ namespace Palmfolk.Tests.Content
     public class HandFixtureTests
     {
         [TestCase(HandSide.Left)] [TestCase(HandSide.Right)]
+        public void CurvedFixtureStaysWithinTheWalkerSlopeLimit(HandSide side)
+        {
+            var settings = new GameSettings();
+            var route = HandRoutes.Create(new HandSequence(HandShape.Curved, side: side).Sample(0), 1, false, settings);
+            Assert.That(BridgeValidator.Validate(CurveTree.Single(route), route.Start, route.End, TravelerKind.Walker, settings, new ObstacleField()), Is.Empty);
+        }
+        [TestCase(HandSide.Left)] [TestCase(HandSide.Right)]
         public void AllShapesAndSizesHaveUsableRoutes(HandSide side)
         {
             foreach (HandShape shape in Enum.GetValues(typeof(HandShape)))

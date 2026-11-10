@@ -70,16 +70,23 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   until an owner-tested edge-visibility limit and platform callback exist. After rebasing D3: headless
   136 / 128, source checks and 136/136 Unity Edit Mode tests pass; compile exits 0/no `error CS`.
   No headset, final visual quality or Table behavior is verified. See `testing/night.md`.
+- **S7 executable chapter, Nov 10 — headless / Unity editor.** `Core/Content/ChapterOne.cs` uses
+  D3's published `ValleySpec`: ten islands/edges and all six puzzle definitions. Actual director tests
+  complete with either hand and validate exactly three cart crossings. Full cart rule is explicit for
+  Width. Greybox rock remains a provisional H1 value; measured obstacles can be passed explicitly.
+  Also flattened the S1 Curved fixture's first bend below the walker's slope limit, as Dario identified.
+  Headless 141 / 133, source checks, batch compile (exit 0/no `error CS`) and 141/141 Unity tests pass.
+  Physical reach/comfort, true D4 branching and visitor data remain open.
 
 ## Next
 
-- D3 has landed. Next: S7 executable content and full-valley presentation binding against its published API.
+- D3 has landed and S7 chapter data is merged. Next: full-valley presentation binding against its published API.
   S4 is blocked on the command/save contract below.
 
 ## Blocked
 
 - D3 content types are now available; the previous S7 puzzle-data block is cleared. Visitor types still await D8.
-- S2 full valley/visitor views await D3 presentation fields. The M1 contract exposes a route, not a full
+- S2 full valley integration is now unblocked by D3 and is next. The M1 contract exposes a route, not a full
   recovery skeleton or puzzle-specific hint pose; these need a published input/solution binding, not guessed joints.
 - S3 full valley graph and measured stats labels await D3/D6/D10 bindings. M1 diagnostic drawing is
   explicitly derived from the routes in `WorldPresentation`, not a claim of undisclosed Core connectivity.
