@@ -48,7 +48,7 @@ namespace Palmfolk.Views
                     var actor = travelers[usedTraveler++]; actor.gameObject.SetActive(true);
                     Vec3 position = traveler.Position + new Vec3(traveler.Kind == TravelerKind.Group ? (member - 1) * 0.006 : 0, 0, 0);
                     actor.localPosition = PalmfolkView.V(position);
-                    var rig = actor.GetComponent<TravelerRig>(); rig.ReducedMotion = ReducedMotion; rig.PresentAt(position, frame.Tick, null, null, traveler.Arrived);
+                    var rig = actor.GetComponent<TravelerRig>(); rig.ReducedMotion = ReducedMotion; rig.PresentTraveler(position, frame.Tick, traveler.Arrived, frame.Pose, frame.Bridges);
                 }
             for (int i = usedTraveler; i < travelers.Count; i++) travelers[i].gameObject.SetActive(false);
             if (spec.Ledge != null) ledge.localScale = new Vector3((float)frame.LedgeWidth, 0.002f, 0.01f);

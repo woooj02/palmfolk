@@ -89,6 +89,11 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   guard pass. UI reflects acknowledged state and never changes Core itself. Compile exits 0/no
   `error CS`; 143/143 Unity tests, headless 141 / 133 and source checks pass. Full session remains
   blocked on live all-finger interactors, D10 gaze and D3/D5/platform command/save handling.
+- **S6 contact follow-up, Nov 10 — Unity editor.** Added route-coordinate stance feet, a 12-tick
+  swing/landing, route-aligned soles/shadow shapes and world-space foot-contact callbacks for Pip,
+  Bram and group travelers. Synthetic tests prove moving-hand reprojection without false steps,
+  landing timing and valley-to-world conversion. Compile exits 0/no `error CS`; 146/146 Unity tests,
+  headless 141 / 133 and source checks pass. No live foot-contact, legibility or audio quality pass claimed.
 
 ## Next
 
@@ -109,9 +114,8 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
 - S5 final binding needs explicit connection-lock/visitor events, actual rig foot contacts and the night
   music state. Current Core has no such event payloads. Owner must judge audio/caption quality and
   sound-alone build-completion recognition; procedural cues remain placeholders until polished.
-- S6: local foot gait is not surface-locked foot planting and does not emit authoritative foot contacts.
-  Final contact treatment/props and 3 cm readability need animation work and owner review; do not claim
-  sliding-free feet or trigger precise footstep timing from this placeholder gait.
+- S6 route-relative foot planting/callbacks are implemented. Surface transitions, final contact treatment/
+  props and 3 cm readability still need owner editor/headset review; do not claim a live sliding-free pass.
 - S9 counts and bridge binding use D3; visitor windows await D8. Night music and final art remain unfinished.
   Actual passthrough dimming stays disabled until Dario's platform integration and owner edge-visibility test.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified

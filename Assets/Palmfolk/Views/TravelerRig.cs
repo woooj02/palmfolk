@@ -16,6 +16,10 @@ namespace Palmfolk.Views
         private long until;
         private Vec3 previous;
         private bool hasPrevious;
+        private readonly FootPlanting contacts = new FootPlanting();
+        private Transform leftShadow, rightShadow;
+        private ValleyPose contactPose = ValleyPose.Identity;
+        public event System.Action<Vec3> FootContact;
         public TravelerRole Role { get; set; }
         public BodyPose CurrentPose { get; private set; }
         public bool ReducedMotion { get; set; }
@@ -35,7 +39,9 @@ namespace Palmfolk.Views
                 var shadow = PalmfolkView.Primitive(PrimitiveType.Sphere, "Contact shadow", shadowMaterial, transform);
                 shadow.localPosition = new Vector3(foot.localPosition.x, 0.0001f, 0);
                 shadow.localScale = new Vector3(0.009f, 0.0002f, 0.01f);
+                if (foot == leftFoot) leftShadow = shadow; else rightShadow = shadow;
             }
+            contacts.Landed += point => FootContact?.Invoke(contactPose.ToWorld(point));
             Show(BodyPose.Wave, 0);
 
             Transform Limb(string name, float x)
@@ -75,11 +81,58 @@ namespace Palmfolk.Views
         {
             Vec3 position = Role == TravelerRole.Bram ? frame.Bram : frame.Pip;
             PresentAt(position, frame.Tick, frame.GhostRoute, frame.BuildPhase, frame.Phase == M1Phase.Complete);
+            Route support = Role == TravelerRole.Pip ? frame.GhostRoute ?? frame.FilteredHandRoute : null;
+            if (support == null && frame.Bridge != null) support = Nearest(frame.Bridge.Curves, position);
+            contactPose = frame.Pose ?? ValleyPose.Identity; PlantFeet(support, position, frame.Tick);
         }
         public void Present(ValleyPresentation frame)
         {
             PresentAt(Role == TravelerRole.Bram ? frame.Bram : frame.Pip, frame.Tick, frame.GhostRoute,
                 frame.Stage == DirectorStage.Widening ? Core.BuildPhase.Building : frame.BuildPhase, frame.Complete);
+            Vec3 position = Role == TravelerRole.Bram ? frame.Bram : frame.Pip;
+            Route support = Role == TravelerRole.Pip ? frame.GhostRoute ?? frame.FilteredHandRoute : null;
+            if (support == null)
+                foreach (var tree in frame.Bridges.Values)
+                {
+                    var candidate = Nearest(tree.Curves, position);
+                    if (candidate != null && (support == null || FootPlanting.Closest(candidate, position, out _) < FootPlanting.Closest(support, position, out _))) support = candidate;
+                }
+            contactPose = frame.Pose ?? ValleyPose.Identity; PlantFeet(support, position, frame.Tick);
+        }
+        public void PresentTraveler(Vec3 position, long tick, bool arrived, ValleyPose pose, IReadOnlyDictionary<string, CurveTree> bridges)
+        {
+            PresentAt(position, tick, null, null, arrived); Route support = null;
+            foreach (var tree in bridges.Values)
+            {
+                var candidate = Nearest(tree.Curves, position);
+                if (candidate != null && (support == null || FootPlanting.Closest(candidate, position, out _) < FootPlanting.Closest(support, position, out _))) support = candidate;
+            }
+            contactPose = pose ?? ValleyPose.Identity; PlantFeet(support, position, tick);
+        }
+        private static Route Nearest(IReadOnlyList<Route> routes, Vec3 position)
+        {
+            Route best = null; double distance = 0.015;
+            foreach (var route in routes) { double d = FootPlanting.Closest(route, position, out _); if (d < distance) { distance = d; best = route; } }
+            return best;
+        }
+        private void PlantFeet(Route support, Vec3 position, long tick)
+        {
+            Vector3 facing = transform.localRotation * Vector3.forward;
+            contacts.Update(support, position, new Vec3(facing.x, facing.y, facing.z), tick, CurrentPose == BodyPose.Walk || CurrentPose == BodyPose.TestPlank);
+            if (support != null)
+            {
+                Vector3 forward = PalmfolkView.V(contacts.Forward); forward.y = 0;
+                if (forward.sqrMagnitude > 1e-10f) transform.localRotation = Quaternion.LookRotation(forward, Vector3.up);
+            }
+            Quaternion inverse = Quaternion.Inverse(transform.localRotation);
+            Vector3 surfaceForward = PalmfolkView.V(contacts.Forward).normalized;
+            Vector3 up = support == null ? Vector3.up : Vector3.Cross(surfaceForward, Vector3.Cross(Vector3.up, surfaceForward)).normalized;
+            Quaternion tilt = inverse * Quaternion.LookRotation(surfaceForward.sqrMagnitude > 1e-10f ? surfaceForward : Vector3.forward, up);
+            leftFoot.localRotation = rightFoot.localRotation = leftShadow.localRotation = rightShadow.localRotation = tilt;
+            leftFoot.localPosition = inverse * (PalmfolkView.V(contacts.Left - position) + up * 0.001f);
+            rightFoot.localPosition = inverse * (PalmfolkView.V(contacts.Right - position) + up * 0.001f);
+            leftShadow.localPosition = inverse * (PalmfolkView.V(contacts.Left - position) + up * 0.0001f);
+            rightShadow.localPosition = inverse * (PalmfolkView.V(contacts.Right - position) + up * 0.0001f);
         }
         public void PresentAt(Vec3 position, long tick, Route ghost, BuildPhase? buildPhase, bool complete)
         {
