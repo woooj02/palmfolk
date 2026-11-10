@@ -1,0 +1,60 @@
+name: Source checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source:
+    name: Source and manifest checks on Linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install -r tools/requirements-checks.txt
+      - run: python3 tools/check_source.py
+      - name: Manifest validator regressions
+        shell: pwsh
+        run: ./tools/Test-ManifestChecks.ps1
+      - run: git diff --exit-code
+
+  windows-manifest:
+    name: Manifest checks on Windows PowerShell
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Manifest validator regressions
+        shell: powershell
+        run: ./tools/Test-ManifestChecks.ps1
+
+  gameplay:
+    name: Gameplay on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Compile and test developer gameplay
+        run: dotnet test tools/CoreChecks/Tests/Palmfolk.Tests.csproj --configuration Release --nologo
+      - name: Compile and test without developer recording code
+        run: dotnet test tools/CoreChecks/Tests/Palmfolk.Tests.csproj --configuration Release --nologo -p:DeveloperFeatures=false
