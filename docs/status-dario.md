@@ -11,8 +11,9 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
 - **Unity setup, Nov 10.** Unity 6000.0.66f2 with Android support is installed and licensed on the owner's PC.
   Added the five built-in modules the Meta SDK needs (Animation, AssetBundle, ParticleSystem, Physics2D,
   Terrain) and committed `packages-lock.json`. Verified in the Unity editor (batch mode): `E:\palmfolk\Dario`
-  imports and compiles with no errors (exit code 0), and a clean checkout of this commit compiles with no
-  errors. How to use it: [`unity-setup.md`](unity-setup.md).
+  imports and compiles with no errors (exit code 0). A clean checkout also compiles with no errors; its first
+  import crashed once in Unity's asset importer on a Meta sample prefab, and the second run finished with exit
+  code 0. How to use it: [`unity-setup.md`](unity-setup.md).
 
 ## Next
 

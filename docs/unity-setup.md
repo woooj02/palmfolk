@@ -41,6 +41,10 @@ powershell -ExecutionPolicy Bypass -File .\tools\Test-Slice0Apk.ps1 -Sdk 'E:\Uni
 
    Exit code `0` and no `error CS` lines means the project compiles. `Logs\` is ignored by Git.
 
+   The first import can crash once while importing Meta's sample prefabs (exit code `-1073741819`,
+   `Crash!!!` in the log). Run the same command again: it continues where it stopped and finishes in under a
+   minute. That happened on a clean checkout here; the second run exited with `0`.
+
 3. The owner can open a folder in the editor window too: Unity Hub > **Projects** > **Add** > pick
    `E:\palmfolk\Dario` or `E:\palmfolk\Sam`.
 
@@ -63,6 +67,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\Test-Slice0Apk.ps1 -Sdk 'E:\Uni
 | Symptom | Cause and fix |
 |---|---|
 | `error CS1069: ... forwarded to assembly 'UnityEngine.<Name>Module'` | A built-in module is missing. Add `"com.unity.modules.<name>": "1.0.0"` to `Packages\manifest.json` (a shared file: mention it in the commit message) and reopen. |
+| Exit code `-1073741819` and `Crash!!!` in the log during the first import | A crash in Unity's asset importer, not in our code. Run the same command again. If it crashes again at the same asset, put the log lines in your status file. |
 | Empty folders `Assets\XR 1`, `XR 2`, ... or `Assets\XR\Settings 1.meta`, ... | Left behind by a failed import. Delete the empty duplicates and their `.meta` files. The real ones are `Assets\XR` and `Assets\XR\Settings`. |
 | Licence errors in the log, or the Hub says "There was a problem activating a new personal license" | Usually the clock (next row) or a stuck Windows WMI service (row after). Put it in your status file for the owner. |
 | Clock wrong after a reboot | The PC's hardware clock makes Windows start about 7 hours fast. Unity licensing checks timestamps. Check it: `(Invoke-WebRequest https://license.unity3d.com -UseBasicParsing -Method Head).Headers.Date` should match `(Get-Date).ToUniversalTime()`. If not, the owner clicks **Settings > Time & language > Date & time > Sync now**. |
