@@ -13,6 +13,7 @@ namespace Palmfolk.Views
         private ShapePool hand, preview, scaffold, bridge, ghost, hint, refusal;
         private Material wood, cord, skin, translucent, ghostMaterial, hintMaterial, warning;
         private LevelGeometry level;
+        private TravelerRig pipRig, bramRig, apprenticeRig;
         private readonly List<Material> materials = new List<Material>();
         public Transform ValleyRoot { get { Ensure(); return valley; } }
         public Route HintRoute { get; set; }
@@ -20,6 +21,7 @@ namespace Palmfolk.Views
         public WorldPresentation LastFrame { get; private set; }
 
         public void Configure(LevelGeometry geometry) { level = geometry; Ensure(); }
+        public void Consume(IReadOnlyList<GameEvent> events) { Ensure(); pipRig.Consume(events); bramRig.Consume(events); }
 
         public void Present(WorldPresentation frame)
         {
@@ -31,7 +33,10 @@ namespace Palmfolk.Views
             valley.SetPositionAndRotation(V(pose.Origin), new Quaternion((float)pose.Rotation.X, (float)pose.Rotation.Y, (float)pose.Rotation.Z, (float)pose.Rotation.W));
             valley.localScale = Vector3.one * (float)pose.Scale;
             pip.localPosition = V(frame.Pip); bram.localPosition = V(frame.Bram);
-            cart.localPosition = V(frame.Bram) + new Vector3(0.016f, 0, 0);
+            pipRig.ReducedMotion = bramRig.ReducedMotion = apprenticeRig.ReducedMotion = ReducedMotion;
+            pipRig.Present(frame); bramRig.Present(frame); apprenticeRig.Present(frame);
+            cart.localRotation = bram.localRotation;
+            cart.localPosition = V(frame.Bram) + bram.localRotation * Vector3.back * 0.016f;
             apprentice.localPosition = level == null ? Vector3.zero : V(level.End) + new Vector3(0, 0, 0.025f);
             hand.Begin(); preview.Begin(); scaffold.Begin(); bridge.Begin(); ghost.Begin(); hint.Begin(); refusal.Begin();
             DrawRoute(hand, frame.FilteredHandRoute, false, skin);
@@ -82,6 +87,9 @@ namespace Palmfolk.Views
             scaffold = new ShapePool(valley, "Frozen scaffold"); bridge = new ShapePool(valley, "Persistent bridge");
             ghost = new ShapePool(valley, "Recovery ghost"); hint = new ShapePool(valley, "Moving hint"); refusal = new ShapePool(valley, "Refusal crosses");
             pip = Actor("Pip", skin); bram = Actor("Bram", wood); apprentice = Actor("Apprentice", skin);
+            pipRig = pip.GetComponent<TravelerRig>(); pipRig.Role = TravelerRole.Pip;
+            bramRig = bram.GetComponent<TravelerRig>(); bramRig.Role = TravelerRole.Bram;
+            apprenticeRig = apprentice.GetComponent<TravelerRig>(); apprenticeRig.Role = TravelerRole.Apprentice;
             cart = Primitive(PrimitiveType.Cube, "Lantern cart", wood, valley);
             cart.localScale = new Vector3(0.02f, 0.014f, 0.016f);
             capacity = Primitive(PrimitiveType.Cube, "Capacity shape", wood, valley);
@@ -104,6 +112,7 @@ namespace Palmfolk.Views
             body.localPosition = Vector3.up * 0.012f; body.localScale = new Vector3(0.012f, 0.009f, 0.009f);
             var head = Primitive(PrimitiveType.Sphere, "Head", material, root);
             head.localPosition = Vector3.up * 0.026f; head.localScale = Vector3.one * 0.008f;
+            root.gameObject.AddComponent<TravelerRig>().Initialize(material);
             return root;
         }
         private void DrawRoute(ShapePool pool, Route route, bool built, Material material, float visible = 1)

@@ -40,7 +40,7 @@ namespace Palmfolk.Editor
             while (accumulator >= GameSettings.Delta)
             {
                 if (!sequence.TryRead(game.Tick + 1, out var frame)) { accumulator = 0; break; }
-                game.Step(frame); accumulator -= GameSettings.Delta;
+                game.Step(frame); view.Consume(game.Events); accumulator -= GameSettings.Delta;
             }
             view.Present(new WorldPresentation(game, accumulator / GameSettings.Delta)); SceneView.RepaintAll();
         }

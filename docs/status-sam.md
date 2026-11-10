@@ -52,10 +52,16 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   finite/bounded waveforms and meaningful event mapping; 95/95 Unity Edit Mode tests and batch compile
   pass (exit 0/no `error CS`). Headless 99 / 91 and source checks pass. No audible or headset-quality
   pass claimed. Binding guide: `testing/audio.md`; original-code notice added without external assets.
+- **S6 greybox state/rig implementation, Nov 10 — Unity editor.** Original 3 cm bodies with arms,
+  feet/contact-shadow shapes and nine poses: wave, hesitate, test, grip, hammer, celebrate, look back,
+  refuse and walk. Persistent states read the frame; transient gestures consume fixed-tick events.
+  Actor facing follows travel and cart placement follows Bram. Compile exits 0/no `error CS`;
+  96/96 Unity Edit Mode tests pass, including replay/rig checks. Headless 99 / 91 and source checks pass.
+  These are greybox poses, not final art/animations or a completed contact/readability pass.
 
 ## Next
 
-- Owner authorized work. Next: S6 body language, then S8 startup and S9 night.
+- Owner authorized work. Next: S8 startup and S9 night. S7 runtime content is still waiting on D3.
   S4 is blocked on the command/save contract below.
 
 ## Blocked
@@ -72,6 +78,9 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
 - S5 final binding needs explicit connection-lock/visitor events, actual rig foot contacts and the night
   music state. Current Core has no such event payloads. Owner must judge audio/caption quality and
   sound-alone build-completion recognition; procedural cues remain placeholders until polished.
+- S6: local foot gait is not surface-locked foot planting and does not emit authoritative foot contacts.
+  Final contact treatment/props and 3 cm readability need animation work and owner review; do not claim
+  sliding-free feet or trigger precise footstep timing from this placeholder gait.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified
   from coordinates. Actual Fork/Arch clearance also needs D4, H1 and owner-run reach/comfort checks.
 

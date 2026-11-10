@@ -36,3 +36,14 @@ shared Developer path (Sam's stats ownership). It writes no files and creates no
 calls `Show` with measured fps, total/disruptive per-puzzle counts, puzzle ID, actual gaze source, mode and
 stamped version. Nulls explicitly display “unmeasured”/“unbound”. The release frame has x-ray but no stats
 type. Actual FPS/labels and per-puzzle reset need Dario's platform/director binding.
+
+`TravelerRig` supplies original 3 cm greybox bodies, arms, feet and contact-shadow shapes. Its nine
+poses cover wave, hesitation, testing a plank, crouch/grip, hammering, celebration, looking back,
+refusal/head shake and walking. Read-only frames choose persistent state; `PalmfolkView.Consume(events)`
+supplies transient gestures per fixed tick. Actor facing follows the displayed travel direction and the
+cart stays behind Bram. Reduced motion preserves static gesture shape.
+
+This is a state/rig implementation, not a final animation/contact pass. Feet currently use a local gait;
+they are not locked to tracked surface coordinates. Do not trigger precise foot-contact audio from it
+or claim sliding-free contact. Surface-relative foot samples, final rigs/props and owner judgment of
+3 cm readability are still needed. No camera, physics or gameplay state is animated by these components.

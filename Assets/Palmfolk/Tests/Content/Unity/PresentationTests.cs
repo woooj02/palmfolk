@@ -10,6 +10,20 @@ namespace Palmfolk.Tests.Content
 {
     public class PresentationTests
     {
+        [Test] public void OriginalRigHasThreeCentimetreBodyAndDistinctPoses()
+        {
+            var root = new GameObject("Rig test"); var material = new Material(Shader.Find("Standard"));
+            try
+            {
+                var rig = root.AddComponent<TravelerRig>(); rig.Initialize(material);
+                rig.Show(BodyPose.Wave, 0); var wave = root.transform.Find("Right arm").localRotation;
+                rig.Show(BodyPose.Grip, 0); Assert.That(root.transform.Find("Head").localPosition.y, Is.LessThan(0.026f));
+                rig.Show(BodyPose.Celebrate, 0); Assert.That(root.transform.Find("Right arm").localRotation, Is.Not.EqualTo(wave));
+                Assert.That(root.transform.Find("Head").localPosition.y + 0.004f, Is.EqualTo(0.03f).Within(1e-6));
+                Assert.That(root.GetComponentsInChildren<Collider>(true), Is.Empty);
+            }
+            finally { Object.DestroyImmediate(root); Object.DestroyImmediate(material); }
+        }
         [Test] public void StatsTypeMatchesTheCompiledDevelopmentGate()
         {
             var stats = System.Type.GetType("Palmfolk.Developer.StatsPanel, Palmfolk.Stats");
@@ -47,7 +61,7 @@ namespace Palmfolk.Tests.Content
                 var view = root.AddComponent<PalmfolkView>(); view.Configure(level);
                 foreach (var frame in new HandSequence(ticks: 900, withdrawStart: 400, withdrawEnd: 430, withdrawal: new Vec3(0, 0, 0.2)).Frames())
                 {
-                    game.Step(frame); var state = new WorldPresentation(game, 0.5); view.Present(state);
+                    game.Step(frame); view.Consume(game.Events); var state = new WorldPresentation(game, 0.5); view.Present(state);
                     Assert.That(game.Tick, Is.EqualTo(frame.Tick));
                 }
                 Assert.That(game.Phase, Is.EqualTo(M1Phase.Complete));
