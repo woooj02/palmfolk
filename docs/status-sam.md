@@ -13,7 +13,7 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   Both headless configurations pass: 67 developer / 59 release tests. Python 3.12 source checks pass.
   Unity fixture/test assembly compile exited 0, with no `error CS` lines. Tests exercise an M1
   build/withdraw/cart crossing and loss/far-return recovery. No headset result is claimed.
-  The fixture API is ready for Dario's D2–D4 tests; their adoption remains Dario's work.
+  Dario's D2 tests now consume the fixtures (see Dario's status); D3/D4 adoption remains his work.
 - **S7 layout handoff, Nov 10 — headless calculations only.** `testing/valley-layout.md` supplies
   island/deck coordinates, radii, anchor construction, ten 12–15 cm gaps, six puzzle and five visitor
   mappings within a 60 × 45 cm bound. Main cart route has exactly three crossings. Source checks
@@ -27,13 +27,16 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   no APK, signing, installed build, final manifest or device/privacy behavior verified.
 - **S11, Nov 10 — documentation prepared, headless checks only.** `testing/owner-checks.md` covers
   Quest 2 slices 1–14 and links Slice 0. Added all 324 P12 matrix cells, E18 FoV procedure and
-  M1 sign-off template. Every device result is explicitly Not run. Headless 67 / 59 and source
+  M1 sign-off template. Every device result is explicitly Not run. After rebasing D2, headless 99 / 91 and source
   checks pass; the owner still executes the procedures and judges M1.
+- **S12 draft pack, Nov 10 — documentation/headless only.** Added `submission/devpost-draft.md`
+  (tagline, short project text, interaction answer, play notes, metadata and explicit evidence fields),
+  timed real-footage/screenshot list and credits/P9 checklist. No unsupported device claims or invented
+  metrics. Publication, actual assets, final licence audit, launch date and channel access remain open.
 
 ## Next
 
-- Owner authorized work. Next: S12 submission draft,
-  then the remaining Unity items in team-plan order.
+- Owner authorized work. Next: S2 views, then remaining Unity items in team-plan order.
 
 ## Blocked
 
@@ -47,6 +50,8 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
 - S10: run `testing/tooling.md`'s owner APK command after the reviewed Slice 0 configuration is committed.
   It deliberately refuses uncommitted project assets or mismatched release/developer defines. Final
   APK manifest and offline Table-mode anchor behavior remain unverified until that owner pass.
+- S12: choose target launch date, credit display names and privacy-policy URL; create the Competition
+  invite and test access with a second account. Real final-build video/screenshots and P9 assets are pending.
 - The older build plan reserves pushing for the owner and gates later work on M1. The current owner
   instruction explicitly authorizes item-by-item pushes and source preparation; no headset gate or
   M1 sign-off is treated as passed by that authorization.
