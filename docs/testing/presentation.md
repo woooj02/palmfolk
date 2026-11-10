@@ -73,3 +73,16 @@ the input adapter, never a view mutation of Core. No live driver or shared scene
 The preview is geometric: Core does not expose the destination connection watcher's locked state, so no
 explicit connection-lock chime/event is fabricated. Visitor rigs, full recovery skeleton, solution hint pose,
 true single-hand Fork and headset performance/feel remain open dependencies or owner checks.
+
+## Contrast and retained materials
+
+After a setting is acknowledged, set `HighContrast` and `TableMode` on the active M1/valley view.
+The high-contrast palette uses unlit bright routes/travelers and dark islands, preserving geometry-based
+rope/plank/refusal cues. Only high-contrast **Table mode** enables the bounded solid backdrop; it is
+hidden for ordinary Table mode and VR. These are render settings, not a claim of readability over a real table.
+
+Five original material configurations in `Art/Resources/Palmfolk` reference Unity's opaque, transparent,
+emissive, unlit and line shaders. Runtime material copies use the templates and a build preflight refuses
+missing ones. The editor menu creates only missing templates and never overwrites reviewed art. No
+graphics/project settings or external assets were committed. Final shader behavior, table-edge visibility,
+contrast and performance still need the actual APK/owner pass.

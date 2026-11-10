@@ -20,7 +20,12 @@ namespace Palmfolk.Views
         private Route previousRoute, currentRoute;
         private long routeTick = -2;
         private long? planted;
+        private Material islandMaterial, handMaterial, backdropMaterial;
+        private Transform backdrop;
+        private bool? contrastApplied;
         public bool ReducedMotion { get; set; }
+        public bool HighContrast { get; set; }
+        public bool TableMode { get; set; }
         public Transform ValleyRoot => valley;
         public int RenderedBridgeCount => bridges.Count;
         public void Consume(IReadOnlyList<GameEvent> events)
@@ -32,7 +37,7 @@ namespace Palmfolk.Views
         public void Present(ValleyPresentation frame, float handInterpolation)
         {
             if (frame == null) return;
-            Ensure(frame.Valley); valley.gameObject.SetActive(frame.Pose != null); if (frame.Pose == null) return;
+            Ensure(frame.Valley); ApplyContrast(); valley.gameObject.SetActive(frame.Pose != null); if (frame.Pose == null) return;
             var pose = frame.Pose;
             valley.SetPositionAndRotation(PalmfolkView.V(pose.Origin), new Quaternion((float)pose.Rotation.X, (float)pose.Rotation.Y, (float)pose.Rotation.Z, (float)pose.Rotation.W));
             float growth = planted.HasValue && !ReducedMotion ? Mathf.Max(0.001f, Mathf.SmoothStep(0, 1, (frame.Tick - planted.Value) / 30f)) : 1;
@@ -56,7 +61,7 @@ namespace Palmfolk.Views
             foreach (var pool in bridges.Values) pool.Begin();
             if (frame.Tick != routeTick) { previousRoute = currentRoute; currentRoute = frame.FilteredHandRoute; routeTick = frame.Tick; }
             var displayed = Blend(previousRoute, currentRoute, handInterpolation);
-            Draw(live, displayed, false, skin); Draw(scaffold, frame.Scaffold, true, wood, (float)(1 - frame.ScaffoldRemovalProgress));
+            Draw(live, displayed, false, handMaterial); Draw(scaffold, frame.Scaffold, true, wood, (float)(1 - frame.ScaffoldRemovalProgress));
             Draw(ghost, frame.GhostRoute, false, carved);
             bool inZones = displayed != null && frame.Source.HasValue && frame.Destination.HasValue && frame.Source.Value.Contains(displayed.Start) && frame.Destination.Value.Contains(displayed.End);
             capacity.gameObject.SetActive(inZones);
@@ -100,10 +105,13 @@ namespace Palmfolk.Views
             spec = valleySpec; valley = new GameObject("Full valley presentation").transform; valley.SetParent(transform, false);
             wood = Material(new Color(0.48f, 0.29f, 0.13f)); cord = Material(new Color(0.22f, 0.17f, 0.10f)); skin = Material(new Color(0.65f, 0.51f, 0.31f));
             transparent = Material(new Color(0.7f, 0.8f, 0.9f, 0.25f)); carved = Material(new Color(0.8f, 0.8f, 0.75f, 0.45f)); warning = Material(new Color(1, 0.65f, 0.15f));
+            islandMaterial = Material(new Color(0.48f, 0.29f, 0.13f)); handMaterial = Material(new Color(0.65f, 0.51f, 0.31f)); backdropMaterial = Material(new Color(0.02f, 0.02f, 0.02f));
+            backdrop = PalmfolkView.Primitive(PrimitiveType.Cube, "High contrast backdrop", backdropMaterial, valley);
+            backdrop.localPosition = new Vector3(0, 0.001f, -0.015f); backdrop.localScale = new Vector3(0.60f, 0.001f, 0.45f); backdrop.gameObject.SetActive(false);
             islands = new GameObject("Islands and obstacles").transform; islands.SetParent(valley, false);
             foreach (var island in spec.Islands)
             {
-                var top = PalmfolkView.Primitive(PrimitiveType.Cylinder, "Island " + island.Id, wood, islands);
+                var top = PalmfolkView.Primitive(PrimitiveType.Cylinder, "Island " + island.Id, islandMaterial, islands);
                 top.localPosition = PalmfolkView.V(island.Top) + Vector3.down * 0.012f; top.localScale = new Vector3((float)island.Radius * 2, 0.012f, (float)island.Radius * 2);
             }
             foreach (var obstacle in spec.Clearance.Obstacles)
@@ -125,6 +133,19 @@ namespace Palmfolk.Views
             scaffold = new PalmfolkView.ShapePool(valley, "Frozen scaffold"); ghost = new PalmfolkView.ShapePool(valley, "Recovery ghost"); refusals = new PalmfolkView.ShapePool(valley, "Refusal crosses");
         }
         private Material Material(Color color) { var value = PalmfolkView.CreateMaterial(color); materials.Add(value); return value; }
+        private void ApplyContrast()
+        {
+            backdrop.gameObject.SetActive(HighContrast && TableMode);
+            if (contrastApplied == HighContrast) return; contrastApplied = HighContrast;
+            var shader = Resources.Load<Material>("Palmfolk/" + (HighContrast ? "HighContrast" : "StandardOpaque")).shader;
+            foreach (var material in new[] { wood, cord, skin, handMaterial, islandMaterial, warning, backdropMaterial }) material.shader = shader;
+            wood.color = HighContrast ? Color.white : new Color(0.48f, 0.29f, 0.13f);
+            cord.color = HighContrast ? Color.white : new Color(0.22f, 0.17f, 0.10f);
+            skin.color = HighContrast ? Color.white : new Color(0.65f, 0.51f, 0.31f);
+            handMaterial.color = HighContrast ? Color.gray : new Color(0.65f, 0.51f, 0.31f);
+            islandMaterial.color = HighContrast ? new Color(0.06f, 0.06f, 0.06f) : new Color(0.48f, 0.29f, 0.13f);
+            warning.color = HighContrast ? Color.white : new Color(1, 0.65f, 0.15f);
+        }
         private Transform Actor(string name)
         {
             var root = new GameObject(name).transform; root.SetParent(valley, false); root.gameObject.AddComponent<TravelerRig>().Initialize(skin); return root;

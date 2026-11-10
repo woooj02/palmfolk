@@ -2,6 +2,11 @@
 
 Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity editor, simulator, Quest 2.
 
+Latest verification, Nov 10: **headless** 141 developer / 133 release tests; Python 3.12 source checks;
+28 manifest regressions. **Unity editor**: compile exit 0/no `error CS`, 160 developer / 151 release tests
+pass; the release run confirms stats are absent again after the developer run. No simulator, Quest 2, Quest 3/3S,
+APK, installed build or M1 sign-off is claimed. Individual results below are historical by item.
+
 ## Done
 
 - **Unity setup, Nov 10 — Unity editor (batch mode).** Imported only this worktree with the installed
@@ -100,8 +105,14 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   No external samples/assets. Compile exits 0/no `error CS`; 148 release / 157 developer Unity tests
   pass, including recording/stats gate checks, original samples and scoped binding. Headless 141 / 133,
   source checks and 28 manifest regressions pass. Listening/headset quality remains owner verification.
+- **S4/A8 and S10 material follow-up, Nov 10 — Unity editor.** Added acknowledged high-contrast render
+  settings to M1/full-valley views, bright unlit routes/actors, dark islands and a solid backdrop only for
+  high-contrast Table mode. Committed five original material templates so opaque/transparent/emissive/
+  unlit/line references are explicit, with a build preflight for missing assets. No generated settings/default
+  assets committed. Small shared README change adds status/integration links. Full Unity checks pass
+  (160 developer / 151 release); shader behavior and cluttered-table readability still need the owner APK pass.
 
-## Next
+## In progress
 
 - Source implementations against the current published contracts are prepared. Next integration needs
   Dario's remaining platform/save/visitor contracts, then owner-run M1 and quality review below.
@@ -122,6 +133,9 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   sound-alone build-completion recognition; procedural cues remain placeholders until polished.
 - S6 route-relative foot planting/callbacks are implemented. Surface transitions, final contact treatment/
   props and 3 cm readability still need owner editor/headset review; do not claim a live sliding-free pass.
+  The view projects the displayed traveler onto a route because the presentation does not expose its
+  actual support cursor. Ambiguous/self-crossing live geometry needs that cursor binding before a strict
+  contact guarantee; no Core type was changed to guess it.
 - S9 counts/bridges/music use D3; visitor windows await D8. Final art and audio-quality review remain open.
   Actual passthrough dimming stays disabled until Dario's platform integration and owner edge-visibility test.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified

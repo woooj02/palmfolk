@@ -15,6 +15,11 @@ namespace Palmfolk.Views
         private LevelGeometry level;
         private TravelerRig pipRig, bramRig, apprenticeRig;
         private long? growthStart;
+        private Material islandMaterial, handMaterial, backdropMaterial;
+        private Transform backdrop;
+        private bool? contrastApplied;
+        public bool HighContrast { get; set; }
+        public bool TableMode { get; set; }
         private readonly List<Material> materials = new List<Material>();
         public Transform ValleyRoot { get { Ensure(); return valley; } }
         public Route HintRoute { get; set; }
@@ -36,6 +41,7 @@ namespace Palmfolk.Views
         {
             if (frame == null) return;
             Ensure(); LastFrame = frame;
+            ApplyContrast();
             valley.gameObject.SetActive(frame.Pose != null);
             if (frame.Pose == null) return;
             var pose = frame.Pose;
@@ -49,7 +55,7 @@ namespace Palmfolk.Views
             cart.localPosition = V(frame.Bram) + bram.localRotation * Vector3.back * 0.016f;
             apprentice.localPosition = level == null ? Vector3.zero : V(level.End) + new Vector3(0, 0, 0.025f);
             hand.Begin(); preview.Begin(); scaffold.Begin(); bridge.Begin(); ghost.Begin(); hint.Begin(); refusal.Begin();
-            DrawRoute(hand, frame.FilteredHandRoute, false, skin);
+            DrawRoute(hand, frame.FilteredHandRoute, false, handMaterial);
             bool connected = frame.FilteredHandRoute != null && level != null &&
                 ((Vec3.Distance(frame.FilteredHandRoute.Start, level.Start) < 0.02 && Vec3.Distance(frame.FilteredHandRoute.End, level.End) < 0.02) ||
                 (Vec3.Distance(frame.FilteredHandRoute.End, level.Start) < 0.02 && Vec3.Distance(frame.FilteredHandRoute.Start, level.End) < 0.02));
@@ -93,6 +99,9 @@ namespace Palmfolk.Views
             skin = Make(new Color(0.65f, 0.51f, 0.31f)); translucent = Make(new Color(0.7f, 0.8f, 0.9f, 0.25f));
             ghostMaterial = Make(new Color(0.8f, 0.8f, 0.75f, 0.45f)); hintMaterial = Make(new Color(0.9f, 0.95f, 1, 0.3f));
             warning = Make(new Color(1, 0.65f, 0.15f));
+            islandMaterial = Make(new Color(0.48f, 0.29f, 0.13f)); handMaterial = Make(new Color(0.65f, 0.51f, 0.31f)); backdropMaterial = Make(new Color(0.02f, 0.02f, 0.02f));
+            backdrop = Primitive(PrimitiveType.Cube, "High contrast backdrop", backdropMaterial, valley);
+            backdrop.localPosition = Vector3.down * 0.001f; backdrop.localScale = new Vector3(0.34f, 0.001f, 0.20f); backdrop.gameObject.SetActive(false);
             hand = new ShapePool(valley, "Displayed route"); preview = new ShapePool(valley, "Preview");
             scaffold = new ShapePool(valley, "Frozen scaffold"); bridge = new ShapePool(valley, "Persistent bridge");
             ghost = new ShapePool(valley, "Recovery ghost"); hint = new ShapePool(valley, "Moving hint"); refusal = new ShapePool(valley, "Refusal crosses");
@@ -111,7 +120,7 @@ namespace Palmfolk.Views
 
         private void Island(string name, Vec3 anchor, float direction)
         {
-            var island = Primitive(PrimitiveType.Cube, "Island " + name, wood, valley);
+            var island = Primitive(PrimitiveType.Cube, "Island " + name, islandMaterial, valley);
             island.localPosition = V(anchor) + new Vector3(direction, -0.012f, 0);
             island.localScale = new Vector3(0.09f, 0.024f, 0.10f);
         }
@@ -162,7 +171,9 @@ namespace Palmfolk.Views
         }
         internal static Material CreateMaterial(Color color)
         {
-            var result = new Material(Shader.Find("Standard")) { color = color };
+            var template = Resources.Load<Material>("Palmfolk/" + (color.a < 1 ? "StandardTransparent" : "StandardOpaque"));
+            if (template == null) throw new System.InvalidOperationException("Missing committed presentation material template.");
+            var result = new Material(template) { color = color };
             if (color.a < 1)
             {
                 result.SetFloat("_Mode", 3); result.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
@@ -170,6 +181,19 @@ namespace Palmfolk.Views
                 result.EnableKeyword("_ALPHABLEND_ON"); result.renderQueue = 3000;
             }
             return result;
+        }
+        private void ApplyContrast()
+        {
+            backdrop.gameObject.SetActive(HighContrast && TableMode);
+            if (contrastApplied == HighContrast) return; contrastApplied = HighContrast;
+            var shader = Resources.Load<Material>("Palmfolk/" + (HighContrast ? "HighContrast" : "StandardOpaque")).shader;
+            foreach (var material in new[] { wood, cord, skin, handMaterial, islandMaterial, warning, backdropMaterial }) material.shader = shader;
+            wood.color = HighContrast ? Color.white : new Color(0.48f, 0.29f, 0.13f);
+            cord.color = HighContrast ? Color.white : new Color(0.22f, 0.17f, 0.10f);
+            skin.color = HighContrast ? Color.white : new Color(0.65f, 0.51f, 0.31f);
+            handMaterial.color = HighContrast ? Color.gray : new Color(0.65f, 0.51f, 0.31f);
+            islandMaterial.color = HighContrast ? new Color(0.06f, 0.06f, 0.06f) : new Color(0.48f, 0.29f, 0.13f);
+            warning.color = HighContrast ? Color.white : new Color(1, 0.65f, 0.15f);
         }
         private void OnDestroy() { foreach (var material in materials) DestroyImmediate(material); }
         public static Vector3 V(Vec3 p) => new Vector3((float)p.X, (float)p.Y, (float)p.Z);

@@ -11,6 +11,37 @@ namespace Palmfolk.Tests.Content
 {
     public class PresentationTests
     {
+        [Test] public void RuntimePresentationTemplatesAreCommittedResources()
+        {
+            foreach (string name in new[] { "StandardOpaque", "StandardTransparent", "Glow", "HighContrast", "Lines" })
+                Assert.That(Resources.Load<Material>("Palmfolk/" + name)?.shader, Is.Not.Null, name);
+        }
+        [TestCase(false)] [TestCase(true)]
+        public void SolidContrastBackdropIsLimitedToTableContrastMode(bool fullValley)
+        {
+            var root = new GameObject("Contrast test");
+            try
+            {
+                if (fullValley)
+                {
+                    var game = new ValleySimulation(ChapterOne.Greybox()); var view = root.AddComponent<ValleyView>(); view.HighContrast = true;
+                    var frame = new ValleyPresentation(game, 1); view.Present(frame);
+                    Assert.That(view.ValleyRoot.Find("High contrast backdrop").gameObject.activeSelf, Is.False);
+                    view.TableMode = true; view.Present(frame); Assert.That(view.ValleyRoot.Find("High contrast backdrop").gameObject.activeSelf, Is.True);
+                    view.HighContrast = false; view.Present(frame); Assert.That(view.ValleyRoot.Find("High contrast backdrop").gameObject.activeSelf, Is.False);
+                }
+                else
+                {
+                    var level = new LevelGeometry(new Vec3(-0.06, 0.006, 0), new Vec3(0.06, 0.006, 0));
+                    var view = root.AddComponent<PalmfolkView>(); view.Configure(level); view.HighContrast = true;
+                    var frame = new WorldPresentation(new M1Simulation(level), 1); view.Present(frame);
+                    Assert.That(view.ValleyRoot.Find("High contrast backdrop").gameObject.activeSelf, Is.False);
+                    view.TableMode = true; view.Present(frame); Assert.That(view.ValleyRoot.Find("High contrast backdrop").gameObject.activeSelf, Is.True);
+                    view.HighContrast = false; view.Present(frame); Assert.That(view.ValleyRoot.Find("High contrast backdrop").gameObject.activeSelf, Is.False);
+                }
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
         [Test] public void FullValleyPresentationDrawsTheActualSavedBridgesAndGraph()
         {
             var root = new GameObject("Valley view test");

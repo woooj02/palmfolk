@@ -110,6 +110,7 @@ namespace Palmfolk.UI
         }
         private void Refresh()
         {
+            wood.color = contrast ? new Color(0.03f, 0.03f, 0.03f) : new Color(0.45f, 0.29f, 0.15f);
             string[] words;
             switch (Page)
             {

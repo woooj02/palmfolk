@@ -9,6 +9,9 @@ Status: the M1 gameplay core (written against v1.2) is implemented and tested wi
 scene/input integration, Android builds and Quest 2 verification are pending. The scene generator still
 creates the slice 0 hands/islands scene. No headset behavior is verified yet.
 
+Chapter content, presentation and tooling source preparation is tracked in [`docs/status-sam.md`](docs/status-sam.md).
+Read [`docs/testing/presentation.md`](docs/testing/presentation.md) for the M1/full-valley view bindings and their verification limits.
+
 Requirements: [`docs/requirements-v1.3.md`](docs/requirements-v1.3.md) and
 [`docs/requirements-v1.3-quality.md`](docs/requirements-v1.3-quality.md). Order of work:
 [`docs/build-plan.md`](docs/build-plan.md). Where v1.3 and v1.2 disagree, v1.3 wins.

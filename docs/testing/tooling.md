@@ -51,3 +51,8 @@ The script validates the **actual APK** manifest using the installed Android SDK
 equate synthetic manifest regressions or source guards with an APK pass. APK builds, final merged
 permissions, signing, offline anchor restoration and headset behavior are still owner verification.
 Do not commit APKs, build reports, signing material or generated Unity defaults.
+
+Presentation material templates are committed under `Assets/Palmfolk/Art/Resources/Palmfolk`, separate
+from Unity/Meta's generated default folders. A build preflight checks all five. If one is missing, restore
+the reviewed asset; **Palmfolk > Presentation > Create material templates** creates only missing originals
+and does not overwrite an existing material. Keep APK shader/render verification in the owner build pass.
