@@ -1,7 +1,9 @@
 function Assert-PalmfolkManifest {
     param(
         [Parameter(Mandatory = $true)][string]$Text,
-        [switch]$Source
+        [switch]$Source,
+        [switch]$TableMode,
+        [switch]$SceneSnap
     )
     $settings = New-Object System.Xml.XmlReaderSettings
     $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
@@ -27,6 +29,18 @@ function Assert-PalmfolkManifest {
     $internet = @($permissions | Where-Object { $_.GetAttribute('name', $android) -eq 'android.permission.INTERNET' })
     foreach ($permission in $internet) {
         if (-not $Source -or $permission.GetAttribute('node', $tools) -ne 'remove') { throw 'Manifest grants INTERNET permission.' }
+    }
+    if ($SceneSnap -and -not $TableMode) { throw 'Scene snap requires Table mode.' }
+    $allowed = @('com.oculus.permission.HAND_TRACKING')
+    if ($TableMode) { $allowed += 'com.oculus.permission.USE_ANCHOR_API' }
+    if ($SceneSnap) { $allowed += 'com.oculus.permission.USE_SCENE' }
+    $granted = @{}
+    foreach ($permission in $permissions) {
+        $name = $permission.GetAttribute('name', $android)
+        if ($Source -and $permission.GetAttribute('node', $tools) -eq 'remove') { continue }
+        if ($name -notin $allowed) { throw "Permission outside the shipped-mode allowlist: $name" }
+        if ($granted.ContainsKey($name)) { throw "Duplicate permission: $name" }
+        $granted[$name] = $true
     }
     $frequency = @(Find-Entry '/manifest/application/meta-data' 'com.oculus.handtracking.frequency')
     if ($frequency.Count -ne 1 -or $frequency[0].GetAttribute('value', $android) -ne 'HIGH') { throw 'Manifest must request HIGH hand tracking frequency exactly once.' }

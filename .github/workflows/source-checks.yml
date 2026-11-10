@@ -38,6 +38,15 @@ jobs:
       - name: Manifest validator regressions
         shell: powershell
         run: ./tools/Test-ManifestChecks.ps1
+      - name: Parse owner tooling with Windows PowerShell
+        shell: powershell
+        run: |
+          Get-ChildItem tools/*.ps1 | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors) { throw ($parseErrors | Out-String) }
+          }
 
   gameplay:
     name: Gameplay on ${{ matrix.os }}

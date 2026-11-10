@@ -7,13 +7,15 @@ param(
     [Parameter(Mandatory = $true, ParameterSetName = 'Manifest')]
     [string]$ManifestXml,
     [Parameter(ParameterSetName = 'Manifest')]
-    [switch]$Source
+    [switch]$Source,
+    [switch]$TableMode,
+    [switch]$SceneSnap
 )
 $ErrorActionPreference = 'Stop'
 Import-Module "$PSScriptRoot/ManifestChecks.psm1" -Force
 if ($PSCmdlet.ParameterSetName -eq 'Manifest') {
     $text = Get-Content -LiteralPath $ManifestXml -Raw
-    Assert-PalmfolkManifest -Text $text -Source:$Source
+    Assert-PalmfolkManifest -Text $text -Source:$Source -TableMode:$TableMode -SceneSnap:$SceneSnap
     Write-Output 'PASS: manifest XML checks. This does not verify an APK or headset behavior.'
     return
 }
@@ -29,7 +31,7 @@ try {
     if (Test-Path $jdk) { $env:JAVA_HOME = $jdk }
     $manifestText = & $analyzer manifest print (Resolve-Path -LiteralPath $Apk).Path
     if ($LASTEXITCODE -ne 0) { throw 'apkanalyzer could not read the built APK.' }
-    Assert-PalmfolkManifest -Text ($manifestText -join "`n")
+    Assert-PalmfolkManifest -Text ($manifestText -join "`n") -TableMode:$TableMode -SceneSnap:$SceneSnap
 } finally {
     $env:JAVA_HOME = $previousJava
 }

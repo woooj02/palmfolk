@@ -35,6 +35,15 @@ Check-Rejected 'Quest 2 excluded' ($merged.Replace('quest2|quest3|quest3s', 'que
 $internet = '<uses-permission android:name="android.permission.INTERNET" />'
 Check-Rejected 'Internet permission' ($merged.Replace('</manifest>', $internet + '</manifest>')) 'INTERNET permission'
 Check-Rejected 'versioned Internet permission' ($merged.Replace('</manifest>', $internet.Replace('uses-permission ', 'uses-permission-sdk-23 ') + '</manifest>')) 'INTERNET permission'
+foreach ($permission in @('android.permission.CAMERA', 'android.permission.RECORD_AUDIO', 'android.permission.READ_EXTERNAL_STORAGE', 'com.oculus.permission.USE_SCENE', 'com.oculus.permission.USE_ANCHOR_API')) {
+    Check-Rejected $permission ($merged.Replace('</manifest>', '<uses-permission android:name="' + $permission + '" /></manifest>')) 'allowlist'
+}
+$anchors = $merged.Replace('</manifest>', '<uses-permission android:name="com.oculus.permission.USE_ANCHOR_API" /></manifest>')
+Assert-PalmfolkManifest -Text $anchors -TableMode
+$script:passed++
+$scene = $anchors.Replace('</manifest>', '<uses-permission android:name="com.oculus.permission.USE_SCENE" /></manifest>')
+Assert-PalmfolkManifest -Text $scene -TableMode -SceneSnap
+$script:passed++
 Check-Rejected 'removal marker in merged manifest' ($merged.Replace('</manifest>', $sourceInternet + '</manifest>')) 'INTERNET permission'
 $hand = '<uses-feature android:name="oculus.software.handtracking" android:required="true" />'
 Check-Rejected 'duplicate hand declarations' ($merged.Replace('</manifest>', $hand + '</manifest>')) 'exactly once'
