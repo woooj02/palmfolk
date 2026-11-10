@@ -6,8 +6,8 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
 
 - **D1, Nov 10.** Merged `m1-gameplay` into `main` under the v1.3 requirements. `README.md` updated;
   `tools/check_source.py` now pins the v1.3 requirements and build plan alongside v1.2. Verified headless: 59
-  developer-mode and 51 release-mode tests pass with .NET 8 on Windows. `check_source.py` not run locally (no Python
-  on this PC); CI runs it.
+  developer-mode and 51 release-mode tests pass with .NET 8 on Windows. `tools/check_source.py` passes locally with Python 3.12 (`py -3.12`)
+  after a fix for Windows line endings.
 
 ## Next
 

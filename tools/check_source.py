@@ -53,7 +53,8 @@ def main():
         require(not (set(part.lower() for part in path.parts) & generated), f"Generated/private directory must not be tracked: {name}")
         require(path.suffix.lower() not in forbidden_suffixes and not path.name.startswith(".env"), f"Private/build artifact must not be tracked: {name}")
     probes = ["Builds/test.apk", "test.keystore", "test.jks", "signing.key", "signing.pem", "signing.p12", "signing.pfx", ".env", ".env.local", "playtest-logs/session.json", "Library/test", "UserSettings/test", ".venv/test", "tools/__pycache__/test.pyc"]
-    ignored = set(git("check-ignore", "--no-index", "--stdin", input="\n".join(probes) + "\n", text=True).splitlines())
+    # Bytes, not text: on Windows, text mode sends CRLF and git then matches nothing.
+    ignored = set(git("check-ignore", "--no-index", "--stdin", input=("\n".join(probes) + "\n").encode()).decode().splitlines())
     require(ignored == set(probes), "Missing ignore rules: " + ", ".join(sorted(set(probes) - ignored)))
     print("PASS: build outputs, private files and local tooling stay out of Git")
 
