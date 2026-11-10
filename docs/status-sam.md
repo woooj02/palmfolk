@@ -64,15 +64,21 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   Three startup states and growth/Core-pose separation tested: 98/98 Unity Edit Mode tests pass;
   batch compilation exits 0/no `error CS`. Headless 99 / 91 and source checks pass. Platform scene
   wiring, actual prompt placement, legibility, cold-start and planting times remain unverified.
+- **S9 night presentation port, Nov 10 — Unity editor.** Rough VR base, five sanctuary windows,
+  per-puzzle night targets, reduced-motion monotonic fade and finale lighting along supplied curve trees.
+  The component accepts director state, never infers puzzle progress. Table dimming defaults to zero
+  until an owner-tested edge-visibility limit and platform callback exist. After rebasing D3: headless
+  136 / 128, source checks and 136/136 Unity Edit Mode tests pass; compile exits 0/no `error CS`.
+  No headset, final visual quality or Table behavior is verified. See `testing/night.md`.
 
 ## Next
 
-- Owner authorized work. Next: S9 night. S7 runtime content is still waiting on D3.
+- D3 has landed. Next: S7 executable content and full-valley presentation binding against its published API.
   S4 is blocked on the command/save contract below.
 
 ## Blocked
 
-- S7 executable puzzle/visitor data awaits D3's published content types. Layout numbers can proceed.
+- D3 content types are now available; the previous S7 puzzle-data block is cleared. Visitor types still await D8.
 - S2 full valley/visitor views await D3 presentation fields. The M1 contract exposes a route, not a full
   recovery skeleton or puzzle-specific hint pose; these need a published input/solution binding, not guessed joints.
 - S3 full valley graph and measured stats labels await D3/D6/D10 bindings. M1 diagnostic drawing is
@@ -87,6 +93,8 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
 - S6: local foot gait is not surface-locked foot planting and does not emit authoritative foot contacts.
   Final contact treatment/props and 3 cm readability need animation work and owner review; do not claim
   sliding-free feet or trigger precise footstep timing from this placeholder gait.
+- S9 full-valley counts/bridge/window binding needs D3/D8; night music and final art remain unfinished.
+  Actual passthrough dimming stays disabled until Dario's platform integration and owner edge-visibility test.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified
   from coordinates. Actual Fork/Arch clearance also needs D4, H1 and owner-run reach/comfort checks.
 

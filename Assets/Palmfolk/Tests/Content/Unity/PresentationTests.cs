@@ -10,6 +10,21 @@ namespace Palmfolk.Tests.Content
 {
     public class PresentationTests
     {
+        [Test] public void ReducedNightFadeIsMonotonicAndUnverifiedTableDimmingIsZero()
+        {
+            var root = new GameObject("Night test");
+            try
+            {
+                var night = root.AddComponent<NightView>(); night.Configure(new Vec3(0.21, 0.02, -0.15));
+                night.ReducedMotion = true; night.TableMode = true; float requested = -1;
+                night.TableDimmingRequested += value => requested = value;
+                night.SetState(3, 2, false, null); float previous = night.Intensity;
+                for (int i = 0; i < 10; i++) { night.Advance(0.1f); Assert.That(night.Intensity, Is.LessThanOrEqualTo(previous)); previous = night.Intensity; }
+                Assert.That(requested, Is.Zero); Assert.That(night.LitWindows, Is.EqualTo(2));
+                Assert.That(root.GetComponentsInChildren<Camera>(true), Is.Empty);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
         [Test] public void OriginalRigHasThreeCentimetreBodyAndDistinctPoses()
         {
             var root = new GameObject("Rig test"); var material = new Material(Shader.Find("Standard"));
