@@ -8,6 +8,11 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   `tools/check_source.py` now pins the v1.3 requirements and build plan alongside v1.2. Verified headless: 59
   developer-mode and 51 release-mode tests pass with .NET 8 on Windows. `tools/check_source.py` passes locally with Python 3.12 (`py -3.12`)
   after a fix for Windows line endings.
+- **Unity setup, Nov 10.** Unity 6000.0.66f2 with Android support is installed and licensed on the owner's PC.
+  Added the five built-in modules the Meta SDK needs (Animation, AssetBundle, ParticleSystem, Physics2D,
+  Terrain) and committed `packages-lock.json`. Verified in the Unity editor (batch mode): `E:\palmfolk\Dario`
+  imports and compiles with no errors (exit code 0), and a clean checkout of this commit compiles with no
+  errors. How to use it: [`unity-setup.md`](unity-setup.md).
 
 ## Next
 
@@ -15,10 +20,9 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
 
 ## Blocked
 
-- D6, D9, D10 need Unity 6000.0.66f2 on this PC (owner installs).
+- Nothing.
 
 ## Questions for the owner
 
-- Unity install: 6000.0.66f2 with Android Build Support, OpenJDK, Android SDK & NDK Tools, and a licence activated,
-  so batch-mode compiles can run here.
-- The GitHub CLI (`gh`) would let both developers open and merge PRs with CI shown. Optional.
+- The PC's clock starts about 7 hours fast after each reboot until Windows syncs, which can break Unity
+  licensing. Turning on **Set time automatically** and clicking **Sync now** fixes it for that session.

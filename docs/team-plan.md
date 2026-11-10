@@ -20,7 +20,8 @@ and those disagree, they win.
   replay and developer metrics. 59 developer-mode and 51 release-mode headless tests pass with .NET 8 on Windows.
 - That core was written against v1.2: one gap, one bridge, world-space anchors. v1.3 needs a valley of islands,
   planting, six puzzles, visitors, gaze and Table mode.
-- Nothing has run in Unity or on a headset yet. Unity is not installed on the owner's PC yet.
+- Unity 6000.0.66f2 with Android support is installed and licensed on the owner's PC, and the project compiles
+  in it. Read [`unity-setup.md`](unity-setup.md) before your first Unity item. Nothing has run on a headset yet.
 - **Work starts when the owner says so.** Until then, read and ask questions only.
 
 ## Rules for both
@@ -136,7 +137,8 @@ Only these dependencies matter:
 
 - Sam's S7 puzzle and visitor data needs Dario's D3 types. Until then, S7 covers the layout numbers only.
 - Dario's D2–D4 tests use Sam's S1 fixtures once they land. Until then, Dario writes the poses those tests need.
-- Items marked **Unity** wait until Unity is installed. If you're blocked, skip to your next unblocked item.
+- Items marked **Unity** can run now; set up your folder first with [`unity-setup.md`](unity-setup.md). If
+  you're blocked, skip to your next unblocked item.
 - Anything that needs the owner (headset tests, the Meta app, licences) goes in your status file. Don't wait on it.
 
 M1 must be proven on Quest 2 by the owner, and anything not finished and tested is cut (P11), following the build

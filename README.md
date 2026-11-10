@@ -18,7 +18,8 @@ Who does what: [`docs/team-plan.md`](docs/team-plan.md). Progress and verificati
 [`docs/m1-gameplay.md`](docs/m1-gameplay.md).
 
 Open the repository root with **Unity 6000.0.66f2 on Windows**, with Android Build Support, OpenJDK and
-Android SDK & NDK Tools installed. Follow [`docs/slice-0-quest2.md`](docs/slice-0-quest2.md) to generate the
+Android SDK & NDK Tools installed. On the owner's PC this is already set up: see
+[`docs/unity-setup.md`](docs/unity-setup.md). Follow [`docs/slice-0-quest2.md`](docs/slice-0-quest2.md) to generate the
 scene, build and test. Run the Core tests without Unity (needs the .NET 8 SDK):
 
 ```bash
