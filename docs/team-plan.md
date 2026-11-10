@@ -13,7 +13,7 @@ Read first, in this order: [`requirements-v1.3.md`](requirements-v1.3.md),
 [`m1-gameplay.md`](m1-gameplay.md) (what Core already does and its integration ports), then this file. If this file
 and those disagree, they win.
 
-## Where things stand (Nov 10)
+## Where things stand
 
 - `main` has the v1.3 requirements and build plan, plus the M1 gameplay core merged from `m1-gameplay`: hand
   routes, connection and ownership, section-commit builds, validation and refusals, recovery, saves, fixed-tick
@@ -21,7 +21,6 @@ and those disagree, they win.
 - That core was written against v1.2: one gap, one bridge, world-space anchors. v1.3 needs a valley of islands,
   planting, six puzzles, visitors, gaze and Table mode.
 - Nothing has run in Unity or on a headset yet. Unity is not installed on the owner's PC yet.
-- Deadline: **Wed Nov 18, 1:00 PM MST.** Team target: Nov 18, 1:00 AM. Dates are in the build plan.
 - **Work starts when the owner says so.** Until then, read and ask questions only.
 
 ## Rules for both
@@ -60,8 +59,8 @@ and those disagree, they win.
    dotnet test tools/CoreChecks/Tests/Palmfolk.Tests.csproj --configuration Release -p:DeveloperFeatures=false
    ```
    Once Unity is installed, also compile in batch mode (S10 adds the script). CI (`Source checks`) must pass.
-4. **Merge each finished item into `main` the same day.** Don't hold work on a branch until the end: the views
-   need Core's changes as they land, and one big merge on Nov 16 would leave no time to fix what it breaks.
+4. **Merge each item into `main` as soon as it's finished.** Don't hold work on a branch until the end: the views
+   need Core's changes as they land, and one big merge at the end would break things with no room to fix them.
    With the GitHub CLI: open a PR and merge it when CI is green. Without it, from your own folder:
    `git fetch`, `git rebase origin/main`, re-run the tests, then `git push origin HEAD:main`. If the push is
    refused because `main` moved, fetch, rebase and test again.
@@ -81,7 +80,7 @@ and those disagree, they win.
 
 Core never references Unity. Views only read Core state; they never change it. Core talks to views through
 `IPalmfolkView` / `WorldPresentation` and the `GameEvent` stream (see `m1-gameplay.md`, ports 2 and 3). Dario owns
-those types and documents every change in `docs/core-api.md` before merging it. Views built against today's M1
+those types and documents every change in `docs/core-api.md` before merging it. Views built against the current M1
 `WorldPresentation` stay valid: the valley version adds fields and doesn't remove them. Content files use the data
 types Dario defines in D3. Until those land, Sam writes layout numbers in `docs/testing/valley-layout.md`.
 
@@ -97,7 +96,7 @@ In order. Items marked **Unity** need the editor installed; the rest are headles
 
 | # | Item | Covers | Done when |
 |---|---|---|---|
-| D1 | Merge `m1-gameplay` into `main` under v1.3. Repoint the doc hash pins. Write this plan | — | `main` has the core; tests pass. **Done Nov 10** |
+| D1 | Merge `m1-gameplay` into `main` under v1.3. Repoint the doc hash pins. Write this plan | — | `main` has the core; tests pass. **Done** |
 | D2 | **Valley-local space and planting.** Flat-palm detector (build plan default 5), valley pose (place, height, facing), hand-size calibration from bone lengths to world scale, replanting that keeps every bridge | E21, T6, A4, slice 2 | Tests: plant on table, lap and air poses; replant mid-puzzle keeps bridges bit-for-bit in valley space |
 | D3 | **Valley model and puzzle director.** Replace the single-gap `M1Simulation` with islands, zone anchors and edges; traveler kinds (walker, group, cart); six-puzzle state machine; ledge widening (V2); Bram's three-crossing route (V1); softlock check (V3). Publish the data types for Sam's content | V1–V3, E4, slice 11 core | All M1 tests still pass; Board → Finale playable headless with fixtures; V3 corruption test passes |
 | D4 | **Fork and Arch geometry.** Spread fingers become a branching curve tree (gap under 1 cm merges); per-branch width, slope and clearance; slope refusal per branch; Arch clearance over the rock (H1 numbers stay configurable) | T4, I1, I7, H1 | Fork: one steep branch refused, the other passes. Arch: any clearing route passes, any blocked one fails |
@@ -132,17 +131,13 @@ In order. S1, S7, S10, S11 and S12 need no Unity, so they come first.
 
 ## Order of work
 
-Day 1 is the day the owner says to start; the dates assume that is Nov 10 or 11.
+There is no schedule. Work through your list in order, finish each item properly, merge it, and start the next one.
+Only these dependencies matter:
 
-| When (MST) | Dario | Sam | Owner |
-|---|---|---|---|
-| Day 1 | D2 | S1, S7 layout numbers, S10 CI pass | Install Unity 6000.0.66f2 with Android modules; slice 0 on Quest 2 |
-| Nov 11 | D3, D6 once Unity is in | S2 views on M1 state, S11 | M1 checks on Quest 2; Meta app and Competition channel; Devpost draft |
-| Nov 12 | D4, D5 | S2, S6, S7 content data | Slice tests as they land |
-| Nov 13 | D7, D8 | S4, S5, S8 | Playground build (M1b, H5) |
-| Nov 14 | D9, D10 | S3, S9 | M3 decisions: H4, H5, H6 |
-| Nov 15 | D11, fixes | S12, fixes | **Feature freeze** |
-| Nov 16–17 | Release blockers, fixes from tests | Release blockers, polish in judge order, video support | Matrix, round 2, video, upload |
+- Sam's S7 puzzle and visitor data needs Dario's D3 types. Until then, S7 covers the layout numbers only.
+- Dario's D2–D4 tests use Sam's S1 fixtures once they land. Until then, Dario writes the poses those tests need.
+- Items marked **Unity** wait until Unity is installed. If you're blocked, skip to your next unblocked item.
+- Anything that needs the owner (headset tests, the Meta app, licences) goes in your status file. Don't wait on it.
 
-The build plan still gates sign-off: M1 must be proven on Quest 2 by the owner, and anything not finished and tested
-by the deadline is cut (P11), following the cut order.
+M1 must be proven on Quest 2 by the owner, and anything not finished and tested is cut (P11), following the build
+plan's cut order.
