@@ -16,6 +16,7 @@ namespace Palmfolk.Audio
             switch (kind)
             {
                 case GameEventKind.SectionCommitted: cue = Cue.Hammer; return true;
+                case GameEventKind.LedgeWidening: cue = Cue.Hammer; return true;
                 case GameEventKind.BridgeBaked: cue = Cue.BuildDone; return true;
                 case GameEventKind.Refused: cue = Cue.Refusal; return true;
                 case GameEventKind.BramFinished: cue = Cue.Lantern; return true;
@@ -55,10 +56,14 @@ namespace Palmfolk.Audio
         public bool Captions { get; set; } = true;
         public float Volume { get; set; } = 0.5f;
         public void Consume(IReadOnlyList<GameEvent> events, WorldPresentation frame)
+            => Consume(events, frame?.Pose, frame == null ? Vec3.Zero : frame.Pip);
+        public void Consume(IReadOnlyList<GameEvent> events, ValleyPresentation frame)
+            => Consume(events, frame?.Pose, frame == null ? Vec3.Zero : frame.Pip);
+        private void Consume(IReadOnlyList<GameEvent> events, ValleyPose pose, Vec3 pip)
         {
-            if (frame == null || frame.Pose == null) return;
+            if (pose == null) return;
             foreach (var e in events)
-                if (CueCatalog.TryMap(e.Kind, out var cue)) Play(cue, frame.Pose.ToWorld(frame.Pip));
+                if (CueCatalog.TryMap(e.Kind, out var cue)) Play(cue, pose.ToWorld(pip));
         }
         // Call on actual foot contact; never synthesize step timing from an arbitrary wall clock.
         public void FootContact(Vec3 worldPosition) { Play(Cue.Footstep, worldPosition); }

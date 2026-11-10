@@ -59,7 +59,7 @@ namespace Palmfolk.Views
                 {
                     if (e.Kind == GameEventKind.Boarded) Set(BodyPose.TestPlank, e.Tick, 20);
                     if (e.Kind == GameEventKind.CheckpointReached) Set(BodyPose.LookBack, e.Tick, 30);
-                    if (e.Kind == GameEventKind.BridgeBaked) Set(BodyPose.Celebrate, e.Tick, 45);
+                    if (e.Kind == GameEventKind.BridgeBaked || e.Kind == GameEventKind.LedgeWidened) Set(BodyPose.Celebrate, e.Tick, 45);
                     if (e.Kind == GameEventKind.Refused) Set(BodyPose.Refuse, e.Tick, 60);
                 }
                 if (Role == TravelerRole.Bram)
@@ -74,6 +74,15 @@ namespace Palmfolk.Views
         public void Present(WorldPresentation frame)
         {
             Vec3 position = Role == TravelerRole.Bram ? frame.Bram : frame.Pip;
+            PresentAt(position, frame.Tick, frame.GhostRoute, frame.BuildPhase, frame.Phase == M1Phase.Complete);
+        }
+        public void Present(ValleyPresentation frame)
+        {
+            PresentAt(Role == TravelerRole.Bram ? frame.Bram : frame.Pip, frame.Tick, frame.GhostRoute,
+                frame.Stage == DirectorStage.Widening ? Core.BuildPhase.Building : frame.BuildPhase, frame.Complete);
+        }
+        public void PresentAt(Vec3 position, long tick, Route ghost, BuildPhase? buildPhase, bool complete)
+        {
             Vec3 delta = position - previous;
             bool moving = hasPrevious && delta.Length > 0.00001;
             if (moving && Role != TravelerRole.Apprentice)
@@ -83,14 +92,14 @@ namespace Palmfolk.Views
             }
             previous = position; hasPrevious = true;
             BodyPose pose;
-            if (frame.GhostRoute != null && Role == TravelerRole.Pip) pose = BodyPose.Grip;
-            else if (transient.HasValue && frame.Tick < until) pose = transient.Value;
-            else if (frame.BuildPhase == Core.BuildPhase.Building && Role == TravelerRole.Pip) pose = BodyPose.Hammer;
-            else if (frame.BuildPhase == Core.BuildPhase.Paused && Role == TravelerRole.Pip) pose = BodyPose.Hesitate;
+            if (ghost != null && Role == TravelerRole.Pip) pose = BodyPose.Grip;
+            else if (transient.HasValue && tick < until) pose = transient.Value;
+            else if (buildPhase == Core.BuildPhase.Building && Role == TravelerRole.Pip) pose = BodyPose.Hammer;
+            else if (buildPhase == Core.BuildPhase.Paused && Role == TravelerRole.Pip) pose = BodyPose.Hesitate;
             else if (moving && Role != TravelerRole.Apprentice) pose = BodyPose.Walk;
-            else if (frame.Phase == M1Phase.Complete) pose = BodyPose.Celebrate;
+            else if (complete) pose = BodyPose.Celebrate;
             else pose = Role == TravelerRole.Bram ? BodyPose.Hesitate : BodyPose.Wave;
-            Show(pose, frame.Tick);
+            Show(pose, tick);
         }
 
         public void Show(BodyPose pose, long tick)

@@ -126,6 +126,8 @@ namespace Palmfolk.Views
             return root;
         }
         private void DrawRoute(ShapePool pool, Route route, bool built, Material material, float visible = 1)
+            => DrawGeometry(pool, route, built, material, wood, cord, visible);
+        internal static void DrawGeometry(ShapePool pool, Route route, bool built, Material material, Material wood, Material cord, float visible = 1)
         {
             if (route == null || visible <= 0) return;
             for (int i = 0; i + 1 < route.Points.Count; i++)
@@ -156,6 +158,10 @@ namespace Palmfolk.Views
 
         private Material Make(Color color)
         {
+            var result = CreateMaterial(color); materials.Add(result); return result;
+        }
+        internal static Material CreateMaterial(Color color)
+        {
             var result = new Material(Shader.Find("Standard")) { color = color };
             if (color.a < 1)
             {
@@ -163,7 +169,7 @@ namespace Palmfolk.Views
                 result.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha); result.SetInt("_ZWrite", 0);
                 result.EnableKeyword("_ALPHABLEND_ON"); result.renderQueue = 3000;
             }
-            materials.Add(result); return result;
+            return result;
         }
         private void OnDestroy() { foreach (var material in materials) DestroyImmediate(material); }
         public static Vector3 V(Vec3 p) => new Vector3((float)p.X, (float)p.Y, (float)p.Z);
@@ -174,7 +180,7 @@ namespace Palmfolk.Views
             result.GetComponent<Renderer>().sharedMaterial = material; return result.transform;
         }
 
-        private sealed class ShapePool
+        internal sealed class ShapePool
         {
             private readonly Transform root;
             private readonly List<Transform> boxes = new List<Transform>(), spheres = new List<Transform>();

@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 
 namespace Palmfolk.UI
 {
-    public sealed class StartupView : MonoBehaviour, IPalmfolkView
+    public sealed class StartupView : MonoBehaviour, IPalmfolkView, IValleyView
     {
         private Transform startup, seed, palm, controllers;
         private TextMesh startupText, qualityText;
@@ -28,23 +28,27 @@ namespace Palmfolk.UI
             }
         }
         public void Present(WorldPresentation frame)
+            => PresentState(frame.Stage, frame.Tick, frame.PlantProgress, frame.PutControllersDown, frame.ShowStartupText);
+        public void Present(ValleyPresentation frame)
+            => PresentState(frame.PlantingStage, frame.Tick, frame.PlantProgress, frame.PutControllersDown, frame.ShowStartupText);
+        private void PresentState(ValleyStage stage, long tick, double plantProgress, bool putControllersDown, bool showStartupText)
         {
             Ensure();
-            bool planting = frame.Stage == ValleyStage.Planting;
-            if (previous != frame.Stage) demoStart = frame.Tick;
-            previous = frame.Stage;
+            bool planting = stage == ValleyStage.Planting;
+            if (previous != stage) demoStart = tick;
+            previous = stage;
             startup.gameObject.SetActive(planting);
             if (planting)
             {
-                invitationRig.ReducedMotion = ReducedMotion; invitationRig.Show(BodyPose.Wave, frame.Tick);
-                float t = Mathf.Clamp01((frame.Tick - demoStart) / 90f);
+                invitationRig.ReducedMotion = ReducedMotion; invitationRig.Show(BodyPose.Wave, tick);
+                float t = Mathf.Clamp01((tick - demoStart) / 90f);
                 palm.localPosition = new Vector3(0, ReducedMotion ? -0.045f : Mathf.Lerp(0.025f, -0.045f, t), 0.025f);
-                seed.localScale = Vector3.one * (1 + (float)frame.PlantProgress * 0.3f);
-                controllers.gameObject.SetActive(frame.PutControllersDown);
-                float lowering = ReducedMotion ? 1 : Mathf.Clamp01(Mathf.Repeat((frame.Tick - demoStart) / 60f, 2));
+                seed.localScale = Vector3.one * (1 + (float)plantProgress * 0.3f);
+                controllers.gameObject.SetActive(putControllersDown);
+                float lowering = ReducedMotion ? 1 : Mathf.Clamp01(Mathf.Repeat((tick - demoStart) / 60f, 2));
                 controllers.localPosition = Vector3.down * lowering * 0.06f;
-                startupText.text = frame.ShowStartupText ? (frame.PutControllersDown ? "Set down your controllers to use your hands." : "Bring a hand into view.") : "";
-                startupText.gameObject.SetActive(frame.ShowStartupText);
+                startupText.text = showStartupText ? (putControllersDown ? "Set down your controllers to use your hands." : "Bring a hand into view.") : "";
+                startupText.gameObject.SetActive(showStartupText);
             }
             else { startupText.text = ""; controllers.gameObject.SetActive(false); }
             qualityText.text = quality ? "Hand tracking works best in a well-lit room, with your hand in view." : "";

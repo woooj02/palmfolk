@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Palmfolk.Views
 {
     // Visual input port only. The puzzle director supplies counts and actual saved bridge trees.
-    public sealed class NightView : MonoBehaviour, IPalmfolkView
+    public sealed class NightView : MonoBehaviour, IPalmfolkView, IValleyView
     {
         private Transform valley, environment, windows;
         private Material ground, darkWindow, litWindow, lightRun;
@@ -51,8 +51,8 @@ namespace Palmfolk.Views
         public void SetState(int solvedPuzzles, int litWindows, bool showFinale, IReadOnlyList<CurveTree> actualBridges)
         {
             if (solvedPuzzles < 0 || solvedPuzzles > 6 || litWindows < 0 || litWindows > 5) throw new ArgumentOutOfRangeException();
-            if (solved != solvedPuzzles)
-            { start = Intensity; target = 1 - solvedPuzzles / 6f * 0.75f; elapsed = 0; solved = solvedPuzzles; }
+            if (solved != solvedPuzzles || finale != showFinale)
+            { start = Intensity; target = showFinale ? 1 : 1 - solvedPuzzles / 6f * 0.75f; elapsed = 0; solved = solvedPuzzles; }
             lit = litWindows; finale = showFinale;
             if (actualBridges == null) bridges = Array.Empty<CurveTree>();
             else { bridges = new CurveTree[actualBridges.Count]; for (int i = 0; i < bridges.Length; i++) bridges[i] = actualBridges[i] ?? throw new ArgumentException("Null bridge."); }
@@ -67,11 +67,18 @@ namespace Palmfolk.Views
         }
         private void Update() { Advance(Time.unscaledDeltaTime); }
         public void Present(WorldPresentation frame)
+            => Draw(frame.Pose, frame.Tick);
+        public void Present(ValleyPresentation frame)
+        {
+            SetState(frame.Complete ? 6 : frame.PuzzleIndex, lit, frame.Complete || frame.Stage == DirectorStage.BramCrossing, new List<CurveTree>(frame.Bridges.Values));
+            Draw(frame.Pose, frame.Tick);
+        }
+        private void Draw(ValleyPose pose, long tick)
         {
             if (valley == null) throw new InvalidOperationException("Configure with the actual sanctuary position first.");
-            valley.gameObject.SetActive(frame.Pose != null); if (frame.Pose == null) return;
-            valley.SetPositionAndRotation(PalmfolkView.V(frame.Pose.Origin), new Quaternion((float)frame.Pose.Rotation.X, (float)frame.Pose.Rotation.Y, (float)frame.Pose.Rotation.Z, (float)frame.Pose.Rotation.W));
-            valley.localScale = Vector3.one * (float)frame.Pose.Scale;
+            valley.gameObject.SetActive(pose != null); if (pose == null) return;
+            valley.SetPositionAndRotation(PalmfolkView.V(pose.Origin), new Quaternion((float)pose.Rotation.X, (float)pose.Rotation.Y, (float)pose.Rotation.Z, (float)pose.Rotation.W));
+            valley.localScale = Vector3.one * (float)pose.Scale;
             environment.gameObject.SetActive(!TableMode);
             ground.color = new Color(0.15f, 0.18f, 0.24f) * Intensity;
             windows.gameObject.SetActive(solved >= 5 || lit > 0);
@@ -86,7 +93,7 @@ namespace Palmfolk.Views
                 }
                 var renderer = bridgeLights[index++]; renderer.gameObject.SetActive(true); renderer.positionCount = curve.Points.Count;
                 for (int p = 0; p < curve.Points.Count; p++) renderer.SetPosition(p, PalmfolkView.V(curve.Points[p]) + Vector3.up * 0.003f);
-                float phase = ReducedMotion ? 1 : Mathf.Repeat(frame.Tick / 120f, 1);
+                float phase = ReducedMotion ? 1 : Mathf.Repeat(tick / 120f, 1);
                 var gradient = new Gradient();
                 gradient.SetKeys(new[] { new GradientColorKey(new Color(1, 0.6f, 0.15f), 0), new GradientColorKey(Color.white, phase), new GradientColorKey(new Color(1, 0.6f, 0.15f), 1) }, new[] { new GradientAlphaKey(1, 0), new GradientAlphaKey(1, 1) });
                 renderer.colorGradient = gradient;

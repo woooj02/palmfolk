@@ -77,19 +77,25 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   Also flattened the S1 Curved fixture's first bend below the walker's slope limit, as Dario identified.
   Headless 141 / 133, source checks, batch compile (exit 0/no `error CS`) and 141/141 Unity tests pass.
   Physical reach/comfort, true D4 branching and visitor data remain open.
+- **S2/S3/S5/S8/S9 valley binding, Nov 10 — Unity editor.** Added `ValleyView` against actual
+  `ValleyPresentation`, sharing M1's rope/plank geometry. Draws every island/obstacle, saved tree,
+  traveler/group, ledge width, preview and refusal; x-ray uses the real edge graph/zones. Startup,
+  night and audio accept valley frames; night restores light for the finale and uses all saved bridges.
+  Full-chapter presentation integration test passes. Final source: headless 141 / 133, Python checks,
+  compile exit 0/no `error CS`, 142/142 Unity Edit Mode tests. No platform/shared scene was changed.
 
 ## Next
 
-- D3 has landed and S7 chapter data is merged. Next: full-valley presentation binding against its published API.
+- D3 chapter data and full-valley view bindings are merged. Remaining source work: contact treatment
+  and waystone input/command adapter; see dependency and owner checks below.
   S4 is blocked on the command/save contract below.
 
 ## Blocked
 
 - D3 content types are now available; the previous S7 puzzle-data block is cleared. Visitor types still await D8.
-- S2 full valley integration is now unblocked by D3 and is next. The M1 contract exposes a route, not a full
+- S2 full valley integration is implemented. The contracts expose a route, not a full
   recovery skeleton or puzzle-specific hint pose; these need a published input/solution binding, not guessed joints.
-- S3 full valley graph and measured stats labels await D3/D6/D10 bindings. M1 diagnostic drawing is
-  explicitly derived from the routes in `WorldPresentation`, not a claim of undisclosed Core connectivity.
+- S3 full valley graph is implemented. Measured stats labels still await D6/D10 runtime bindings.
 - S4: current `InputCommand` supports pause/resume/replant but no full restart/mode/settings/bell/quit
   or save-setting contract. Need Dario's published input/save adapter (D3/D5) and ISDK poke/gaze source
   binding (D6/D10) before a full-session waystone can be verified. Do not mutate Core from a view or
@@ -100,7 +106,7 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
 - S6: local foot gait is not surface-locked foot planting and does not emit authoritative foot contacts.
   Final contact treatment/props and 3 cm readability need animation work and owner review; do not claim
   sliding-free feet or trigger precise footstep timing from this placeholder gait.
-- S9 full-valley counts/bridge/window binding needs D3/D8; night music and final art remain unfinished.
+- S9 counts and bridge binding use D3; visitor windows await D8. Night music and final art remain unfinished.
   Actual passthrough dimming stays disabled until Dario's platform integration and owner edge-visibility test.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward). T14 and V5 cannot be certified
   from coordinates. Actual Fork/Arch clearance also needs D4, H1 and owner-run reach/comfort checks.

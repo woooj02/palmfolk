@@ -2,6 +2,7 @@
 using System.Linq;
 using NUnit.Framework;
 using Palmfolk.Core;
+using Palmfolk.Core.Content;
 using Palmfolk.Fixtures;
 using Palmfolk.Views;
 using UnityEngine;
@@ -10,6 +11,26 @@ namespace Palmfolk.Tests.Content
 {
     public class PresentationTests
     {
+        [Test] public void FullValleyPresentationDrawsTheActualSavedBridgesAndGraph()
+        {
+            var root = new GameObject("Valley view test");
+            try
+            {
+                var game = new ValleySimulation(ChapterOne.Greybox()); var player = new TestPlayer();
+                var view = root.AddComponent<ValleyView>(); view.Present(new ValleyPresentation(game, 1));
+                Assert.That(view.ValleyRoot.Find("Islands and obstacles").childCount, Is.EqualTo(11));
+                Assert.That(player.RunUntil(game, () => game.IsComplete), Is.True);
+                var frame = new ValleyPresentation(game, 0.5); view.Present(frame);
+                Assert.That(view.RenderedBridgeCount, Is.EqualTo(game.Bridges.Count));
+                Assert.That(view.ValleyRoot.Find("Pip").localPosition.x, Is.EqualTo((float)frame.Pip.X).Within(1e-6));
+                var xray = root.AddComponent<XRayView>(); xray.SetVisible(true); xray.Present(frame);
+                Assert.That(root.GetComponentsInChildren<LineRenderer>().Length, Is.GreaterThan(10));
+                var night = root.AddComponent<NightView>(); night.Configure(game.Valley.Island("Sanctuary").Top); night.Present(frame);
+                Assert.That(root.GetComponentsInChildren<Collider>(true), Is.Empty);
+                Assert.That(game.IsComplete, Is.True); Assert.That(game.Bram.Crossed, Is.EqualTo(3));
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
         [Test] public void ReducedNightFadeIsMonotonicAndUnverifiedTableDimmingIsZero()
         {
             var root = new GameObject("Night test");
@@ -21,6 +42,8 @@ namespace Palmfolk.Tests.Content
                 night.SetState(3, 2, false, null); float previous = night.Intensity;
                 for (int i = 0; i < 10; i++) { night.Advance(0.1f); Assert.That(night.Intensity, Is.LessThanOrEqualTo(previous)); previous = night.Intensity; }
                 Assert.That(requested, Is.Zero); Assert.That(night.LitWindows, Is.EqualTo(2));
+                night.SetState(3, 2, true, null); night.Advance(1);
+                Assert.That(night.Intensity, Is.EqualTo(1).Within(1e-6), "Finale restores light.");
                 Assert.That(root.GetComponentsInChildren<Camera>(true), Is.Empty);
             }
             finally { Object.DestroyImmediate(root); }

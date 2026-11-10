@@ -47,3 +47,25 @@ This is a state/rig implementation, not a final animation/contact pass. Feet cur
 they are not locked to tracked surface coordinates. Do not trigger precise foot-contact audio from it
 or claim sliding-free contact. Surface-relative foot samples, final rigs/props and owner judgment of
 3 cm readability are still needed. No camera, physics or gameplay state is animated by these components.
+
+## Full valley (D3)
+
+Use `ValleyView` / `IValleyView` with `ValleyPresentation`, not `WorldPresentation`, for a full chapter.
+It draws the actual `ValleySpec` islands/obstacles, all saved bridge trees by edge ID, group travelers,
+Bram/cart, ledge width/progress, geometric capacity preview and per-edge/segment refusal crosses.
+The same original rope/plank drawer is shared with M1. The hand-only overload accepts runner alpha
+for between-tick route interpolation; frozen/scaffold data is never interpolated to a later hand.
+
+`StartupView`, `NightView` and `XRayView` also implement the valley port. X-ray now uses the actual ten-edge
+graph and active anchor zones. Night reads the director's solved count and all bridges, restores light in
+the finale, and keeps visitor windows at the explicitly supplied count (D8 not yet published). Audio accepts
+either presentation type but still needs the corresponding tick's position when consuming events.
+
+Platform binding: after fixed ticks, construct `ValleyPresentation(game, alpha)`, consume every accumulated
+gesture/startup event, and send the frame to the valley views. Call `ValleyView.Present(frame, alpha)` for
+hand interpolation. Configure `NightView` with the content sanctuary position. Route UI commands through
+the input adapter, never a view mutation of Core. No live driver or shared scene was edited in this work.
+
+The preview is geometric: Core does not expose the destination connection watcher's locked state, so no
+explicit connection-lock chime/event is fabricated. Visitor rigs, full recovery skeleton, solution hint pose,
+true single-hand Fork and headset performance/feel remain open dependencies or owner checks.

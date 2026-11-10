@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Palmfolk.Views
 {
     // Ships independently of developer stats/recording. Derived visual routes are not new Core edges.
-    public sealed class XRayView : MonoBehaviour, IPalmfolkView
+    public sealed class XRayView : MonoBehaviour, IPalmfolkView, IValleyView
     {
         private readonly List<LineRenderer> lines = new List<LineRenderer>();
         private Material material;
@@ -22,17 +22,10 @@ namespace Palmfolk.Views
         public void SetVisible(bool visible) { Visible = visible; if (content != null) content.gameObject.SetActive(visible); }
         public void Present(WorldPresentation frame)
         {
-            if (content == null)
-            {
-                content = new GameObject("X-ray routes").transform; content.SetParent(transform, false);
-                material = new Material(Shader.Find("Sprites/Default"));
-                progress = new GameObject("Progress sign").AddComponent<TextMesh>(); progress.transform.SetParent(content, false);
-                progress.characterSize = 0.003f; progress.fontSize = 32; progress.anchor = TextAnchor.MiddleCenter;
-            }
+            Ensure();
             content.gameObject.SetActive(Visible && frame.Pose != null);
             if (!Visible || frame.Pose == null) return;
-            content.SetPositionAndRotation(PalmfolkView.V(frame.Pose.Origin), new Quaternion((float)frame.Pose.Rotation.X, (float)frame.Pose.Rotation.Y, (float)frame.Pose.Rotation.Z, (float)frame.Pose.Rotation.W));
-            content.localScale = Vector3.one * (float)frame.Pose.Scale; used = 0;
+            ApplyPose(frame.Pose); used = 0;
             Route(frame.FilteredHandRoute, Color.white, 0.001f);
             Route(frame.Scaffold, Color.yellow, 0.003f);
             if (frame.Bridge != null) foreach (var curve in frame.Bridge.Curves) Route(curve, Color.cyan, 0.002f);
@@ -40,8 +33,43 @@ namespace Palmfolk.Views
             if (level != null)
                 foreach (var anchor in new[] { level.Start, level.End })
                 { Ring(anchor, ConnectDistance, false); Ring(anchor, BreakDistance, true); }
+            Finish(frame.BuildProgress, "M1");
+        }
+        public void Present(ValleyPresentation frame)
+        {
+            Ensure(); content.gameObject.SetActive(Visible && frame.Pose != null);
+            if (!Visible || frame.Pose == null) return;
+            ApplyPose(frame.Pose); used = 0;
+            foreach (var edge in frame.Valley.Edges)
+            {
+                var line = Next(Color.gray, 0.0005f); line.positionCount = 2;
+                line.SetPosition(0, PalmfolkView.V(edge.FromAnchor.Centre)); line.SetPosition(1, PalmfolkView.V(edge.ToAnchor.Centre));
+            }
+            Route(frame.FilteredHandRoute, Color.white, 0.001f); Route(frame.Scaffold, Color.yellow, 0.003f); Route(frame.GhostRoute, Color.gray, 0.0015f);
+            foreach (var bridge in frame.Bridges.Values) foreach (var curve in bridge.Curves) Route(curve, Color.cyan, 0.002f);
+            if (frame.Source.HasValue) { Ring(frame.Source.Value.Centre, frame.Source.Value.Radius, false); Ring(frame.Source.Value.Centre, frame.Source.Value.Radius + BreakDistance - ConnectDistance, true); }
+            if (frame.Destination.HasValue) { Ring(frame.Destination.Value.Centre, frame.Destination.Value.Radius, false); Ring(frame.Destination.Value.Centre, frame.Destination.Value.Radius + BreakDistance - ConnectDistance, true); }
+            Finish(frame.BuildProgress, frame.ActiveEdge ?? frame.Puzzle.ToString());
+        }
+        private void Ensure()
+        {
+            if (content == null)
+            {
+                content = new GameObject("X-ray routes").transform; content.SetParent(transform, false);
+                material = new Material(Shader.Find("Sprites/Default"));
+                progress = new GameObject("Progress sign").AddComponent<TextMesh>(); progress.transform.SetParent(content, false);
+                progress.characterSize = 0.003f; progress.fontSize = 32; progress.anchor = TextAnchor.MiddleCenter;
+            }
+        }
+        private void ApplyPose(ValleyPose pose)
+        {
+            content.SetPositionAndRotation(PalmfolkView.V(pose.Origin), new Quaternion((float)pose.Rotation.X, (float)pose.Rotation.Y, (float)pose.Rotation.Z, (float)pose.Rotation.W));
+            content.localScale = Vector3.one * (float)pose.Scale;
+        }
+        private void Finish(double buildProgress, string context)
+        {
             for (int i = used; i < lines.Count; i++) lines[i].gameObject.SetActive(false);
-            progress.text = "BUILD " + Mathf.RoundToInt((float)frame.BuildProgress * 100) + "%\nsolid: frozen  /  thin: live\nconnect " + (ConnectDistance * 100).ToString("0.#") + " cm / break " + (BreakDistance * 100).ToString("0.#") + " cm";
+            progress.text = context + " / BUILD " + Mathf.RoundToInt((float)buildProgress * 100) + "%\nsolid: frozen  /  thin: live\nconnect " + (ConnectDistance * 100).ToString("0.#") + " cm / break " + (BreakDistance * 100).ToString("0.#") + " cm";
             progress.transform.localPosition = Vector3.up * 0.08f;
         }
         private LineRenderer Next(Color color, float width)
