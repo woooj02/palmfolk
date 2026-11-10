@@ -10,6 +10,29 @@ namespace Palmfolk.Tests.Content
 {
     public class StartupTests
     {
+        [Test] public void WaystoneHasSixDegreeTargetsAndOneDegreeGapsAndOnlyRequestsActions()
+        {
+            var root = new GameObject("Waystone test");
+            try
+            {
+                var menu = root.AddComponent<WaystoneView>(); menu.Layout(0.4f);
+                for (int i = 0; i < 4; i++)
+                {
+                    var span = menu.TargetSpan(i);
+                    float Angle(float x) => Mathf.Atan(x / 0.4f) * Mathf.Rad2Deg;
+                    Assert.That(Angle(span.y) - Angle(span.x), Is.EqualTo(6).Within(1e-4));
+                    if (i > 0) Assert.That(Angle(span.x) - Angle(menu.TargetSpan(i - 1).y), Is.EqualTo(1).Within(1e-4));
+                }
+                WaystoneRequest? requested = null; menu.Requested += value => requested = value;
+                Assert.That(menu.RequestSlot(0, HandSide.Left), Is.True); Assert.That(requested.Value.Action, Is.EqualTo(WaystoneAction.Pause));
+                menu.Reflect(new GameSettings(), true, false, true, false, false, false);
+                Assert.That(menu.RequestSlot(0, HandSide.Right, true), Is.True); Assert.That(requested.Value.Action, Is.EqualTo(WaystoneAction.Resume));
+                Assert.That(menu.RequestSlot(0, HandSide.Right, true, true), Is.False);
+                menu.Open(WaystonePage.Settings); menu.RequestSlot(0, HandSide.Left);
+                Assert.That(requested.Value.Action, Is.EqualTo(WaystoneAction.Stillness)); Assert.That(requested.Value.Value, Is.EqualTo(2));
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
         [Test] public void PlantedGrowthOnlyChangesPresentationScale()
         {
             var root = new GameObject("Growth test");

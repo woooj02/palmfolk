@@ -83,11 +83,17 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
   night and audio accept valley frames; night restores light for the finale and uses all saved bridges.
   Full-chapter presentation integration test passes. Final source: headless 141 / 133, Python checks,
   compile exit 0/no `error CS`, 142/142 Unity Edit Mode tests. No platform/shared scene was changed.
+- **S4 input/view port, Nov 10 — Unity editor.** Original carved waystone with actual installed ISDK
+  plane/circle/poke components, five pages of four targets, all required actions and typed requests.
+  Distance-aware geometry tests prove 6° targets/1° gaps; left/right request routing and unsafe pinch
+  guard pass. UI reflects acknowledged state and never changes Core itself. Compile exits 0/no
+  `error CS`; 143/143 Unity tests, headless 141 / 133 and source checks pass. Full session remains
+  blocked on live all-finger interactors, D10 gaze and D3/D5/platform command/save handling.
 
 ## Next
 
 - D3 chapter data and full-valley view bindings are merged. Remaining source work: contact treatment
-  and waystone input/command adapter; see dependency and owner checks below.
+  and original night music; see dependency and owner checks below. Waystone input side is implemented.
   S4 is blocked on the command/save contract below.
 
 ## Blocked
@@ -96,7 +102,7 @@ Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity ed
 - S2 full valley integration is implemented. The contracts expose a route, not a full
   recovery skeleton or puzzle-specific hint pose; these need a published input/solution binding, not guessed joints.
 - S3 full valley graph is implemented. Measured stats labels still await D6/D10 runtime bindings.
-- S4: current `InputCommand` supports pause/resume/replant but no full restart/mode/settings/bell/quit
+- S4 input/view is implemented (`testing/waystone.md`), but current `InputCommand` supports pause/resume/replant without full restart/mode/settings/bell/quit
   or save-setting contract. Need Dario's published input/save adapter (D3/D5) and ISDK poke/gaze source
   binding (D6/D10) before a full-session waystone can be verified. Do not mutate Core from a view or
   add substitute puzzle-solving menu commands. Required row geometry remains ≤4 × ≥6° targets + ≥1° gaps.
