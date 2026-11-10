@@ -5,4 +5,5 @@ they build keep the shape of your hand after you let go.
 
 Entry for the Meta VR Start Developer Competition 2026 (Gaming track, New Experience division).
 
-Status: requirements stage, no code yet. See [`docs/requirements-v1.2.md`](docs/requirements-v1.2.md).
+Status: requirements stage, no code yet. See [`docs/requirements-v1.3.md`](docs/requirements-v1.3.md),
+[`docs/requirements-v1.3-quality.md`](docs/requirements-v1.3-quality.md) and [`docs/build-plan.md`](docs/build-plan.md).
