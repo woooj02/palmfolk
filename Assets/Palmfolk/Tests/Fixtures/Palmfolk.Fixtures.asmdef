@@ -1,0 +1,8 @@
+{
+  "name": "Palmfolk.Fixtures",
+  "rootNamespace": "Palmfolk.Fixtures",
+  "references": ["Palmfolk.Core"],
+  "includePlatforms": ["Editor"],
+  "noEngineReferences": true,
+  "autoReferenced": false
+}

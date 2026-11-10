@@ -1,0 +1,7 @@
+{
+  "name": "Palmfolk.Content.Tests",
+  "references": ["Palmfolk.Core", "Palmfolk.Fixtures"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "noEngineReferences": true
+}
