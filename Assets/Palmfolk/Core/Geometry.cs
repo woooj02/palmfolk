@@ -72,10 +72,12 @@ namespace Palmfolk.Core
         public double MinimumWidth { get; }
         public Vec3 Start => points[0];
         public Vec3 End => points[points.Length - 1];
-        public Route(Vec3[] points, double[] widths, int finger = 1, bool reversed = false)
+        public Route(Vec3[] points, double[] widths, int finger = 1, bool reversed = false) : this(points, widths, finger, reversed, false) { }
+        // D11: owned takes the arrays as they are (the caller made them and drops them), instead of copying.
+        internal Route(Vec3[] points, double[] widths, int finger, bool reversed, bool owned)
         {
             if (points == null || widths == null || points.Length < 2 || points.Length > 128 || widths.Length != points.Length - 1) throw new ArgumentException("Invalid route shape.");
-            this.points = (Vec3[])points.Clone(); this.widths = (double[])widths.Clone();
+            this.points = owned ? points : (Vec3[])points.Clone(); this.widths = owned ? widths : (double[])widths.Clone();
             double length = 0, width = double.PositiveInfinity;
             for (int i = 0; i < points.Length; i++)
             {
@@ -91,7 +93,7 @@ namespace Palmfolk.Core
         public Route Reverse()
         {
             var p = (Vec3[])points.Clone(); var w = (double[])widths.Clone(); Array.Reverse(p); Array.Reverse(w);
-            return new Route(p, w, Finger, !Reversed);
+            return new Route(p, w, Finger, !Reversed, true);
         }
         public Vec3 Evaluate(RouteCursor cursor)
         {

@@ -14,6 +14,8 @@ namespace Palmfolk.Core
         private HandSample left, right;
         private bool focus, controllers;
         private long sampleTime = -1, lastTimestamp = -1;
+        // D11: one frame object, set again for each tick. Whatever keeps frames (the developer recorder) copies them.
+        private readonly HandFrame current = new HandFrame();
 
         public bool HasSample => sampleTime >= 0;
         public long SampleTimestampMicroseconds => sampleTime;
@@ -48,7 +50,8 @@ namespace Palmfolk.Core
             if (!HasSample) return false;
             lastTimestamp = Math.Max(sampleTime, lastTimestamp);
             var command = commands.Count > 0 ? commands.Dequeue() : InputCommand.None;
-            frame = new HandFrame(tick, lastTimestamp, left, right, focus, command, controllers);
+            current.Set(tick, lastTimestamp, left, right, focus, command, controllers);
+            frame = current;
             return true;
         }
     }

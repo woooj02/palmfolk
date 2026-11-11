@@ -35,42 +35,85 @@ namespace Palmfolk.Core
         public static Vec3[] PalmPolygon(HandSample hand)
         {
             if (hand == null) return Array.Empty<Vec3>();
-            int[] ids = { 1, 6, 11, 16, 21 };
-            var polygon = new Vec3[ids.Length];
-            for (int i = 0; i < ids.Length; i++)
+            var polygon = new Vec3[PalmIds.Length];
+            for (int i = 0; i < PalmIds.Length; i++)
             {
-                if (!hand.Joints[ids[i]].Usable) return Array.Empty<Vec3>();
-                polygon[i] = hand.Joints[ids[i]].Position;
+                if (!hand.Joints[PalmIds[i]].Usable) return Array.Empty<Vec3>();
+                polygon[i] = hand.Joints[PalmIds[i]].Position;
             }
             return polygon;
         }
-        public static Route Create(HandSample hand, int finger, bool reversed, GameSettings settings)
+        private static readonly int[] PalmIds = { 1, 6, 11, 16, 21 };
+        // The palm polygon's normal (before the right hand's flip), without building the polygon (D11).
+        private static bool PolygonNormal(HandSample hand, out Vec3 normal)
         {
-            if (hand == null || finger < 0 || finger >= Chains.Length) return null;
-            var polygon = PalmPolygon(hand);
-            if (polygon.Length == 0) return null;
-            Vec3 normal = Vec3.Cross(polygon[1] - polygon[0], polygon[4] - polygon[0]).Normalized;
+            normal = Vec3.Zero;
+            if (hand == null) return false;
+            foreach (int id in PalmIds) if (!hand.Joints[id].Usable) return false;
+            var p0 = hand.Joints[1].Position;
+            normal = Vec3.Cross(hand.Joints[6].Position - p0, hand.Joints[21].Position - p0).Normalized;
+            return true;
+        }
+        // The route's surface: the palm normal and the one width of the finger chain. False when the hand can't carry it.
+        private static bool Surface(HandSample hand, int finger, GameSettings settings, out Vec3 normal, out double width, out bool radii)
+        {
+            normal = Vec3.Zero; width = 0; radii = false;
+            if (hand == null || finger < 0 || finger >= Chains.Length) return false;
+            if (!PolygonNormal(hand, out normal)) return false;
             if (hand.Side == HandSide.Right) normal = normal * -1;
-            if (Vec3.Dot(normal, Vec3.Up) <= 0) return null;
-            var chain = Chains[finger];
-            foreach (int id in chain) if (!hand.Joints[id].Usable) return null;
+            if (Vec3.Dot(normal, Vec3.Up) <= 0) return false;
+            foreach (int id in Chains[finger]) if (!hand.Joints[id].Usable) return false;
 
             // Merge neighboring surfaces only when their gaps stay under 1 cm
             // for a majority of five longitudinal samples (excluding the shared wrist).
             int first = finger, last = finger;
             while (first > 0 && Merged(hand, first - 1, first, settings)) first--;
             while (last < 4 && Merged(hand, last, last + 1, settings)) last++;
-            double width = Width(hand, first, last, settings, out bool radii);
+            width = Width(hand, first, last, settings, out radii);
             // The narrowest finger-to-palm tier controls the entire route.
             if (radii) width = Math.Min(width, hand[JointId.Wrist].Radius * 2);
+            return true;
+        }
+        private static Vec3 Lifted(HandSample hand, int id, Vec3 normal, bool radii)
+        {
+            var joint = hand.Joints[id];
+            return joint.Position + normal * (radii ? joint.Radius : 0.006);
+        }
+
+        // D11: exactly whether Create would return a route, without building one (the raw-hand check every tick).
+        public static bool CanCreate(HandSample hand, int finger, bool reversed, GameSettings settings)
+        {
+            if (!Surface(hand, finger, settings, out var normal, out double width, out bool radii)) return false;
+            // The checks the Route constructor makes, in its order, on the points it would get.
+            var chain = Chains[finger]; int n = chain.Length;
+            double length = 0; Vec3 previous = Vec3.Zero;
+            for (int i = 0; i < n; i++)
+            {
+                var point = Lifted(hand, chain[reversed ? n - 1 - i : i], normal, radii);
+                if (!point.IsFinite) return false;
+                if (i > 0)
+                {
+                    if (!Vec3.Finite(width) || width <= 0) return false;
+                    length += Vec3.Distance(previous, point);
+                }
+                previous = point;
+            }
+            return length >= 1e-8;
+        }
+
+        public static Route Create(HandSample hand, int finger, bool reversed, GameSettings settings)
+        {
+            if (!Surface(hand, finger, settings, out var normal, out double width, out bool radii)) return null;
+            var chain = Chains[finger];
             var points = new Vec3[chain.Length]; var widths = new double[chain.Length - 1];
             for (int i = 0; i < chain.Length; i++)
             {
-                var joint = hand.Joints[chain[i]];
-                points[i] = joint.Position + normal * (radii ? joint.Radius : 0.006);
+                points[i] = Lifted(hand, chain[i], normal, radii);
                 if (i > 0) widths[i - 1] = width;
             }
-            try { var route = new Route(points, widths, finger); return reversed ? route.Reverse() : route; }
+            // Reversed in place: the same arrays Route.Reverse would make, without the copies.
+            if (reversed) { Array.Reverse(points); Array.Reverse(widths); }
+            try { return new Route(points, widths, finger, reversed, true); }
             catch (ArgumentException) { return null; }
         }
         // Width of the surface made by fingers first..last (merged), from joint radii when every one has them.
@@ -108,9 +151,7 @@ namespace Palmfolk.Core
         // The direction the palm faces (out of the palm), or null when the palm joints aren't usable.
         public static Vec3? PalmNormal(HandSample hand)
         {
-            var polygon = PalmPolygon(hand);
-            if (polygon.Length == 0) return null;
-            Vec3 normal = Vec3.Cross(polygon[1] - polygon[0], polygon[4] - polygon[0]).Normalized;
+            if (!PolygonNormal(hand, out var normal)) return null;
             return hand.Side == HandSide.Right ? normal * -1 : normal;
         }
 
@@ -165,10 +206,10 @@ namespace Palmfolk.Core
                     double width = Width(hand, fingers[0], fingers[fingers.Count - 1], settings, out _);
                     trunkWidth += width;
                     var points = new[] { junction, Average(fingers, 3), Average(fingers, 2), Average(fingers, 1), Average(fingers, 0) };
-                    curves[b + 1] = new Route(points, new[] { width, width, width, width }, fingers[0]);
+                    curves[b + 1] = new Route(points, new[] { width, width, width, width }, fingers[0], false, true);
                     parents[b + 1] = 0;
                 }
-                curves[0] = new Route(new[] { Lift(hand.Joints[1]), junction }, new[] { trunkWidth }, layout.Branches[0][0]);
+                curves[0] = new Route(new[] { Lift(hand.Joints[1]), junction }, new[] { trunkWidth }, layout.Branches[0][0], false, true);
                 parents[0] = -1;
                 return new CurveTree(curves, parents);
             }
@@ -209,9 +250,12 @@ namespace Palmfolk.Core
         public static Route Spine(CurveTree fork, int branch = 0)
         {
             var trunk = fork.Curves[0]; var tip = fork.Curves[branch + 1];
-            var points = new List<Vec3>(trunk.Points); var widths = new List<double>(trunk.Widths);
-            for (int p = 1; p < tip.Points.Count; p++) { points.Add(tip.Points[p]); widths.Add(tip.Widths[p - 1]); }
-            return new Route(points.ToArray(), widths.ToArray(), tip.Finger);
+            int n = trunk.Points.Count;
+            var points = new Vec3[n + tip.Points.Count - 1]; var widths = new double[points.Length - 1];
+            for (int p = 0; p < n; p++) points[p] = trunk.Points[p];
+            for (int p = 0; p < n - 1; p++) widths[p] = trunk.Widths[p];
+            for (int p = 1; p < tip.Points.Count; p++) { points[n + p - 1] = tip.Points[p]; widths[n + p - 2] = tip.Widths[p - 1]; }
+            return new Route(points, widths, tip.Finger, false, true);
         }
 
         private static bool Merged(HandSample hand, int a, int b, GameSettings settings)
@@ -235,21 +279,31 @@ namespace Palmfolk.Core
             point = Vec3.Lerp(a.Position, b.Position, u);
             radius = radii && a.HasRadius && b.HasRadius ? a.Radius + (b.Radius - a.Radius) * u : 0.006;
         }
-        public static Route Best(HandSample hand, Vec3 start, Vec3 end, GameSettings settings)
+        // D11: candidates are scored from their end points; only the winner is built (Create reversed is the same
+        // route as Create(...).Reverse()).
+        public static Route Best(HandSample hand, Vec3 start, Vec3 end, GameSettings settings) =>
+            BestChoice(hand, start, end, settings, out int finger, out bool reversed, out _) ? Create(hand, finger, reversed, settings) : null;
+
+        // The finger and direction Best would build, and where that route starts, without building it (D11: a hand
+        // that hasn't connected yet makes nothing).
+        public static bool BestChoice(HandSample hand, Vec3 start, Vec3 end, GameSettings settings, out int finger, out bool reversed, out Vec3 routeStart)
         {
-            Route best = null; double score = double.PositiveInfinity;
-            for (int finger = 0; finger < 5; finger++)
+            int bestFinger = -1; bool bestReversed = false; double score = double.PositiveInfinity; Vec3 bestStart = Vec3.Zero;
+            for (int f = 0; f < 5; f++)
             {
-                var route = Create(hand, finger, false, settings);
-                if (route == null) continue;
+                if (!CanCreate(hand, f, false, settings)) continue;
+                Surface(hand, f, settings, out var normal, out _, out bool radii);
+                var chain = Chains[f];
+                Vec3 first = Lifted(hand, chain[0], normal, radii), last = Lifted(hand, chain[chain.Length - 1], normal, radii);
                 for (int direction = 0; direction < 2; direction++)
                 {
-                    double candidate = Vec3.Distance(route.Start, start) + Vec3.Distance(route.End, end);
-                    if (candidate < score) { score = candidate; best = route; }
-                    route = route.Reverse();
+                    bool backwards = direction == 1;
+                    double candidate = Vec3.Distance(backwards ? last : first, start) + Vec3.Distance(backwards ? first : last, end);
+                    if (candidate < score) { score = candidate; bestFinger = f; bestReversed = backwards; bestStart = backwards ? last : first; }
                 }
             }
-            return best;
+            finger = bestFinger; reversed = bestReversed; routeStart = bestStart;
+            return bestFinger >= 0;
         }
     }
 }

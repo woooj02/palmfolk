@@ -55,6 +55,21 @@ namespace Palmfolk.Core
             for (int i = 0; i < 26; i++) joints[i] = toValley ? ToValley(hand.Joints[i]) : ToWorld(hand.Joints[i]);
             return new HandSample(hand.Side, joints);
         }
+        // D11: the valley-local frame in buffers the caller keeps and reuses (PalmfolkGame, every tick).
+        internal HandFrame ToValley(HandFrame frame, HandFrame into, ref HandSample left, ref HandSample right)
+        {
+            if (frame == null) throw new ArgumentNullException(nameof(frame));
+            into.Set(frame.Tick, frame.TimestampMicroseconds, MapInto(frame.Left, ref left), MapInto(frame.Right, ref right), frame.HasFocus, frame.Command, frame.ControllersInHand);
+            return into;
+        }
+        private HandSample MapInto(HandSample hand, ref HandSample buffer)
+        {
+            if (hand == null) return null;
+            if (buffer == null || buffer.Side != hand.Side) buffer = new HandSample(hand.Side);
+            var joints = buffer.Buffer;
+            for (int i = 0; i < 26; i++) joints[i] = ToValley(hand[(JointId)i]);
+            return buffer;
+        }
         private HandFrame Map(HandFrame frame, bool toValley)
         {
             if (frame == null) throw new ArgumentNullException(nameof(frame));

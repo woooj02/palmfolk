@@ -126,9 +126,26 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   pass, 264 with `PALMFOLK_DEVELOPMENT`. The eye-tracked path has not run: Meta XR Simulator isn't installed and
   Quest 2, 3 and 3S have no eye tracking. Not verified on a headset (below).
 
+- **D11, Nov 10.** Performance and release safety. Profiled the valley tick, the bake and a whole rendered frame
+  (live source, 60 Hz clock, game, need signs, look and pinch, presentation). Times are small, so the work went
+  into garbage: hand samples, valley-local frames, routes and the presentation's dictionaries are now reused or
+  copied only when they change. Measured headless (.NET 8 on this PC, chapter one plus all five visitors):
+  - Ticks with no hand on Pip (walking, crossing, widening, residents, Bram) allocate 0 bytes, mean under 2 us.
+  - A tick with a hand on Pip makes only the live hand route the views draw: about 0.6 to 1.3 KB (it was about
+    7 KB). A tracked hand that hasn't reached Pip makes nothing on most ticks.
+  - Worst tick 0.15 ms, worst bake 0.15 ms (the 72 Hz frame is 13.9 ms). In the rendered-frame run the worst
+    tick was 4.75 ms, on the first pass (that run isn't warmed up).
+  - Gaze and need signs on a still target allocate 0 bytes. The presentation object is 568 bytes a frame.
+  Verified in the Unity editor (batch mode) with Unity's GC.Alloc recorder: 720 resting runner frames (hand
+  tracked, need sign up, look and pinch running) allocate nothing. Release safety: a release build has no
+  recording or developer assembly at all, and no shipped assembly references one (checked by Unity's own compile
+  and by `tools/check_source.py` from the sources, which fails on a planted leak). The 28 manifest checks pass.
+  Verified headless: 226 developer-mode and 212 release-mode tests pass. Unity editor: 253 EditMode tests pass,
+  270 with `PALMFOLK_DEVELOPMENT`. The 72 fps headroom on the Quest 2 is not measured yet (below).
+
 ## Next
 
-- D11, performance and release safety.
+- Nothing left in my items. What remains is the owner's headset checks (below) and Sam's views.
 
 ## Notes for later items
 
@@ -177,6 +194,11 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   world space, and their width in degrees from the head) and act on `runner.GazeSelected`; draw `runner.Pointer.Hovered`.
   A settings toggle for gaze can set `runner.GazeEnabled`. The Interaction SDK's gaze building block adds an
   `EyeGaze` to the scene; without one, head direction is used.
+- For Sam (D11): a hand sample from `IHandReader.Read`, `LiveFrameSource.Left`/`Right` or the frame it builds
+  may be refilled next frame; keep one with `HandSample.Copy()` (or `HandFrame.Copy()`). `ValleyPresentation`'s
+  `Bridges` and `BridgeMarks` are shared read-only copies: they change only when a bridge does, so comparing the
+  reference tells you when to rebuild. For need signs each frame, `NeedSigns.Targets(game, pose, list)` fills your
+  list without allocating.
 - Defaults to check on the headset (H2): reference hand length 18 cm, scale clamp 0.75 to 1.3, palm half
   thickness 1.5 cm, and whether a 20 degree tilt limit is right on a lap.
 
@@ -221,7 +243,17 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   hand and pinch (the system menu may open, but the game must not choose anything). `adb logcat -s Unity` shows
   `Palmfolk gaze source: Head`.
 
+- D11's headset check needs the owner (Quest 2), on the Release APK (no `PALMFOLK_DEVELOPMENT`):
+  1. Build with `tools/Build-OwnerApk.ps1` and check its manifest with
+     `tools/Test-Slice0Apk.ps1 -Apk Builds/Palmfolk-Release.apk -TableMode`.
+  2. Install it, run OVR Metrics Tool with the performance HUD on, and play the first bridges and a visitor.
+     Note the frame rate at 72 Hz and the GPU and CPU levels, and say "Quest 2" with the numbers.
+  3. `adb logcat -s Unity` for a few minutes of building: no `GC` lines that line up with a dropped frame.
+
 ## Questions for the owner
 
 - The PC's clock starts about 7 hours fast after each reboot until Windows syncs, which can break Unity
-  licensing. Turning on **Set time automatically** and clicking **Sync now** fixes it for that session.
+  licensing. The hardware clock keeps UTC and Windows reads it as local time. The lasting fix (the owner's to make,
+  in an administrator terminal, then reboot): `reg add "HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation"
+  /v RealTimeIsUniversal /t REG_DWORD /d 1 /f`, and `sc config w32time start= delayed-auto` so Windows syncs on
+  its own. Or set the BIOS clock to local time.

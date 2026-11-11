@@ -39,6 +39,11 @@ namespace Palmfolk.Core
             if ((side != HandSide.Left && side != HandSide.Right) || joints == null || joints.Length != 26) throw new ArgumentException("Expected 26 OpenXR joints.");
             Side = side; this.joints = (JointSample[])joints.Clone(); Joints = Array.AsReadOnly(this.joints);
         }
+        // D11: a sample that owns its buffer, refilled in place (HandFilter, HandSampleBuffer).
+        internal HandSample(HandSide side) { Side = side; joints = new JointSample[26]; Joints = Array.AsReadOnly(joints); }
+        internal JointSample[] Buffer => joints;
+        // A sample of its own, for whoever keeps a hand past the frame it came in (the developer recorder).
+        public HandSample Copy() => new HandSample(Side, joints);
         public uint InvalidMask
         {
             get { uint mask = 0; for (int i = 0; i < 26; i++) if (!joints[i].Usable) mask |= 1u << i; return mask; }
@@ -48,19 +53,43 @@ namespace Palmfolk.Core
     public enum InputCommand { None, Pause, Resume, CancelBuild, StartElsewhere, Replant, Restart, RingBell }
     public sealed class HandFrame
     {
-        public long Tick { get; }
-        public long TimestampMicroseconds { get; }
-        public HandSample Left { get; }
-        public HandSample Right { get; }
-        public bool HasFocus { get; }
-        public InputCommand Command { get; }
-        public bool ControllersInHand { get; }
+        public long Tick { get; private set; }
+        public long TimestampMicroseconds { get; private set; }
+        public HandSample Left { get; private set; }
+        public HandSample Right { get; private set; }
+        public bool HasFocus { get; private set; }
+        public InputCommand Command { get; private set; }
+        public bool ControllersInHand { get; private set; }
         public HandFrame(long tick, long timestampMicroseconds, HandSample left, HandSample right, bool hasFocus = true, InputCommand command = InputCommand.None, bool controllersInHand = false)
         {
-            if (tick < 0 || timestampMicroseconds < 0 || (left != null && left.Side != HandSide.Left) || (right != null && right.Side != HandSide.Right) || !Enum.IsDefined(typeof(InputCommand), command)) throw new ArgumentException("Invalid input frame.");
+            Set(tick, timestampMicroseconds, left, right, hasFocus, command, controllersInHand);
+        }
+        // D11: PalmfolkGame's valley-local frame is one object, set again each tick (nothing keeps it).
+        internal HandFrame() { }
+        internal void Set(long tick, long timestampMicroseconds, HandSample left, HandSample right, bool hasFocus, InputCommand command, bool controllersInHand)
+        {
+            // A range check: Enum.IsDefined boxes, every tick.
+            if (tick < 0 || timestampMicroseconds < 0 || (left != null && left.Side != HandSide.Left) || (right != null && right.Side != HandSide.Right) || command < InputCommand.None || command > InputCommand.RingBell) throw new ArgumentException("Invalid input frame.");
             Tick = tick; TimestampMicroseconds = timestampMicroseconds; Left = left; Right = right; HasFocus = hasFocus; Command = command; ControllersInHand = controllersInHand;
         }
         public HandSample Hand(HandSide side) => side == HandSide.Left ? Left : Right;
+        // A frame whose hands are its own (HandSample.Copy), for the developer recorder.
+        public HandFrame Copy() => new HandFrame(Tick, TimestampMicroseconds, Left?.Copy(), Right?.Copy(), HasFocus, Command, ControllersInHand);
+    }
+
+    // D11: a world-space hand the platform refills each frame instead of allocating one. The sample it hands out
+    // changes on the next Begin, so anything that keeps a hand past the frame keeps HandSample.Copy() instead.
+    public sealed class HandSampleBuffer
+    {
+        private readonly HandSample sample;
+        public HandSampleBuffer(HandSide side)
+        {
+            if (side != HandSide.Left && side != HandSide.Right) throw new ArgumentException("Expected a hand side.");
+            sample = new HandSample(side);
+        }
+        public HandSide Side => sample.Side;
+        public void Set(int joint, JointSample value) => sample.Buffer[joint] = value;
+        public HandSample Sample => sample;
     }
     public interface IHandFrameSource { bool TryRead(long tick, out HandFrame frame); }
     public interface ITickSimulation

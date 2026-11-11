@@ -88,7 +88,9 @@ namespace Palmfolk.Core
 
         public ValleySpec Valley { get; }
         public long Tick { get; private set; } = -1;
-        public IReadOnlyList<GameEvent> Events => events.AsReadOnly();
+        // D11: list views are made once (the lists are never replaced), so reading them every frame allocates nothing.
+        private IReadOnlyList<GameEvent> eventsView; private IReadOnlyList<Traveler> travelersView; private IReadOnlyList<string> pendingView;
+        public IReadOnlyList<GameEvent> Events => eventsView ??= events.AsReadOnly();
         public GameSettings Settings => settings.Copy();
         public int PuzzleIndex => Math.Min(progress.CompletedPuzzles, 5);
         public PuzzleSpec Puzzle => Valley.Puzzles[PuzzleIndex];
@@ -99,11 +101,11 @@ namespace Palmfolk.Core
         public string PipIsland => progress.PipIsland;
         public Traveler Bram { get; private set; }
         public Vec3 BramPosition => Bram?.Position ?? Valley.Island(Valley.Camp).Top;
-        public IReadOnlyList<Traveler> Travelers => travelers.AsReadOnly();
+        public IReadOnlyList<Traveler> Travelers => travelersView ??= travelers.AsReadOnly();
         public IReadOnlyDictionary<string, CurveTree> Bridges => progress.Bridges;
         // V3: edges on the needed route that fail their traveler's rules and must be rebuilt.
         public IReadOnlyList<string> FailingEdges { get; private set; } = Array.Empty<string>();
-        public IReadOnlyList<string> PendingEdges => pending.AsReadOnly();
+        public IReadOnlyList<string> PendingEdges => pendingView ??= pending.AsReadOnly();
         // A fork branch refused while its siblings were baked (D4): drawn glowing and taken down, until the next interaction.
         public CurveTree RefusedScaffold { get; private set; }
         public IReadOnlyList<ValidationFailure> RefusedFailures { get; private set; } = Array.Empty<ValidationFailure>();
@@ -121,7 +123,35 @@ namespace Palmfolk.Core
         public int VisitorIndex => Visiting ? progress.CurrentVisitor : -1;
         public Traveler VisitorArrival => arrival;
         // R1: settled visitors walking back and forth over the bridges they asked for. Bram walks his route too.
-        public IReadOnlyList<Traveler> Residents => residents.Where(r => !r.IsBram && r.Walk != null).Select(r => r.Walk).ToList().AsReadOnly();
+        public IReadOnlyList<Traveler> Residents
+        {
+            get
+            {
+                var list = new List<Traveler>(residents.Count);
+                foreach (var r in residents) if (!r.IsBram && r.Walk != null) list.Add(r.Walk);
+                return list.AsReadOnly();
+            }
+        }
+        internal int ResidentCount { get { int n = 0; foreach (var r in residents) if (!r.IsBram && r.Walk != null) n++; return n; } }
+        internal Traveler ResidentAt(int index) { foreach (var r in residents) if (!r.IsBram && r.Walk != null && index-- == 0) return r.Walk; return null; }
+
+        // D11: copies of the bridges and their marks for presentations, made again only when they change. Every
+        // presentation of an unchanged valley shares one copy (they are read-only to it).
+        private Dictionary<string, CurveTree> bridgesCopy; private Dictionary<string, int> marksCopy;
+        internal IReadOnlyDictionary<string, CurveTree> BridgesCopy()
+        {
+            bool same = bridgesCopy != null && bridgesCopy.Count == progress.Bridges.Count;
+            if (same) foreach (var pair in progress.Bridges) same &= bridgesCopy.TryGetValue(pair.Key, out var tree) && ReferenceEquals(tree, pair.Value);
+            if (!same) bridgesCopy = new Dictionary<string, CurveTree>(progress.Bridges);
+            return bridgesCopy;
+        }
+        internal IReadOnlyDictionary<string, int> MarksCopy()
+        {
+            bool same = marksCopy != null && marksCopy.Count == progress.BridgeMarks.Count;
+            if (same) foreach (var pair in progress.BridgeMarks) same &= marksCopy.TryGetValue(pair.Key, out int marks) && marks == pair.Value;
+            if (!same) marksCopy = new Dictionary<string, int>(progress.BridgeMarks);
+            return marksCopy;
+        }
         // R3: helping visitor i sets bit i and lights window i; a bridge's marks are the visitors who crossed it.
         public int VisitorsHelped => progress.VisitorsHelped;
         public int LitWindows => progress.LitWindows;
@@ -211,7 +241,8 @@ namespace Palmfolk.Core
                     break;
                 case DirectorStage.TravelersCrossing:
                     foreach (var t in travelers) if (!t.Arrived) { t.Step(step); if (t.Arrived) Emit(GameEventKind.TravelerArrived); }
-                    if (travelers.All(t => t.Arrived)) CompletePuzzle();
+                    bool all = true; foreach (var t in travelers) all &= t.Arrived;
+                    if (all) CompletePuzzle();
                     break;
                 case DirectorStage.BramCrossing:
                     if (Bram.Step(step)) Emit(GameEventKind.CrossingCompleted);
@@ -413,6 +444,8 @@ namespace Palmfolk.Core
             return route;
         }
 
+        private string approachFrom; private List<string> approachEdges;
+
         // E16: the visitor sets off from the sanctuary once every bridge of the way in passes their rules.
         private void StepArrival(double step)
         {
@@ -420,7 +453,10 @@ namespace Palmfolk.Core
             var visitor = Visitor;
             if (arrival == null)
             {
-                if (Approach(visitor.From).Any(id => pending.Contains(id) || !progress.Bridges.ContainsKey(id))) return;
+                // The way in depends only on the valley, so it is worked out once per island (D11: not every tick).
+                if (approachFrom != visitor.From) { approachEdges = Approach(visitor.From); approachFrom = visitor.From; }
+                bool blocked = false; foreach (var id in approachEdges) blocked |= pending.Contains(id) || !progress.Bridges.ContainsKey(id);
+                if (blocked) return;
                 var start = Valley.Island(Valley.Sanctuary).Top;
                 arrival = new Traveler(visitor.Traveler, visitor.From, start, Path(Valley.Sanctuary, visitor.From), Valley.Island(visitor.From).Top);
             }
@@ -482,7 +518,8 @@ namespace Palmfolk.Core
                 if (r.Walk.Arrived)
                 {
                     if (r.Rest > 0) { r.Rest--; continue; }
-                    if (r.Edges.Any(id => pending.Contains(id) || !progress.Bridges.ContainsKey(id))) continue;
+                    bool blocked = false; foreach (var id in r.Edges) blocked |= pending.Contains(id) || !progress.Bridges.ContainsKey(id);
+                    if (blocked) continue;
                     string from = r.Ends[r.At], to = r.Ends[1 - r.At];
                     var legs = new List<Route>(); string at = from;
                     foreach (var id in r.At == 1 ? r.Edges.Reverse() : r.Edges) { var edge = Valley.Edge(id); legs.AddRange(Legs(id, at, edge.Other(at))); at = edge.Other(at); }
@@ -538,9 +575,16 @@ namespace Palmfolk.Core
             foreach (var id in built)
             {
                 if (!progress.Bridges.TryGetValue(id, out var tree)) continue;
-                foreach (var joint in hand.Joints)
-                    if (joint.Usable) foreach (var curve in tree.Curves) for (int i = 0; i < curve.Widths.Count; i++)
-                        if (BridgeValidator.PointDistance(joint.Position, curve.Points[i], curve.Points[i + 1]) < settings.BreakDistance) return true;
+                for (int j = 0; j < 26; j++)
+                {
+                    var joint = hand[(JointId)j]; if (!joint.Usable) continue;
+                    for (int c = 0; c < tree.Curves.Count; c++)
+                    {
+                        var curve = tree.Curves[c];
+                        for (int i = 0; i < curve.Widths.Count; i++)
+                            if (BridgeValidator.PointDistance(joint.Position, curve.Points[i], curve.Points[i + 1]) < settings.BreakDistance) return true;
+                    }
+                }
             }
             return false;
         }

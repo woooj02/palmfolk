@@ -390,3 +390,14 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   `LookWatcher`, `GazeButton`, `LookAndPinch`); `HandRoutes.PalmNormal`; `IGazeReader`; `PalmfolkRunner.Gaze`,
   `GazeEnabled`, `Looks`, `Pointer`, `GazeButtons`, `LastGaze`, `GazeSource`, `NeedSignChanged`, `GazeSelected`;
   `MetaGaze` (the Meta assembly now also references `Oculus.Interaction`). Nothing removed or renamed.
+- **D11, Nov 10.** Hot paths reuse their buffers. Added `HandSample.Copy()`, `HandFrame.Copy()`,
+  `HandSampleBuffer` (a hand sample refilled joint by joint), `HandRoutes.CanCreate` and `HandRoutes.BestChoice`
+  (the checks and choice of `Create` and `Best` without building the route), `NeedSigns.Targets(game, pose, list)`
+  (fills a list; keeps the same `GazeTarget` while nothing changes) and `HandJointMap.Convert(joints, matrix,
+  policy, buffer)`. Changed, to keep in mind:
+  - A sample or frame you didn't build may be refilled on the next frame or tick: `IHandReader.Read`'s sample,
+    `LiveFrameSource`'s frame and hands, and the filtered hands inside a tick. Copy one to keep it; recorders do.
+  - `HandFrame`'s properties are read-only now (use the constructor).
+  - `ValleyPresentation.Bridges` and `BridgeMarks` are shared read-only snapshots, replaced only when a bridge
+    changes.
+  - The live hand route in `ValleySimulation` is still a fresh object each tick (views and the build keep it).

@@ -65,10 +65,14 @@ namespace Palmfolk.Platform
 
         // Converts tracking-space joints to a world-space HandSample. Joints with a non-finite pose or radius are
         // marked invalid rather than passed on. Radii are scaled with the tracking space.
-        public static HandSample Convert(HandSide side, RawJoint[] joints, Matrix4x4 trackingToWorld, ConfidencePolicy policy)
+        public static HandSample Convert(HandSide side, RawJoint[] joints, Matrix4x4 trackingToWorld, ConfidencePolicy policy) =>
+            Convert(joints, trackingToWorld, policy, new HandSampleBuffer(side)).Copy();
+
+        // D11: converts into a buffer the reader keeps; the returned sample is refilled by the next call.
+        public static HandSample Convert(RawJoint[] joints, Matrix4x4 trackingToWorld, ConfidencePolicy policy, HandSampleBuffer into)
         {
-            if (joints == null || joints.Length != JointCount || policy == null) throw new ArgumentException("Need one joint per Core joint and a policy.");
-            var samples = new JointSample[JointCount];
+            if (joints == null || joints.Length != JointCount || policy == null || into == null) throw new ArgumentException("Need one joint per Core joint, a policy and a buffer.");
+            var side = into.Side;
             float scale = trackingToWorld.lossyScale.x; var turn = trackingToWorld.rotation;
             for (int i = 0; i < JointCount; i++)
             {
@@ -78,10 +82,10 @@ namespace Palmfolk.Platform
                 bool finite = Finite(p.x) && Finite(p.y) && Finite(p.z) && Finite(q.x) && Finite(q.y) && Finite(q.z) && Finite(q.w);
                 double radius = raw.Radius * scale;
                 if (!Finite((float)radius) || radius <= 0) { radius = 0; flags &= ~JointFlags.RadiusValid; }
-                if (!finite) { samples[i] = new JointSample(Vec3.Zero, Rotation.Identity, 0, JointFlags.None); continue; }
-                samples[i] = new JointSample(new Vec3(p.x, p.y, p.z), new Rotation(q.x, q.y, q.z, q.w), radius, flags);
+                if (!finite) { into.Set(i, new JointSample(Vec3.Zero, Rotation.Identity, 0, JointFlags.None)); continue; }
+                into.Set(i, new JointSample(new Vec3(p.x, p.y, p.z), new Rotation(q.x, q.y, q.z, q.w), radius, flags));
             }
-            return new HandSample(side, samples);
+            return into.Sample;
         }
 
         private static bool Finite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);

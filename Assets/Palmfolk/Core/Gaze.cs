@@ -56,21 +56,33 @@ namespace Palmfolk.Core
         // The traveler (or visitor) waiting for the current puzzle's bridges, while something is still to build.
         public static IReadOnlyList<GazeTarget> Targets(ValleySimulation game, ValleyPose pose)
         {
-            var list = new List<GazeTarget>();
-            if (game == null || pose == null) return list;
+            var list = new List<GazeTarget>(); Targets(game, pose, list); return list;
+        }
+        // D11: the same targets into a list the caller keeps (the runner, every frame). An unchanged target is kept
+        // as the same object, so a frame where nothing moved allocates nothing.
+        public static void Targets(ValleySimulation game, ValleyPose pose, List<GazeTarget> into)
+        {
+            if (into == null) throw new ArgumentNullException(nameof(into));
+            var previous = into.Count == 1 ? into[0] : null;
+            into.Clear();
+            if (game == null || pose == null) return;
             var need = Need(game);
-            if (need == NeedSign.None) return list;
+            if (need == NeedSign.None) return;
             Vec3 local;
             if (game.Visitor != null)
             {
-                if (game.VisitorArrival == null) return list; // not yet on the way in
+                if (game.VisitorArrival == null) return; // not yet on the way in
                 local = game.VisitorArrival.Position;
             }
             else if (game.Puzzle.Kind == PuzzleKind.Finale) local = game.Valley.Island(game.Valley.Camp).Top;
             else local = game.Valley.Island(game.Puzzle.TravelerFrom).Top;
-            list.Add(new GazeTarget(game.Visitor?.Id ?? "Puzzle" + game.PuzzleIndex, pose.ToWorld(local + new Vec3(0, FigureHeight, 0)), FigureRadius * pose.Scale, need));
-            return list;
+            string id = game.Visitor?.Id ?? PuzzleId(game.PuzzleIndex);
+            var position = pose.ToWorld(local + new Vec3(0, FigureHeight, 0)); double radius = FigureRadius * pose.Scale;
+            bool same = previous != null && previous.Id == id && previous.Need == need && previous.Position.Equals(position) && previous.Radius == radius;
+            into.Add(same ? previous : new GazeTarget(id, position, radius, need));
         }
+        private static readonly string[] PuzzleIds = { "Puzzle0", "Puzzle1", "Puzzle2", "Puzzle3", "Puzzle4", "Puzzle5", "Puzzle6", "Puzzle7" };
+        private static string PuzzleId(int index) => index >= 0 && index < PuzzleIds.Length ? PuzzleIds[index] : "Puzzle" + index;
 
         // What the waiting traveler needs now: None once nothing is left to build, and on the Board (Pip rides the hand).
         public static NeedSign Need(ValleySimulation game)
@@ -83,7 +95,7 @@ namespace Palmfolk.Core
             if (visitor != null)
             {
                 if (visitor.Edges.Count > 1 && Count(game.PendingEdges, visitor.Edges) > 1) return NeedSign.Branches;
-                foreach (var id in game.PendingEdges) if (Contains(arch, id) && visitor.Traveler != TravelerKind.Walker) return NeedSign.Arch;
+                for (int i = 0; i < game.PendingEdges.Count; i++) if (Contains(arch, game.PendingEdges[i]) && visitor.Traveler != TravelerKind.Walker) return NeedSign.Arch;
                 return visitor.Traveler == TravelerKind.Walker ? NeedSign.Rope : NeedSign.Plank;
             }
             switch (game.Puzzle.Kind)
@@ -97,8 +109,8 @@ namespace Palmfolk.Core
             }
         }
 
-        private static bool Contains(IReadOnlyList<string> list, string id) { foreach (var x in list) if (x == id) return true; return false; }
-        private static int Count(IReadOnlyList<string> pending, IReadOnlyList<string> of) { int n = 0; foreach (var id in pending) if (Contains(of, id)) n++; return n; }
+        private static bool Contains(IReadOnlyList<string> list, string id) { for (int i = 0; i < list.Count; i++) if (list[i] == id) return true; return false; }
+        private static int Count(IReadOnlyList<string> pending, IReadOnlyList<string> of) { int n = 0; for (int i = 0; i < pending.Count; i++) if (Contains(of, pending[i])) n++; return n; }
     }
 
     // GZ1: a look of DwellSeconds at a target raises its sign; looking away for ReleaseSeconds puts it down.
@@ -123,7 +135,7 @@ namespace Palmfolk.Core
             if (Shown != null)
             {
                 GazeTarget current = null;
-                if (targets != null) foreach (var t in targets) if (t.Id == Shown.Id) current = t;
+                if (targets != null) for (int i = 0; i < targets.Count; i++) if (targets[i].Id == Shown.Id) current = targets[i];
                 Shown = current;
             }
             if (hit?.Id != candidate) { candidate = hit?.Id; dwell = 0; }
@@ -143,8 +155,9 @@ namespace Palmfolk.Core
         {
             GazeTarget best = null; double bestRatio = double.PositiveInfinity;
             if (gaze == null || targets == null) return null;
-            foreach (var t in targets)
+            for (int i = 0; i < targets.Count; i++)
             {
+                var t = targets[i];
                 double distance = Vec3.Distance(gaze.Origin, t.Position);
                 double half = distance <= t.Radius ? 180 : Math.Max(MinimumDegrees, Math.Asin(t.Radius / distance) * 180 / Math.PI);
                 double ratio = gaze.DegreesTo(t.Position) / half;
@@ -205,8 +218,9 @@ namespace Palmfolk.Core
         {
             string best = null; double bestRatio = double.PositiveInfinity;
             if (buttons == null) return null;
-            foreach (var b in buttons)
+            for (int i = 0; i < buttons.Count; i++)
             {
+                var b = buttons[i];
                 double ratio = gaze.DegreesTo(b.Centre) / (b.WidthDegrees / 2);
                 if (ratio <= 1 && ratio < bestRatio) { best = b.Id; bestRatio = ratio; }
             }

@@ -11,7 +11,8 @@ namespace Palmfolk.Platform
     // Where hands come from: XR Hands on the headset, a script in tests.
     public interface IHandReader
     {
-        // World-space hand, or null when the hand isn't tracked.
+        // World-space hand, or null when the hand isn't tracked. It may be refilled by the next Read (D11): the runner
+        // reads it within the frame, and the developer recorder keeps copies.
         HandSample Read(HandSide side);
         bool ControllersInHand { get; }
     }
@@ -23,6 +24,8 @@ namespace Palmfolk.Platform
         private static readonly List<XRHandSubsystem> subsystems = new List<XRHandSubsystem>();
         private static readonly List<InputDevice> devices = new List<InputDevice>();
         private readonly RawJoint[] joints = new RawJoint[HandJointMap.JointCount];
+        // D11: each hand is converted into the same buffer every frame (Read's sample changes on the next Read).
+        private readonly HandSampleBuffer left = new HandSampleBuffer(HandSide.Left), right = new HandSampleBuffer(HandSide.Right);
         private XRHandSubsystem subsystem;
         public Transform TrackingSpace { get; set; }
         public ConfidencePolicy Confidence { get; } = new ConfidencePolicy();
@@ -42,7 +45,7 @@ namespace Palmfolk.Platform
             var hand = side == HandSide.Left ? s.leftHand : s.rightHand;
             if (!HandJointMap.Read(hand, joints)) return null;
             var toWorld = TrackingSpace != null ? TrackingSpace.localToWorldMatrix : Matrix4x4.identity;
-            return HandJointMap.Convert(side, joints, toWorld, Confidence);
+            return HandJointMap.Convert(joints, toWorld, Confidence, side == HandSide.Left ? left : right);
         }
 
         public bool ControllersInHand
@@ -256,11 +259,14 @@ namespace Palmfolk.Platform
             var hands = Hands;
             Source.Sample(hands?.Read(HandSide.Left), hands?.Read(HandSide.Right), (long)(realtimeSeconds * 1e6), focused, hands != null && hands.ControllersInHand);
             int ticks = Clock.Advance(Math.Min(Math.Max(0, renderedSeconds), MaximumFrameSeconds), Source, StepTarget ?? Game);
-            bool save = false;
-            foreach (var e in Clock.Events)
-                save |= e.Kind == GameEventKind.Planted || e.Kind == GameEventKind.BridgeBaked || e.Kind == GameEventKind.PuzzleCompleted || e.Kind == GameEventKind.LedgeWidened ||
-                    e.Kind == GameEventKind.VisitorCalled || e.Kind == GameEventKind.VisitorSettled;
-            foreach (var e in Clock.Events) if (e.Kind == GameEventKind.Planted) AnchorHere();
+            bool save = false; var raised = Clock.Events;
+            for (int i = 0; i < raised.Count; i++)
+            {
+                var kind = raised[i].Kind;
+                save |= kind == GameEventKind.Planted || kind == GameEventKind.BridgeBaked || kind == GameEventKind.PuzzleCompleted || kind == GameEventKind.LedgeWidened ||
+                    kind == GameEventKind.VisitorCalled || kind == GameEventKind.VisitorSettled;
+            }
+            for (int i = 0; i < raised.Count; i++) if (raised[i].Kind == GameEventKind.Planted) AnchorHere();
             Place();
             Look(Math.Min(Math.Max(0, renderedSeconds), MaximumFrameSeconds));
             if (Clock.Events.Count > 0) Ticked?.Invoke(Clock.Events);
@@ -269,11 +275,13 @@ namespace Palmfolk.Platform
             return ticks;
         }
 
+        private readonly List<GazeTarget> targets = new List<GazeTarget>();
         private void Look(double seconds)
         {
             var gaze = GazeEnabled ? Gaze?.Read() : null; LastGaze = gaze;
             var valley = Game.Valley;
-            var targets = GazeEnabled && valley != null && Game.Stage == ValleyStage.Playing && !Game.IsPaused ? NeedSigns.Targets(valley, Game.Pose) : Array.Empty<GazeTarget>();
+            if (GazeEnabled && valley != null && Game.Stage == ValleyStage.Playing && !Game.IsPaused) NeedSigns.Targets(valley, Game.Pose, targets);
+            else targets.Clear();
             if (Looks.Step(seconds, gaze, targets)) NeedSignChanged?.Invoke(Looks.Shown);
             var chosen = Pointer.Step(gaze, Source.Left, Source.Right, GazeEnabled ? GazeButtons?.Invoke() : null);
             if (chosen != null) GazeSelected?.Invoke(chosen);

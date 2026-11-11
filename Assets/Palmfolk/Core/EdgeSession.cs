@@ -107,7 +107,8 @@ namespace Palmfolk.Core
         private uint RequiredMask()
         {
             if (layout == null) return HandRoutes.RequiredJointMask(activeRoute.Finger);
-            uint mask = 0; foreach (var branch in layout.Branches) foreach (int f in branch) mask |= HandRoutes.RequiredJointMask(f);
+            uint mask = 0; var branches = layout.Branches;
+            for (int b = 0; b < branches.Count; b++) for (int i = 0; i < branches[b].Count; i++) mask |= HandRoutes.RequiredJointMask(branches[b][i]);
             return mask;
         }
 
@@ -121,11 +122,15 @@ namespace Palmfolk.Core
             {
                 // Test raw data too: smoothing must not make a returning hand look aligned for a tick.
                 var rawHand = frame.Hand(Owner.Value);
-                Read(rawHand, out var raw);
+                // D11: a single route's raw check builds nothing; the raw route is made only when recovery needs it.
+                Route raw = null; bool rawReadable;
+                if (layout == null) rawReadable = activeRoute != null && HandRoutes.CanCreate(rawHand, activeRoute.Finger, activeRoute.Reversed, settings);
+                else { Read(rawHand, out raw); rawReadable = raw != null; }
                 bool poorTracking = PoorTracking = rawHand == null || (rawHand.InvalidMask & RequiredMask()) != 0;
-                if (raw == null && Recovery == null) BeginRecovery(poorTracking);
+                if (!rawReadable && Recovery == null) BeginRecovery(poorTracking);
                 if (Recovery != null)
                 {
+                    if (rawReadable && raw == null) Read(rawHand, out raw);
                     var previous = Recovery.Phase;
                     var aligned = live != null && Recovery.Ghost.Difference(live) < settings.ConnectDistance ? raw : null;
                     Vec3 support = live == null ? Pip : (Build != null && !Carry ? Build.BuilderPosition(liveTree) : live.Evaluate(cursor));
@@ -168,7 +173,7 @@ namespace Palmfolk.Core
 
         private static double MinimumWidth(CurveTree tree)
         {
-            double w = double.PositiveInfinity; foreach (var c in tree.Curves) w = Math.Min(w, c.MinimumWidth); return w;
+            double w = double.PositiveInfinity; for (int i = 0; i < tree.Curves.Count; i++) w = Math.Min(w, tree.Curves[i].MinimumWidth); return w;
         }
 
         private void Acquire(HandSample left, HandSample right)
@@ -182,16 +187,31 @@ namespace Palmfolk.Core
             }
             else
             {
-                a = HandRoutes.Best(left, Source.Centre, Destination.Centre, settings); b = HandRoutes.Best(right, Source.Centre, Destination.Centre, settings);
-                ta = a == null ? null : CurveTree.Single(a); tb = b == null ? null : CurveTree.Single(b);
+                // D11: each hand's best route is chosen from its end points; only the hand that connects builds it.
+                bool ha = HandRoutes.BestChoice(left, Source.Centre, Destination.Centre, settings, out int fa, out bool ra, out var sa);
+                bool hb = HandRoutes.BestChoice(right, Source.Centre, Destination.Centre, settings, out int fb, out bool rb, out var sb);
+                double sda = ha ? Source.ConnectionDistance(sa, settings) : double.PositiveInfinity;
+                double sdb = hb ? Source.ConnectionDistance(sb, settings) : double.PositiveInfinity;
+                leftContact.Step(sda, ha, settings); rightContact.Step(sdb, hb, settings);
+                if (!leftContact.Connected && !rightContact.Connected) return;
+                bool left1 = leftContact.Connected && (!rightContact.Connected || sda <= sdb);
+                var route = left1 ? HandRoutes.Create(left, fa, ra, settings) : HandRoutes.Create(right, fb, rb, settings);
+                if (route == null) return;
+                Take(left1, route, CurveTree.Single(route), null);
+                return;
             }
             double da = a == null ? double.PositiveInfinity : Source.ConnectionDistance(a.Start, settings);
             double db = b == null ? double.PositiveInfinity : Source.ConnectionDistance(b.Start, settings);
             leftContact.Step(da, a != null, settings); rightContact.Step(db, b != null, settings);
             if (!leftContact.Connected && !rightContact.Connected) return;
             bool chooseLeft = leftContact.Connected && (!rightContact.Connected || da <= db);
-            Owner = chooseLeft ? HandSide.Left : HandSide.Right; activeRoute = chooseLeft ? a : b; activeTree = chooseLeft ? ta : tb;
-            layout = IsFork ? (chooseLeft ? leftLayout : rightLayout) : null;
+            Take(chooseLeft, chooseLeft ? a : b, chooseLeft ? ta : tb, chooseLeft ? leftLayout : rightLayout);
+        }
+
+        private void Take(bool chooseLeft, Route route, CurveTree tree, ForkLayout forkLayout)
+        {
+            Owner = chooseLeft ? HandSide.Left : HandSide.Right; activeRoute = route; activeTree = tree;
+            layout = IsFork ? forkLayout : null;
             width.Step(MinimumWidth(activeTree));
             cursor = new RouteCursor(0, 0); attached = false; stillness.Reset(); foreach (var c in destinationContacts) c.Reset();
         }

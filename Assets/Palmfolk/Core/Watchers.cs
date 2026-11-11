@@ -38,17 +38,21 @@ namespace Palmfolk.Core
     {
         private readonly OneEuroFilter[] filters = new OneEuroFilter[26];
         public HandFilter() { for (int i = 0; i < 26; i++) filters[i] = new OneEuroFilter(); }
+        private HandSample output;
+        // D11: the returned sample is this filter's own and is refilled by the next Step, so it is read within the
+        // tick and never kept (every caller turns it into routes, poses or numbers first).
         public HandSample Step(HandSample hand, GameSettings settings)
         {
             if (hand == null) { Reset(); return null; }
-            var joints = new JointSample[26];
+            if (output == null || output.Side != hand.Side) output = new HandSample(hand.Side);
+            var joints = output.Buffer;
             for (int i = 0; i < 26; i++)
             {
-                joints[i] = hand.Joints[i];
+                joints[i] = hand[(JointId)i];
                 if (joints[i].Usable) joints[i] = joints[i].WithPosition(filters[i].Step(joints[i].Position, settings));
                 else filters[i].Reset();
             }
-            return new HandSample(hand.Side, joints);
+            return output;
         }
         public void Reset() { foreach (var filter in filters) filter.Reset(); }
     }

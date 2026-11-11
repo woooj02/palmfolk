@@ -71,7 +71,8 @@ namespace Palmfolk.Developer
             if (frame == null || frame.TimestampMicroseconds < lastTimestamp) throw new ArgumentException("Missing frame or timestamp moved backwards.");
             var owner = game.Owner; var route = game.ActiveRoute;
             game.Step(frame); lastTimestamp = frame.TimestampMicroseconds;
-            if (frames.Count < maximumFrames) frames.Add(frame); else RecordingLimitReached = true;
+            // Live hands may be refilled every frame (D11): the recording keeps its own copy.
+            if (frames.Count < maximumFrames) frames.Add(frame.Copy()); else RecordingLimitReached = true;
             Metrics.Observe(game.Events);
             bool progressed = false;
             foreach (var e in game.Events) progressed |= e.Kind == GameEventKind.Boarded || e.Kind == GameEventKind.CheckpointReached || e.Kind == GameEventKind.SectionCommitted ||

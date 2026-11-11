@@ -37,6 +37,62 @@ def unique_keys(pairs):
     return result
 
 
+GATE = ["PALMFOLK_DEVELOPMENT"]
+
+
+def check_release_gate(sources):
+    """T10: a release build compiles out recording and every developer tool. Every assembly in a Developer folder
+    carries the development define constraint, nothing outside them references one, and no shipped source names a
+    developer type outside a PALMFOLK_DEVELOPMENT block."""
+    asmdefs = {}
+    for path in sorted((ROOT / "Assets/Palmfolk").rglob("*.asmdef")):
+        asmdefs[path.parent] = json.loads(path.read_text(), object_pairs_hook=unique_keys)
+    gated = set()
+    for folder, asmdef in asmdefs.items():
+        if "Developer" in folder.relative_to(ROOT).parts:
+            require(asmdef.get("defineConstraints") == GATE, f"Developer assembly must use the single development gate: {asmdef['name']}")
+            gated.add(asmdef["name"])
+        else:
+            require("PALMFOLK_DEVELOPMENT" not in asmdef.get("defineConstraints", []), f"Gated assembly outside a Developer folder: {asmdef['name']}")
+    for asmdef in asmdefs.values():
+        if asmdef["name"] in gated:
+            continue
+        leaked = gated & set(asmdef.get("references", []))
+        require(not leaked, f"{asmdef['name']} references developer assemblies {sorted(leaked)}; release builds would not compile")
+
+    def owner(name):
+        folder = (ROOT / name).parent
+        while folder not in asmdefs and folder != ROOT:
+            folder = folder.parent
+        return asmdefs.get(folder)
+
+    developer_types, shipped = set(), []
+    for name in sources:
+        if not name.startswith("Assets/Palmfolk/"):
+            continue
+        asmdef = owner(name)
+        if asmdef is None and "Editor" in Path(name).parts:
+            continue  # Unity's special Editor folder: an editor-only assembly, never in a player build
+        require(asmdef is not None, f"Source outside any assembly: {name}")
+        if "Developer" in Path(name).parts:
+            require(asmdef["name"] in gated, f"Developer source compiled into an ungated assembly: {name}")
+        if asmdef["name"] in gated:
+            text = (ROOT / name).read_text(encoding="utf-8")
+            developer_types |= set(re.findall(r"\b(?:class|struct|interface|enum)\s+([A-Z]\w*)", text))
+        elif "Editor" not in asmdef.get("includePlatforms", []):
+            shipped.append(name)
+    require(developer_types, "No developer types found; the gate check is looking in the wrong place")
+    pattern = re.compile(r"\b(" + "|".join(sorted(developer_types)) + r")\b")
+    for name in shipped:
+        text = (ROOT / name).read_text(encoding="utf-8")
+        text = re.sub(r"#if PALMFOLK_DEVELOPMENT\b.*?#endif", "", text, flags=re.DOTALL)
+        text = re.sub(r"//[^\n]*|/\*.*?\*/", "", text, flags=re.DOTALL)
+        text = re.sub(r'"(?:\\.|[^"\\])*"', '""', text)
+        found = pattern.search(text)
+        require(found is None, f"Shipped source names developer type {found.group(1) if found else ''}: {name}")
+    print(f"PASS: release gate ({len(gated)} developer assemblies, {len(developer_types)} developer types absent from {len(shipped)} shipped sources)")
+
+
 def main():
     files = sorted(set(git("ls-files", "-z", "--cached", "--others", "--exclude-standard").decode().split("\0")) - {""})
     manifest = json.loads((ROOT / "Packages/manifest.json").read_text(), object_pairs_hook=unique_keys)
@@ -110,6 +166,7 @@ def main():
             text = (ROOT / name).read_text()
             require(not re.search(r"\b(UnityEngine|UnityEditor|PhysX|OVRPlugin|Stopwatch)\b|DateTime\.(Now|UtcNow)|Environment\.TickCount", text), f"Engine/wall-clock dependency in Core: {name}")
     print("PASS: engine-independent core and developer assembly gate")
+    check_release_gate(sources)
     print("Source checks passed. Unity compilation, APK output and Quest 2 behavior are not verified.")
 
 

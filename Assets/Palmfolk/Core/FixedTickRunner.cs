@@ -7,7 +7,9 @@ namespace Palmfolk.Core
     {
         private double accumulator;
         private readonly List<GameEvent> events = new List<GameEvent>();
-        public IReadOnlyList<GameEvent> Events => events.AsReadOnly();
+        private readonly IReadOnlyList<GameEvent> view;
+        public FixedTickRunner() { view = events.AsReadOnly(); }
+        public IReadOnlyList<GameEvent> Events => view;
         public double InterpolationAlpha => Vec3.Clamp(accumulator / GameSettings.Delta, 0, 1);
         public int Advance(double renderedSeconds, IHandFrameSource input, ITickSimulation simulation, int maxTicks = 8)
         {
@@ -16,7 +18,7 @@ namespace Palmfolk.Core
             while (accumulator + 1e-12 >= GameSettings.Delta && count < maxTicks)
             {
                 if (!input.TryRead(simulation.Tick + 1, out var frame)) break;
-                simulation.Step(frame); events.AddRange(simulation.Events); accumulator = Math.Max(0, accumulator - GameSettings.Delta); count++;
+                simulation.Step(frame); var raised = simulation.Events; for (int i = 0; i < raised.Count; i++) events.Add(raised[i]); accumulator = Math.Max(0, accumulator - GameSettings.Delta); count++;
             }
             return count; // Backlog is retained; recorded ticks are never silently dropped.
         }

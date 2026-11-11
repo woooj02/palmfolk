@@ -106,7 +106,8 @@ namespace Palmfolk.Developer
         public void Step(HandFrame frame)
         {
             Game.Step(frame);
-            if (frames.Count < maximumFrames) frames.Add(frame); else RecordingLimitReached = true;
+            // The live hands are refilled every frame (D11): the recording keeps its own copy.
+            if (frames.Count < maximumFrames) frames.Add(frame.Copy()); else RecordingLimitReached = true;
             Digest.Observe(Game); Radii.Observe(frame.Left); Radii.Observe(frame.Right); Dropouts.Observe(Game, frame);
         }
 

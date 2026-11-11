@@ -98,7 +98,20 @@ namespace Palmfolk.Core
         }
 
         // The frozen scaffold so far as a tree (curves with fewer than two frozen points left out), or null.
+        // D11: kept until another section freezes, so drawing the scaffold every frame makes nothing new.
+        private CurveTree frozenTree; private Route frozenRoute; private int frozenAt = -1;
         public CurveTree FrozenTree()
+        {
+            Refreeze(); return frozenTree;
+        }
+        private void Refreeze()
+        {
+            int sections = FrozenSections;
+            if (sections == frozenAt) return;
+            frozenAt = sections; frozenTree = MakeFrozenTree();
+            frozenRoute = frozenTree == null || frozenTree.Curves.Count == 1 ? frozenTree?.Curves[0] : HandRoutes.Spine(frozenTree, 0);
+        }
+        private CurveTree MakeFrozenTree()
         {
             var trunk = curves[0].FrozenRoute(); if (trunk == null) return null;
             var list = new List<Route> { trunk }; var parentList = new List<int> { -1 };
@@ -112,9 +125,7 @@ namespace Palmfolk.Core
         // The first walk through the scaffold (trunk, then branch 0): what a single-route view draws.
         public Route FrozenRoute()
         {
-            var tree = FrozenTree();
-            if (tree == null || tree.Curves.Count == 1) return tree?.Curves[0];
-            return HandRoutes.Spine(tree, 0);
+            Refreeze(); return frozenRoute;
         }
         // Where Pip stands while building: along the trunk, then along branch 0.
         public Vec3 BuilderPosition(CurveTree live)

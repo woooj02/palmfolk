@@ -25,7 +25,8 @@ namespace Palmfolk.Core
         public int Plantings { get; private set; }
         public bool IsPaused => paused;
         public long Tick => Simulation.Tick;
-        public IReadOnlyList<GameEvent> Events => events.AsReadOnly();
+        private IReadOnlyList<GameEvent> eventsView;
+        public IReadOnlyList<GameEvent> Events => eventsView ??= events.AsReadOnly();
 
         public PalmfolkGame(LevelGeometry level, GameSettings settings = null) : this(new M1Simulation(level, settings), settings) { }
         public PalmfolkGame(ValleySpec valley, GameSettings settings = null, ValleyProgress resume = null) : this(new ValleySimulation(valley, settings, resume), settings) { }
@@ -56,6 +57,10 @@ namespace Palmfolk.Core
             double before = Planting.WorldScale; Planting.SetWorldScale(player.WorldScale);
             if (Pose != null && player.WorldScale != before) Pose = new ValleyPose(Pose.Origin, Pose.Forward, Pose.Scale * player.WorldScale / before);
         }
+        // D11: the valley-local frame, refilled each tick. The simulation reads it within the tick and keeps nothing.
+        private readonly HandFrame local = new HandFrame();
+        private HandSample localLeft, localRight;
+
         private PalmfolkGame(ITickSimulation simulation, GameSettings settings)
         {
             Simulation = simulation;
@@ -89,7 +94,7 @@ namespace Palmfolk.Core
                 return;
             }
             // Replant never reaches this point: it switched the stage above.
-            Simulation.Step(Pose.ToValley(frame));
+            Simulation.Step(Pose.ToValley(frame, local, ref localLeft, ref localRight));
             events.AddRange(Simulation.Events);
         }
 
