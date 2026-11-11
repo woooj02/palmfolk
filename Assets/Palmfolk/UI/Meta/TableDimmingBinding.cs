@@ -10,6 +10,8 @@ namespace Palmfolk.UI.Meta
         private NightView night;
         private OVRPassthroughLayer layer;
         public float Applied { get; private set; }
+        private void OnEnable() { if (night != null) Configure(night, layer); }
+        private void OnValidate() { if (night != null) { night.VerifiedTableDimmingLimit = ownerVerifiedMaximum; Apply(Applied); } }
         public void Configure(NightView source, OVRPassthroughLayer passthrough = null)
         { if (night != null) night.TableDimmingRequested -= Apply; night = source; layer = passthrough; if (night != null) { night.VerifiedTableDimmingLimit = ownerVerifiedMaximum; night.TableDimmingRequested += Apply; } }
         public void Apply(float requested)

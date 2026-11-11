@@ -56,6 +56,8 @@ namespace Palmfolk.Tests.Content
                 if (side == HandSide.Left) hands.Left = sample; else hands.Right = sample;
                 var pokes = root.AddComponent<WaystonePokes>(); pokes.Configure(runner); runner.Frame(1d / 60, 1);
                 for (int i = 0; i < 10; i++) Assert.That(pokes.Finger(i).enabled, Is.EqualTo((i < 5) == (side == HandSide.Left)));
+                pokes.Configure(null); for (int i = 0; i < 10; i++) Assert.That(pokes.Finger(i).enabled, Is.False, "detaching removes stale live input");
+                pokes.Configure(runner);
                 hands.Left = hands.Right = null; runner.Frame(1d / 60, 2);
                 for (int i = 0; i < 10; i++) Assert.That(pokes.Finger(i).enabled, Is.False);
             }

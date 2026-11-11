@@ -1,5 +1,5 @@
 {
   "name": "Palmfolk.Stats",
-  "references": [],
+  "references": ["Palmfolk.Core", "Palmfolk.Platform", "Palmfolk.Developer"],
   "defineConstraints": ["PALMFOLK_DEVELOPMENT"]
 }

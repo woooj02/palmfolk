@@ -14,6 +14,7 @@ namespace Palmfolk.Views
         private PalmfolkView.ShapePool live, preview, scaffold, ghost, refusals, refusedScaffold, capacityGlyph;
         private readonly Dictionary<string, PalmfolkView.ShapePool> bridges = new Dictionary<string, PalmfolkView.ShapePool>();
         private readonly List<Transform> travelers = new List<Transform>();
+        private readonly List<Transform> travelerCarts = new List<Transform>();
         private readonly List<Material> materials = new List<Material>();
         private Material wood, cord, skin, transparent, carved, warning;
         private ValleySpec spec;
@@ -56,13 +57,15 @@ namespace Palmfolk.Views
             foreach (var traveler in frame.Travelers)
                 for (int member = 0; member < (traveler.Kind == TravelerKind.Group ? 3 : 1); member++)
                 {
-                    if (usedTraveler == travelers.Count) travelers.Add(Actor("Traveler " + usedTraveler));
-                    var actor = travelers[usedTraveler++]; actor.gameObject.SetActive(true);
+                    if (usedTraveler == travelers.Count) { travelers.Add(Actor("Traveler " + usedTraveler)); travelerCarts.Add(Cart("Traveler cart " + usedTraveler)); }
+                    int index = usedTraveler++; var actor = travelers[index]; actor.gameObject.SetActive(true);
                     Vec3 position = traveler.Position + new Vec3(traveler.Kind == TravelerKind.Group ? (member - 1) * 0.006 : 0, 0, 0);
                     actor.localPosition = PalmfolkView.V(position);
                     var rig = actor.GetComponent<TravelerRig>(); rig.ReducedMotion = ReducedMotion; rig.PresentTraveler(position, frame.Tick, traveler.Arrived, frame.Pose, frame.Bridges);
+                    travelerCarts[index].gameObject.SetActive(traveler.Kind == TravelerKind.Cart);
+                    travelerCarts[index].localPosition = actor.localPosition + actor.localRotation * Vector3.back * 0.018f; travelerCarts[index].localRotation = actor.localRotation;
                 }
-            for (int i = usedTraveler; i < travelers.Count; i++) travelers[i].gameObject.SetActive(false);
+            for (int i = usedTraveler; i < travelers.Count; i++) { travelers[i].gameObject.SetActive(false); travelerCarts[i].gameObject.SetActive(false); }
             if (spec.Ledge != null) ledge.localScale = new Vector3((float)frame.LedgeWidth, 0.002f, 0.01f);
             live.Begin(); preview.Begin(); scaffold.Begin(); ghost.Begin(); refusals.Begin(); refusedScaffold.Begin(); capacityGlyph.Begin(); drawn.Clear(); PreviewCapacity = null;
             foreach (var pool in bridges.Values) pool.Begin();
@@ -153,7 +156,7 @@ namespace Palmfolk.Views
                 rock.localPosition = PalmfolkView.V((obstacle.Min + obstacle.Max) / 2); rock.localScale = PalmfolkView.V(obstacle.Max - obstacle.Min);
             }
             pip = Actor("Pip"); bram = Actor("Bram"); pipRig = pip.GetComponent<TravelerRig>(); bramRig = bram.GetComponent<TravelerRig>(); bramRig.Role = TravelerRole.Bram;
-            cart = PalmfolkView.Primitive(PrimitiveType.Cube, "Lantern cart", wood, valley); cart.localScale = new Vector3(0.02f, 0.014f, 0.016f);
+            cart = Cart("Lantern cart");
             capacity = new GameObject("Capacity icon").transform; capacity.SetParent(valley, false); capacityGlyph = new PalmfolkView.ShapePool(capacity, "Capacity glyph");
             ledge = PalmfolkView.Primitive(PrimitiveType.Cube, "Widening ledge", wood, valley);
             ledge.gameObject.SetActive(spec.Ledge != null);
@@ -183,6 +186,14 @@ namespace Palmfolk.Views
         private Transform Actor(string name)
         {
             var root = new GameObject(name).transform; root.SetParent(valley, false); root.gameObject.AddComponent<TravelerRig>().Initialize(skin); return root;
+        }
+        private Transform Cart(string name)
+        {
+            var root = new GameObject(name).transform; root.SetParent(valley, false);
+            var body = PalmfolkView.Primitive(PrimitiveType.Cube, "Cart body", wood, root); body.localPosition = Vector3.up * 0.01f; body.localScale = new Vector3(0.02f, 0.012f, 0.016f);
+            for (int side = -1; side <= 1; side += 2)
+            { var wheel = PalmfolkView.Primitive(PrimitiveType.Cylinder, "Cart wheel", cord, root); wheel.localPosition = new Vector3(side * 0.011f, 0.005f, 0); wheel.localScale = new Vector3(0.008f, 0.001f, 0.008f); wheel.localRotation = Quaternion.Euler(0, 0, 90); }
+            return root;
         }
         private void Draw(PalmfolkView.ShapePool pool, Route route, bool built, Material material, float visibility = 1, bool markTip = true, int? tip = null) => PalmfolkView.DrawGeometry(pool, route, built, material, wood, cord, visibility, markTip, tip);
         private void DrawTree(PalmfolkView.ShapePool pool, CurveTree tree, bool built, Material material, float visibility = 1)

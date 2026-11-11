@@ -36,7 +36,8 @@ not infer D3 connectivity or invent an undisclosed valley graph. Keep a diagnost
 shared Developer path (Sam's stats ownership). It writes no files and creates no recorder. Platform code
 calls `Show` with measured fps, total/disruptive per-puzzle counts, puzzle ID, actual gaze source, mode and
 stamped version. Nulls explicitly display “unmeasured”/“unbound”. The release frame has x-ray but no stats
-type. Actual FPS/labels and per-puzzle reset need Dario's platform/director binding.
+type. `LiveStatsBinding` now measures actual rendered time and observes the exact forwarded simulation
+ticks with Dario's `ValleyDropouts`, preserving other tick wrappers and writing no recording/files.
 
 `TravelerRig` supplies original 3 cm greybox bodies, arms, feet and contact-shadow shapes. Its nine
 poses cover wave, hesitation, testing a plank, crouch/grip, hammering, celebration, looking back,
@@ -63,17 +64,19 @@ for between-tick route interpolation; frozen/scaffold data is never interpolated
 
 `StartupView`, `NightView` and `XRayView` also implement the valley port. X-ray now uses the actual ten-edge
 graph and active anchor zones. Night reads the director's solved count and all bridges, restores light in
-the finale, and keeps visitor windows at the explicitly supplied count (D8 not yet published). Audio accepts
-either presentation type but still needs the corresponding tick's position when consuming events.
+the finale, and reads D8's actual saved window bits. `LivingValleyView` draws visitor/resident figures
+and bridge marks. Audio accepts either presentation type; catch-up events currently share the latest pose.
 
 Platform binding: after fixed ticks, construct `ValleyPresentation(game, alpha)`, consume every accumulated
 gesture/startup event, and send the frame to the valley views. Call `ValleyView.Present(frame, alpha)` for
 hand interpolation. Configure `NightView` with the content sanctuary position. Route UI commands through
-the input adapter, never a view mutation of Core. No live driver or shared scene was edited in this work.
+the input adapter, never a view mutation of Core. `GamePresentation` now supplies this live binding;
+the setup menu configures the open scene for owner review without saving it or editing platform code.
 
 The preview is geometric: Core does not expose the destination connection watcher's locked state, so no
-explicit connection-lock chime/event is fabricated. Visitor rigs, full recovery skeleton, solution hint pose,
-true single-hand Fork and headset performance/feel remain open dependencies or owner checks.
+explicit connection-lock chime/event is fabricated. The full recovery skeleton, solution hint pose and
+strict foot support cursor remain open contracts. D4's single-hand Fork is bound; natural reach/spread
+and headset performance/feel remain owner checks.
 
 D4 binding: the live and frozen scaffolds use full curve trees, refused branch indices address the correct
 curve/segment, and rejected scaffold has a short removal. Persisted shared trunks draw once, including

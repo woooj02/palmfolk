@@ -53,7 +53,9 @@ vectors; destinations retain their rim anchors. Separate branch destinations rem
 Even including the 4 cm elevation changes, straight anchor distances stay within 12–15 cm.
 Raised lookout anchors allow a Stargazer deck at 6 cm to clear a nominal 2 cm Fork deck by
 4 cm, exceeding the walker's 3.5 cm headroom. This is a clearance budget only: the actual
-curves, crossing location, slopes, widths and obstacle bounds still need D4's validation.
+curves, crossing location, slopes and widths need owner validation. D4 checks configured obstacles, but
+other bridges are not obstacles: clearance above a Fork is not enforced. This unresolved design gap is
+recorded for H1; no new rule was invented.
 
 ## Six puzzles and five visitors
 

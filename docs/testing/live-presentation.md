@@ -12,6 +12,17 @@ After reviewing the Slice 0 scene/configuration in Sam's Unity project:
 4. Review and save the scene/configuration through the owner setup workflow. Do not commit the
    unreviewed Unity/Meta defaults listed in `unity-setup.md`.
 
+For a developer build, enable `PALMFOLK_DEVELOPMENT`, then run **Palmfolk > Presentation > 2. Add
+Measured Developer Stats** and review/save the scene. `LiveStatsBinding` wraps the existing tick target
+and forwards it unchanged, so a consented recorder can remain attached. It uses Dario's exact T19
+per-puzzle counters and actual rendered time, displays the runner's gaze source/running mode/build
+version, and writes no files. FPS is unmeasured until a one-second window has elapsed. Text refreshes
+at most four times a second. Stats and their tests are absent from the release assembly set.
+
+These labels describe measurements from the current running process. A synthetic 50 fps test window
+verifies arithmetic only; it is not a hardware result. D11's Core timings do not cover these new views,
+audio, interaction or overlay costs. Profile the full build on the actual headset.
+
 The child views are created at runtime. Keep the presentation root at unit scale and outside Valley
 Origin: these views already apply Core's world pose. Planting/anchor-search invitations are placed
 once 40 cm ahead and 15 cm down from the initial head pose; the camera is never moved. After planting,

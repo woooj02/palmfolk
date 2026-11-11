@@ -21,5 +21,7 @@ up as night advances, settles in the finale and pauses with the game. It impleme
 This is a placeholder arrangement to listen/review, not a finished music or headset-audio claim.
 Music owns a child source/caption root; it never moves the platform's shared scene root or camera.
 
-Unbound: exact connection-lock event, visitor arrivals and real scene integration. Sound-alone completion recognition, caption legibility and spatial placement
+The live scene binds contact audio, visitor arrival/settling and music. Visitor events use the visitor or
+sanctuary location; several catch-up ticks share the latest frame position, an explicit timing limit.
+Unbound: exact connection-lock event. Sound-alone completion recognition, caption legibility and spatial placement
 need the owner to listen/inspect in editor and on Quest 2. Original synthesized placeholders still need P11 polish.

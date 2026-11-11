@@ -8,6 +8,7 @@ namespace Palmfolk.Developer
     public sealed class StatsPanel : MonoBehaviour
     {
         private TextMesh text;
+        public string Display => text == null ? "" : text.text;
         private void Ensure()
         {
             if (text != null) return;

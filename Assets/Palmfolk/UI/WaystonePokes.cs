@@ -20,7 +20,7 @@ namespace Palmfolk.UI
         private void OnApplicationFocus(bool value) => focused = value;
         private void OnDisable() { Detach(); foreach (var finger in fingers) if (finger != null) finger.enabled = false; }
         private void Attach() { if (runner == null) return; runner.Presented -= Refresh; runner.Presented += Refresh; }
-        private void Detach() { if (runner != null) runner.Presented -= Refresh; }
+        private void Detach() { if (runner != null) runner.Presented -= Refresh; foreach (var finger in fingers) if (finger != null) finger.enabled = false; }
         public void Refresh(PalmfolkRunner source)
         {
             for (int i = 0; i < 10; i++)

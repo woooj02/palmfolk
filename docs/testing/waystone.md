@@ -8,7 +8,7 @@ cover every required action. Navigation changes only the displayed page; game ac
 Place the post near the valley edge and call `LayoutForViewer(headPosition)` as the viewing distance or
 world scale changes. With an unskewed uniform parent it faces the viewer and computes planar bounds
 for exactly 6° targets/1° gaps; four span 27°. The 40 cm initial layout is only a placeholder before binding.
-Bind all-finger/either-hand ISDK poke interactors in D6. The surface itself accepts any qualifying pointer.
+The live ten-tip ISDK binding is described below. The surface accepts any qualifying pointer.
 The selection callback cannot infer handedness from an unbound pointer ID, so it reports unknown rather
 than inventing one; the platform can call `RequestSlot` with the real hand from its pointer registry.
 
@@ -16,8 +16,8 @@ D10's resting look-and-pinch can call the same request method with the actual se
 palm-facing-headset guard. No gaze/pinch source is invented here. After accepting a request, the input
 adapter queues it for a fixed tick and calls `Reflect` with **actual** settings/state. The UI never assumes
 a request succeeded. Stillness has exactly three steps; world-scale requests cycle the published D2 range
-in 0.25 increments (starting UI step, subject to owner fit testing). Back-end restart, bell, settings/save,
-mode and quit handling still need the published Core/platform contract. Requests are not puzzle solutions.
+in 0.25 increments (starting UI step, subject to owner fit testing). The runner adapter below handles
+restart, bell, saved settings, mode and quit. Requests are not puzzle solutions.
 
 ## Live binding (Nov 11)
 

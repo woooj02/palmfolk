@@ -2,13 +2,24 @@
 
 Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity editor, simulator, Quest 2.
 
-Latest verification, Nov 11 after D11 and the waystone binding: **headless** 228 developer / 214 release
-tests; Python 3.12 source checks. **Unity editor**: compile exit 0/no `error CS`, 263 release tests pass.
-The developer gate and manifest regressions will be rerun with the remaining presentation integration.
+Latest verification, Nov 11 after D11 and the live bindings: **headless** 228 developer / 214 release
+tests; Python 3.12 source checks (93 C# files); 28 manifest regressions. **Unity editor**: compile exit 0/no
+`error CS`, 283 developer and 264 release Edit Mode tests pass. Stats are present only in the developer
+configuration. One release-gate attempt exited with native code -1073741819; the full retry exited 0.
 No simulator, Quest 2, Quest 3/3S,
 APK, installed build or M1 sign-off is claimed. Individual results below are historical by item.
 
 ## Done
+
+- **S3 measured overlay and integration cleanup, Nov 11 — Unity editor.** Added `LiveStatsBinding` in
+  Sam's shared Developer/Stats subfolder. It forwards the existing tick target and uses Dario's exact T19
+  per-puzzle dropout/disruption counters independently of any recorder. FPS comes from rendered time;
+  gaze source, running mode/fallback and build version come from the runner/application. It writes no files.
+  Tests force a real owning-hand dropout, check the overlay count, synthetic FPS arithmetic, detachment
+  before startup and restoration of the original tick target. Release compiles out stats and their tests.
+  Also fixed detached poke tips, dimming re-enable, and cart bodies/wheels on actual cart travelers.
+  Full checks: headless 228 / 214, source/28 manifest checks, Unity compile and 283 / 264 Edit Mode tests.
+  The synthetic FPS number is not a device measurement; full-scene headset profiling remains open.
 
 - **S2/S5/S8/S9 live composition, Nov 11 — Unity editor.** Added the scene setup menu and
   `GamePresentation` bound to runner Opened/Ticked/Presented; actual saved settings control the views,
@@ -147,15 +158,15 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
 
 ## In progress
 
-- Source implementations against the current published contracts are prepared. Next integration needs
-  measured developer stats and release preparation, then owner-run M1 and quality review below.
+- Current runtime bindings are implemented and editor-checked. Release preparation and owner-run
+  M1/quality review remain below; greybox art/audio and missing presentation signals are not signed off.
   Dario's D6–D11 changes are integrated; the previous command/save/visitor/gaze dependency blocks are cleared.
 
 ## Blocked
 
 - S2 full valley integration is implemented. The contracts expose a route, not a full
   recovery skeleton or puzzle-specific hint pose; these need a published input/solution binding, not guessed joints.
-- S3 full valley graph is implemented. Measured stats binding is next against the available D6/D10 APIs.
+- S3 measured labels and the full valley graph are bound. Device performance and readability remain owner checks.
 - S4 commands/settings/mode/gaze and ten poke tips are bound. A full session with either hand alone,
   including real ISDK poke and system-menu rejection, remains an owner headset check.
 - S5 still lacks an explicit connection-lock event; no chime is invented from geometric proximity.
@@ -181,8 +192,10 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
   It deliberately refuses uncommitted project assets or mismatched release/developer defines. Final
   APK manifest and offline Table-mode anchor behavior remain unverified until that owner pass.
 - Owner chose Nov 13–15, 2026 as the target launch window and Aryan Neopane as the sole display credit.
-  Submission draft work is deferred at the owner's request. A privacy page is being prepared; public
-  support contact is requested. Competition invite/second-account access, real footage/screenshots and P9 assets remain pending.
+  Submission draft work is deferred at the owner's request. The public privacy page is published at
+  https://palmfolk-privacy.curiousnote2.chatgpt.site with contact@keepsrunning.com. The tracked policy and
+  publication record are being merged separately. Competition invite/second-account access, real footage/
+  screenshots and P9 assets remain pending.
 - The older build plan reserves pushing for the owner and gates later work on M1. The current owner
   instruction explicitly authorizes item-by-item pushes and source preparation; no headset gate or
   M1 sign-off is treated as passed by that authorization.

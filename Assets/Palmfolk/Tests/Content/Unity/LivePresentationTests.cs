@@ -13,6 +13,23 @@ namespace Palmfolk.Tests.Content
 {
     public class LivePresentationTests
     {
+        [Test] public void MerchantsCrossingTravelerHasACartAndWheels()
+        {
+            var game = new ValleySimulation(ChapterOne.Greybox()); var player = new TestPlayer();
+            Assert.That(player.RunUntil(game, () => player.Count(GameEventKind.VisitorSettled) == 1, 60000), Is.True);
+            player.Step(game, 1, InputCommand.RingBell);
+            Assert.That(player.RunUntil(game, () => game.VisitorIndex == 1 && game.Travelers.Count > 0, 40000), Is.True);
+            var root = new GameObject("Cart crossing view");
+            try
+            {
+                var view = root.AddComponent<ValleyView>(); view.Present(new ValleyPresentation(game, 1));
+                var cart = view.ValleyRoot.Find("Traveler cart 0"); Assert.That(cart.gameObject.activeSelf, Is.True);
+                Assert.That(cart.GetComponentsInChildren<Renderer>().Length, Is.EqualTo(3), "body and two wheels");
+                Assert.That(player.RunUntil(game, () => player.Count(GameEventKind.VisitorSettled) == 2), Is.True);
+                view.Present(new ValleyPresentation(game, 1)); Assert.That(cart.gameObject.activeSelf, Is.False);
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
         [Test] public void AllVisitorWindowsResidentsAndMarksComeFromTheReloadedSave()
         {
             var spec = ChapterOne.Greybox(); var game = new ValleySimulation(spec); var player = new TestPlayer();
