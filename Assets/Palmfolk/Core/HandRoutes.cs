@@ -101,11 +101,17 @@ namespace Palmfolk.Core
         // Palm normal facing up, or null when the palm can't carry anything.
         private static Vec3? UpNormal(HandSample hand)
         {
+            var normal = PalmNormal(hand);
+            return normal.HasValue && Vec3.Dot(normal.Value, Vec3.Up) > 0 ? normal : null;
+        }
+
+        // The direction the palm faces (out of the palm), or null when the palm joints aren't usable.
+        public static Vec3? PalmNormal(HandSample hand)
+        {
             var polygon = PalmPolygon(hand);
             if (polygon.Length == 0) return null;
             Vec3 normal = Vec3.Cross(polygon[1] - polygon[0], polygon[4] - polygon[0]).Normalized;
-            if (hand.Side == HandSide.Right) normal = normal * -1;
-            return Vec3.Dot(normal, Vec3.Up) > 0 ? normal : (Vec3?)null;
+            return hand.Side == HandSide.Right ? normal * -1 : normal;
         }
 
         // Fingers (index to little) grouped into surfaces: neighbours with a gap under 1 cm merge (Definitions).

@@ -14,6 +14,13 @@ namespace Palmfolk.Platform
         void Erase(string id);
     }
 
+    // D10 (GZ3): the gaze ray this frame in world space, or null when there is none. Source says whether it is
+    // eye-tracked or synthesized from the head pose.
+    public interface IGazeReader
+    {
+        GazeSample Read();
+    }
+
     // D9: passthrough (MR1, MR5). Available: supported, permitted and not failed.
     public interface IPassthrough
     {

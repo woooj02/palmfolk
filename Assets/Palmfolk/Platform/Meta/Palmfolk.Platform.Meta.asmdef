@@ -1,5 +1,5 @@
 {
   "name": "Palmfolk.Platform.Meta",
   "rootNamespace": "Palmfolk.Platform.Meta",
-  "references": ["Palmfolk.Core", "Palmfolk.Platform", "Oculus.VR"]
+  "references": ["Palmfolk.Core", "Palmfolk.Platform", "Oculus.VR", "Oculus.Interaction"]
 }

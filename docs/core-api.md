@@ -125,6 +125,29 @@ Enable Table Mode**) supplies them from the Meta XR Core SDK: local `OVRSpatialA
 shows. The menu also sets passthrough to Supported (not Required, so VR mode still runs) and turns anchor
 support on. Without passthrough the runner runs Table saves as VR; without anchors, Table mode plants every launch.
 
+### Gaze (D10: GZ1 to GZ3, E9, `Assets/Palmfolk/Core/Gaze.cs`)
+
+Gaze is never an input to the valley: it raises need signs and chooses waystone buttons, nothing else. With gaze
+off every puzzle plays tick for tick the same, and recordings don't carry it.
+
+- **GZ3.** `GazeSample(origin, direction, source)`, world space; `GazeSource` is `Head` (synthesized from the head
+  pose: Quest 2, 3 and 3S) or `Eyes`. The runner takes an `IGazeReader` (`Read()`, null for no gaze);
+  `runner.GazeSource` is what the stats panel shows. `MetaGaze` (set by `MetaTableMode`) reads the Interaction
+  SDK's `EyeGaze` when the scene has one (its `IsSyntheticPose` decides Head or Eyes), otherwise the eye camera's
+  forward as Head. The developer `CoreProbe` logs the source when it changes.
+- **GZ1.** `NeedSigns.Targets(valley, pose)`: who waits for the current bridges (the puzzle's travelers, Bram at
+  the camp in the finale, or the visitor once they are walking in) and their `NeedSign`: `Rope` (First Bridge,
+  walking visitors), `Plank` (Width, the finale, carts), `Branches` (the Fork, visitors needing two bridges from
+  one island), `Arch` (the Arch puzzle's edge, and carts that need it). None on the Board, once nothing is left to
+  build, and while travelers cross. `LookWatcher`: 300 ms of looking raises the sign, 200 ms away puts it down,
+  and a target that goes away puts it down at once. Head gaze hits within 3 degrees even for small targets.
+  `runner.NeedSignChanged` gets the target (null: put down); `runner.Looks.Shown` is the current one.
+- **GZ2 and E9.** `GazeButton(id, centre, widthDegrees)`: the waystone sets `runner.GazeButtons` (at most four in
+  a row, each at least 6 degrees with 1 degree between). `LookAndPinch`: the button under the gaze is
+  `Hovered`; a pinch of either hand (thumb and index tips under 1.5 cm, open again past 3 cm) chooses it once
+  (`runner.GazeSelected`). A pinch with the palm facing the head (within 60 degrees) is the system gesture's and
+  is never taken. `HandRoutes.PalmNormal` is the direction out of the palm.
+
 ### `ValleyPose` (`Assets/Palmfolk/Core/Valley.cs`)
 
 `Origin` (world), `Forward` (unit, level), `Right`, `Scale`, `YawRadians`, `Rotation`. Conversions both ways for
@@ -363,3 +386,7 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   `LiveInputSetup.EnableTableMode`, `AddTableMode` and `TableModeEnabled`. Changed: `PalmfolkRunner.Open(valley,
   storage)` may leave `Game` null for up to 5 s while it looks for the anchor (`Opened` fires when the game opens),
   and runs a Table save as VR when there is no passthrough. `Capture` writes the flow's mode and anchor.
+- **D10, Nov 10.** Added `Gaze.cs` (`GazeSource`, `GazeSample`, `NeedSign`, `GazeTarget`, `NeedSigns`,
+  `LookWatcher`, `GazeButton`, `LookAndPinch`); `HandRoutes.PalmNormal`; `IGazeReader`; `PalmfolkRunner.Gaze`,
+  `GazeEnabled`, `Looks`, `Pointer`, `GazeButtons`, `LastGaze`, `GazeSource`, `NeedSignChanged`, `GazeSelected`;
+  `MetaGaze` (the Meta assembly now also references `Oculus.Interaction`). Nothing removed or renamed.

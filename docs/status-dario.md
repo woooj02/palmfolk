@@ -115,9 +115,20 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   with `PALMFOLK_DEVELOPMENT`. The Meta adapters compile against SDK 207 but have not run: that needs the headset
   (below).
 
+- **D10, Nov 10.** Gaze. Looking at whoever waits for about 300 ms raises their need sign (rope, plank,
+  branches, arch), and looking away puts it down. The need comes from the puzzle or the visitor, so every puzzle
+  and all five visitors show the right one (tested over the whole valley). Look and pinch chooses waystone
+  buttons with either hand resting anywhere; a pinch with the palm toward the headset is left to the system menu
+  (E9). The game reports whether gaze is eye-tracked or head-synthesized (the developer probe logs it). Gaze never
+  reaches the simulation: a valley played with gaze on and off ends on the same tick, and building hands made no
+  waystone choice while gaze rested on a button for a whole valley. Verified headless: 223 developer-mode and 209
+  release-mode tests pass. Verified in the Unity editor (batch mode) with a scripted head gaze: 247 EditMode tests
+  pass, 264 with `PALMFOLK_DEVELOPMENT`. The eye-tracked path has not run: Meta XR Simulator isn't installed and
+  Quest 2, 3 and 3S have no eye tracking. Not verified on a headset (below).
+
 ## Next
 
-- D10, gaze.
+- D11, performance and release safety.
 
 ## Notes for later items
 
@@ -161,6 +172,11 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   Setup), and MR4's room dimming (passthrough brightness, with Sam's views). The valley is placed once from the
   anchor; if the headset recentres mid-session the valley doesn't follow the anchor yet. Tell me if the relaunch
   test shows drift.
+- For Sam (D10): bind need signs to `runner.NeedSignChanged` (null puts the sign down) and draw the sign by shape
+  and motion (A7). For look and pinch, give the waystone's buttons through `runner.GazeButtons` (their centres in
+  world space, and their width in degrees from the head) and act on `runner.GazeSelected`; draw `runner.Pointer.Hovered`.
+  A settings toggle for gaze can set `runner.GazeEnabled`. The Interaction SDK's gaze building block adds an
+  `EyeGaze` to the scene; without one, head direction is used.
 - Defaults to check on the headset (H2): reference hand length 18 cm, scale clamp 0.75 to 1.3, palm half
   thickness 1.5 cm, and whether a 20 degree tilt limit is right on a lap.
 
@@ -198,6 +214,12 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
      bridges. Switch back: the room shows again.
   The views for "looking for your valley" and Pip's wave are Sam's: `runner.WaitingForAnchor`,
   `runner.Flow.FindProgress` and `runner.Flow.Search == Lost`.
+
+- D10's headset check (slice 13) needs Sam's need-sign views and waystone gaze buttons, then the owner (Quest 2):
+  look at the waiting traveler for a moment (the sign comes up), look away (it goes down); choose each waystone
+  button by looking and pinching with the hand resting on the table, left then right; look down at Pip on a palm-up
+  hand and pinch (the system menu may open, but the game must not choose anything). `adb logcat -s Unity` shows
+  `Palmfolk gaze source: Head`.
 
 ## Questions for the owner
 

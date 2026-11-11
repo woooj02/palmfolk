@@ -101,10 +101,23 @@ namespace Palmfolk.Platform
         // it is Lost the game opens in planting and Pip waves to replant.
         public ModeFlow Flow { get; private set; }
         public bool WaitingForAnchor => Game == null && waitingValley != null;
+        // D10 (GZ1 to GZ3). Gaze never reaches the game: it raises need signs and chooses waystone buttons only, so
+        // with gaze off (GazeEnabled false, or no reader) every puzzle plays the same. The waystone gives its
+        // buttons through GazeButtons and gets look-and-pinch choices through GazeSelected.
+        public IGazeReader Gaze { get; set; }
+        public bool GazeEnabled { get; set; } = true;
+        public LookWatcher Looks { get; } = new LookWatcher();
+        public LookAndPinch Pointer { get; } = new LookAndPinch();
+        public Func<IReadOnlyList<GazeButton>> GazeButtons { get; set; }
+        public GazeSample LastGaze { get; private set; }
+        public GazeSource GazeSource => LastGaze?.Source ?? GazeSource.None;
 
         public event Action<PalmfolkRunner> Opened;
         // The running mode changed (fallback, or the waystone's choice).
         public event Action<PalmfolkRunner> ModeChanged;
+        // GZ1: the sign held up (null: put down). GZ2: a waystone button chosen by look and pinch.
+        public event Action<GazeTarget> NeedSignChanged;
+        public event Action<string> GazeSelected;
         public event Action<IReadOnlyList<GameEvent>> Ticked;
         public event Action<PalmfolkRunner> Presented;
 
@@ -249,10 +262,21 @@ namespace Palmfolk.Platform
                     e.Kind == GameEventKind.VisitorCalled || e.Kind == GameEventKind.VisitorSettled;
             foreach (var e in Clock.Events) if (e.Kind == GameEventKind.Planted) AnchorHere();
             Place();
+            Look(Math.Min(Math.Max(0, renderedSeconds), MaximumFrameSeconds));
             if (Clock.Events.Count > 0) Ticked?.Invoke(Clock.Events);
             Presented?.Invoke(this);
             if (save) SaveNow();
             return ticks;
+        }
+
+        private void Look(double seconds)
+        {
+            var gaze = GazeEnabled ? Gaze?.Read() : null; LastGaze = gaze;
+            var valley = Game.Valley;
+            var targets = GazeEnabled && valley != null && Game.Stage == ValleyStage.Playing && !Game.IsPaused ? NeedSigns.Targets(valley, Game.Pose) : Array.Empty<GazeTarget>();
+            if (Looks.Step(seconds, gaze, targets)) NeedSignChanged?.Invoke(Looks.Shown);
+            var chosen = Pointer.Step(gaze, Source.Left, Source.Right, GazeEnabled ? GazeButtons?.Invoke() : null);
+            if (chosen != null) GazeSelected?.Invoke(chosen);
         }
 
         // The valley root follows the planted pose (valley origin, facing and scale). Before the first planting it

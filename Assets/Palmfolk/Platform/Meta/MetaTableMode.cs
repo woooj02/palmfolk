@@ -5,9 +5,9 @@ using UnityEngine;
 
 namespace Palmfolk.Platform.Meta
 {
-    // D9: the Meta XR Core SDK behind the runner's table-mode interfaces. Add MetaTableMode next to the runner
-    // (Palmfolk > Platform > 3. Enable Table Mode); it hands the runner passthrough and anchors in Awake, before the
-    // runner opens the game in Start.
+    // D9 and D10: the Meta XR SDK behind the runner's interfaces. Add MetaTableMode next to the runner
+    // (Palmfolk > Platform > 3. Enable Table Mode); it hands the runner passthrough, anchors and gaze in Awake,
+    // before the runner opens the game in Start.
     [DefaultExecutionOrder(-100)]
     public sealed class MetaTableMode : MonoBehaviour
     {
@@ -15,6 +15,7 @@ namespace Palmfolk.Platform.Meta
 
         public MetaPassthrough Passthrough { get; private set; }
         public MetaSpatialAnchors Anchors { get; private set; }
+        public MetaGaze Gaze { get; private set; }
 
         private void Awake()
         {
@@ -29,7 +30,8 @@ namespace Palmfolk.Platform.Meta
             var eye = rig != null && rig.centerEyeAnchor != null ? rig.centerEyeAnchor.GetComponent<Camera>() : Camera.main;
             Passthrough = new MetaPassthrough(layer, eye);
             Anchors = new MetaSpatialAnchors();
-            runner.Passthrough = Passthrough; runner.Anchors = Anchors;
+            Gaze = new MetaGaze(FindAnyObjectByType<Oculus.Interaction.Input.EyeGaze>(), eye != null ? eye.transform : null);
+            runner.Passthrough = Passthrough; runner.Anchors = Anchors; runner.Gaze = Gaze;
         }
 
         private void OnDestroy() => Anchors?.Release();
@@ -62,6 +64,24 @@ namespace Palmfolk.Platform.Meta
             camera.clearFlags = Visible ? CameraClearFlags.SolidColor : flags;
             camera.backgroundColor = Visible ? new Color(0, 0, 0, 0) : background;
         }
+    }
+
+    // GZ3: the Interaction SDK's EyeGaze when the scene has one (its pose says whether it is eye-tracked or
+    // synthesized from the camera), otherwise the head camera's forward, reported as Head.
+    public sealed class MetaGaze : IGazeReader
+    {
+        private readonly Oculus.Interaction.Input.EyeGaze eye;
+        private readonly Transform head;
+        public MetaGaze(Oculus.Interaction.Input.EyeGaze eye, Transform head) { this.eye = eye; this.head = head; }
+
+        public GazeSample Read()
+        {
+            if (eye != null && eye.isActiveAndEnabled && eye.TryGetWorldPose(out var pose))
+                return new GazeSample(V(pose.position), V(pose.forward), eye.IsSyntheticPose ? GazeSource.Head : GazeSource.Eyes);
+            return head == null ? null : new GazeSample(V(head.position), V(head.forward), GazeSource.Head);
+        }
+
+        private static Vec3 V(Vector3 v) => new Vec3(v.x, v.y, v.z);
     }
 
     // Local spatial anchors (OVRSpatialAnchor): saved on the headset, found by UUID. The anchor marks the valley

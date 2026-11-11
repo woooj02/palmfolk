@@ -35,8 +35,11 @@ namespace Palmfolk.Platform.Developer
             foreach (var e in events) { Debug.Log($"Palmfolk event: {e.Kind} at tick {e.Tick}"); Logged++; }
         }
 
+        private GazeSource shownSource = (GazeSource)(-1);
         private void Draw(PalmfolkRunner r)
         {
+            // GZ3: which gaze source is active, logged when it changes.
+            if (r.GazeSource != shownSource) { shownSource = r.GazeSource; Debug.Log($"Palmfolk gaze source: {shownSource}"); }
             if (origin == null)
             {
                 origin = Marker(PrimitiveType.Cylinder, "Probe valley origin", new Color(0.3f, 0.8f, 0.5f), transform);
