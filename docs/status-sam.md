@@ -2,13 +2,23 @@
 
 Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity editor, simulator, Quest 2.
 
-Latest verification, Nov 10 after D4/D5: **headless** 164 developer / 156 release tests; Python 3.12 source
-checks; 28 manifest regressions. **Unity editor**: compile exit 0/no `error CS`, 175 release tests pass.
-The developer gate last passed before this integration and will be checked with the D5 menu binding.
+Latest verification, Nov 11 after D11 and the waystone binding: **headless** 228 developer / 214 release
+tests; Python 3.12 source checks. **Unity editor**: compile exit 0/no `error CS`, 259 release tests pass.
+The developer gate and manifest regressions will be rerun with the remaining presentation integration.
 No simulator, Quest 2, Quest 3/3S,
 APK, installed build or M1 sign-off is claimed. Individual results below are historical by item.
 
 ## Done
+
+- **S4 runner binding, Nov 11 — Unity editor.** `WaystoneBinding` queues pause/resume/restart/replant/bell,
+  applies and saves every setting, chooses mode through D9 (reflecting real VR fallback), and saves before quit.
+  It supplies D10's four world-space gaze buttons, dispatches selections and draws the hovered outline.
+  `WaystonePokes` maps ten actual ISDK poke interactors to either hand's usable tips/radii and disables them
+  on invalid tracking, controller use or focus loss. Editor tests cover command timing, settings/save
+  round-trip, mode mapping/fallback, quit callback, gaze centres/detach and both five-tip mappings/loss.
+  Headless 228 / 214, source checks, Unity compile and 259 release Edit Mode tests pass. Live poke and a
+  full left-only/right-only session still need the owner. Format-2 replay currently lacks dynamic settings/
+  mode changes: Dario needs to publish a recorder contract before those sessions can claim identical replay.
 
 - **S7 visitor content, Nov 11 — headless and Unity editor.** Updated from main through D11.
   The shipped `ChapterOne` now includes all five frozen visitor mappings, using D8's public types.

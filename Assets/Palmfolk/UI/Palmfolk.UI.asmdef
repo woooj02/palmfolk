@@ -1,4 +1,4 @@
 {
   "name": "Palmfolk.UI",
-  "references": ["Palmfolk.Core", "Palmfolk.Views", "Oculus.Interaction"]
+  "references": ["Palmfolk.Core", "Palmfolk.Views", "Palmfolk.Platform", "Oculus.Interaction"]
 }

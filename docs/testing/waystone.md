@@ -19,6 +19,24 @@ a request succeeded. Stillness has exactly three steps; world-scale requests cyc
 in 0.25 increments (starting UI step, subject to owner fit testing). Back-end restart, bell, settings/save,
 mode and quit handling still need the published Core/platform contract. Requests are not puzzle solutions.
 
-Editor tests check angular geometry, left/right-labelled request parity and the unsafe pinch guard. They
-do not verify live poke, head-direction targeting, saved settings or a full hands-only session. Owner
-checks remain A1/GZ2/E9/E18, both hands alone and ten runs without accidental system-menu selections.
+## Live binding (Nov 11)
+
+`WaystoneBinding` now connects the requests to D6–D10's runner. Pause, resume, restart, replant and bell
+queue fixed-tick commands. Settings use `runner.Apply` and its save path; mode uses `ChooseMode`, reflecting
+the actual running mode even when passthrough falls back to VR. Quit saves before closing the application.
+`GazeButtons` supplies the four actual world centres and six-degree widths; `GazeSelected` selects the
+matching slot. A white outline marks `Pointer.Hovered`. D10 owns the resting-pinch/system-palm guard.
+
+`WaystonePokes` supplies ten ISDK `PokeInteractor`s from the runner's latest world-space fingertips and
+reported radii (5 mm fallback if absent). Invalid or low-confidence tips, controller use and loss of focus
+disable them. No SDK sample is imported. Poke pointer handedness remains unknown in the view's event;
+that does not affect command dispatch or either-hand availability.
+
+Editor checks cover the command queue, mode fallback, settings/save round-trip, quit callback, world gaze
+targets and all ten tip mappings/loss. They do not constitute a live poke or hands-only headset pass.
+Owner checks remain A1/GZ2/E9/E18, both hands alone and ten runs without accidental system-menu selections.
+
+Recording limitation for Dario: the current format-2 recorder snapshots initial player settings, but
+`runner.Apply` and `ChooseMode` are not tick-frame commands. Sessions that change settings/mode need a
+published recorder event contract before their replay can be claimed identical. No recorder/save types
+were changed in this binding.

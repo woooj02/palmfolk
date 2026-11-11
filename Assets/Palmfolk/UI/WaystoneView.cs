@@ -1,5 +1,6 @@
 #if UNITY_5_3_OR_NEWER
 using System;
+using System.Collections.Generic;
 using Oculus.Interaction;
 using Oculus.Interaction.Surfaces;
 using Palmfolk.Core;
@@ -28,6 +29,9 @@ namespace Palmfolk.UI
         private readonly CircleSurface[] surfaces = new CircleSurface[4];
         private readonly Vector2[] spans = new Vector2[4];
         private Material wood;
+        private Material hoverMaterial;
+        private LineRenderer hover;
+        private readonly GazeButton[] buttons = new GazeButton[4];
         private GameSettings settings = new GameSettings();
         private bool paused, reduced, captions = true, contrast, xray, table;
         public WaystonePage Page { get; private set; }
@@ -36,6 +40,26 @@ namespace Palmfolk.UI
         { settings = actual.Copy(); paused = isPaused; reduced = reducedMotion; captions = captionsOn; contrast = highContrast; xray = xrayOn; table = tableMode; Ensure(); Refresh(); }
         public void Open(WaystonePage page) { Page = page; Ensure(); Refresh(); }
         public Vector2 TargetSpan(int slot) => spans[slot];
+        public IReadOnlyList<GazeButton> GazeButtons()
+        {
+            Ensure();
+            for (int i = 0; i < 4; i++)
+            {
+                var p = targets[i].position; var world = new Vec3(p.x, p.y, p.z);
+                if (buttons[i] == null || !buttons[i].Centre.Equals(world)) buttons[i] = new GazeButton("Waystone." + i, world, 6);
+            }
+            return buttons;
+        }
+        public static int Slot(string id)
+        { for (int i = 0; i < 4; i++) if (id == "Waystone." + i) return i; return -1; }
+        public void SetHovered(string id)
+        {
+            Ensure(); int slot = Slot(id); hover.gameObject.SetActive(slot >= 0);
+            if (slot < 0) return;
+            hover.transform.localPosition = targets[slot].localPosition + Vector3.back * 0.006f;
+            float radius = (spans[slot].y - spans[slot].x) * 0.56f;
+            for (int i = 0; i <= 20; i++) { float a = i * Mathf.PI / 10; hover.SetPosition(i, new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0) * radius); }
+        }
         public void LayoutForViewer(Vector3 viewerWorld)
         {
             var forward = transform.position - viewerWorld;
@@ -94,6 +118,9 @@ namespace Palmfolk.UI
         {
             if (wood != null) return;
             wood = new Material(Shader.Find("Standard")) { color = new Color(0.45f, 0.29f, 0.15f) };
+            hoverMaterial = new Material(Resources.Load<Material>("Palmfolk/Glow")) { color = Color.white };
+            hover = new GameObject("Gaze target outline").AddComponent<LineRenderer>(); hover.transform.SetParent(transform, false);
+            hover.useWorldSpace = false; hover.sharedMaterial = hoverMaterial; hover.widthMultiplier = 0.0015f; hover.positionCount = 21; hover.gameObject.SetActive(false);
             var post = PalmfolkView.Primitive(PrimitiveType.Cube, "Waystone post", wood, transform); post.localPosition = Vector3.down * 0.04f; post.localScale = new Vector3(0.02f, 0.08f, 0.02f);
             for (int i = 0; i < 4; i++)
             {
@@ -122,7 +149,7 @@ namespace Palmfolk.UI
             }
             for (int i = 0; i < 4; i++) labels[i].text = words[i];
         }
-        private void OnDestroy() { if (wood != null) DestroyImmediate(wood); }
+        private void OnDestroy() { if (wood != null) DestroyImmediate(wood); if (hoverMaterial != null) DestroyImmediate(hoverMaterial); }
     }
 }
 #endif
