@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="How Palmfolk handles hand tracking, local saves, spatial anchors and optional developer playtest recordings.">
+<meta name="color-scheme" content="light">
+<title>Palmfolk — Privacy Policy</title>
+<style>
+*{box-sizing:border-box}html{background:#f5f1e7;color:#243a32;font-family:system-ui,-apple-system,Segoe UI,sans-serif}body{margin:0}main{max-width:780px;margin:0 auto;padding:56px 28px 70px}header{border-bottom:1px solid #bfc9bc;padding-bottom:30px;margin-bottom:34px}.brand{font-weight:750;letter-spacing:.06em;font-size:15px}h1{font-family:Georgia,serif;font-weight:500;line-height:1.08;font-size:clamp(40px,7vw,62px);margin:28px 0 20px}h2{font-size:21px;line-height:1.3;margin:32px 0 10px}p,li{font-size:17px;line-height:1.7}p{margin:10px 0}li{margin:5px 0}a{color:#235d46;text-underline-offset:3px}a:focus-visible{outline:3px solid #235d46;outline-offset:4px}.meta,footer{font-size:14px;color:#55665b}.summary{font-size:20px;max-width:35em}footer{margin-top:40px;border-top:1px solid #bfc9bc;padding-top:20px}ul{padding-left:24px}@media(max-width:480px){main{padding:32px 22px 48px}}
+</style>
+<main>
+<header><div class="brand">PALMFOLK</div><h1>Privacy policy</h1><p class="summary">Your hands shape the valley. Your game data stays on your headset.</p><p class="meta">Developer: Aryan Neopane · Last updated November 11, 2026</p></header>
+<p>This pre-release policy covers Palmfolk, a hands-only puzzle game for Meta Quest. It describes the release configuration currently being prepared. The release game and optional developer playtests handle data differently, as explained below.</p>
+<h2>Hand tracking and gaze</h2>
+<p>The game uses hand-joint positions, tracking validity, confidence and available joint radii to place the valley and make bridges. It processes these signals on the headset. Head direction, or gaze supplied by the runtime when available, raises need signs and selects menu targets. The release game does not save a history of these signals or send them to the developer.</p>
+<h2>Your local game save</h2>
+<p>Palmfolk saves puzzle progress, bridges, visitors, settings, valley placement and a local spatial-anchor identifier. These let you return to your valley. Saves are kept in the app’s storage on the headset; Palmfolk does not operate an account or cloud-save service.</p>
+<h2>Table mode and your room</h2>
+<p>Table mode uses Meta’s passthrough display and local spatial anchors. The game displays passthrough but does not read, capture or store camera images. It does not require a room scan. If a future version uses an existing scene model for optional table placement, its use and permission will be explained before that feature ships.</p>
+<h2>No advertising or developer analytics</h2>
+<p>The release game has no advertising, developer analytics, remote recording or app-operated data upload. Its release configuration excludes recording code and the Android INTERNET permission. Aryan Neopane does not sell or share game data with advertisers.</p>
+<h2>Optional developer playtests</h2>
+<p>A separate developer build can show live performance statistics without recording them. Only after a tester’s verbal agreement may recording be enabled. A playtest recording can contain hand-joint poses, validity and confidence, joint radii, calibration, game and save state, interaction commands, build version and settings. It does not include camera video or microphone audio.</p>
+<p>These recordings stay on the headset unless the developer exports them over USB for analysis. Exported playtest recordings are deleted after analysis. A tester can decline recording or ask Aryan Neopane to delete an exported recording.</p>
+<h2>Managing and deleting data</h2>
+<p>You can remove Palmfolk’s local save data through the headset’s app-storage controls. Local spatial anchors are managed by the Meta runtime; replanting replaces the game’s previous anchor. For platform-managed data or backups, use the relevant Meta account and headset controls. We do not hold a server-side copy of your release-game save.</p>
+<h2>Meta services</h2>
+<p>The headset, operating system and distribution platform may process information under their own policies. See <a href="https://www.meta.com/legal/privacy-policy/">Meta’s Privacy Policy</a> for that platform processing. This page describes Palmfolk’s handling of game data.</p>
+<h2>Contact and changes</h2>
+<p id="contact">For privacy questions or requests about an exported playtest recording, contact Aryan Neopane at <a href="mailto:contact@keepsrunning.com">contact@keepsrunning.com</a>.</p>
+<p>If the game’s data handling changes, this policy will be updated here with a new date.</p>
+<footer>This policy page adds no analytics scripts or contact forms. Its hosting provider processes the connection information needed to serve the page.</footer>
+</main>
+</html>

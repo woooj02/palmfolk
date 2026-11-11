@@ -11,6 +11,13 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
 
 ## Done
 
+- **Privacy page requested by owner, Nov 11 — published web page, not a headset result.**
+  Published https://palmfolk-privacy.curiousnote2.chatgpt.site with Aryan Neopane as developer and
+  contact@keepsrunning.com as contact. Public access/deployment, unauthenticated HTTP 200, expected
+  content and narrow browser-panel readability verified. Source/record: `testing/privacy-policy.html`
+  and `testing/privacy-publication.md`. The page is explicitly pre-release; final APK/privacy disclosures
+  remain owner verification. Submission draft was left unchanged as requested.
+
 - **S3 measured overlay and integration cleanup, Nov 11 — Unity editor.** Added `LiveStatsBinding` in
   Sam's shared Developer/Stats subfolder. It forwards the existing tick target and uses Dario's exact T19
   per-puzzle dropout/disruption counters independently of any recorder. FPS comes from rendered time;
@@ -188,13 +195,18 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
 ## Questions for the owner
 
 - Headset and target-device verification remain owner-run. No Quest 2, Quest 3/3S or simulator result yet.
-- S10: run `testing/tooling.md`'s owner APK command after the reviewed Slice 0 configuration is committed.
-  It deliberately refuses uncommitted project assets or mismatched release/developer defines. Final
-  APK manifest and offline Table-mode anchor behavior remain unverified until that owner pass.
+- **S10 APK blocker, checked Nov 11 at clean tracked revision `9168158`.** Ran
+  `powershell -ExecutionPolicy Bypass -File tools/Build-OwnerApk.ps1 -Configuration Release -TableMode`.
+  Preflight refused: "Commit the reviewed project setup or remove untracked project assets before
+  stamping a build." Sam still has the Unity/Meta defaults under Assets/Oculus, Assets/Resources,
+  Assets/XR and ProjectSettings, which the owner's rules say to leave uncommitted. They were neither
+  committed nor removed. Owner question: please review/commit the intended Slice 0 scene/configuration
+  so it can be rebased and the stamped APK built. No APK or final merged manifest is claimed.
+  Offline anchors, installation, signing/account actions and device checks remain owner-only.
 - Owner chose Nov 13–15, 2026 as the target launch window and Aryan Neopane as the sole display credit.
   Submission draft work is deferred at the owner's request. The public privacy page is published at
   https://palmfolk-privacy.curiousnote2.chatgpt.site with contact@keepsrunning.com. The tracked policy and
-  publication record are being merged separately. Competition invite/second-account access, real footage/
+  publication record are included. Competition invite/second-account access, real footage/
   screenshots and P9 assets remain pending.
 - The older build plan reserves pushing for the owner and gates later work on M1. The current owner
   instruction explicitly authorizes item-by-item pushes and source preparation; no headset gate or
