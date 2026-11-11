@@ -46,7 +46,13 @@ namespace Palmfolk.Core.Content
                 new PuzzleSpec(PuzzleKind.Finale, new[] { "S-A", "A-C", "C-Sanctuary" }, TravelerKind.Cart, "S")
             };
             return new ValleySpec(islands, edges, puzzles, measuredObstacles,
-                new LedgeSpec("S-A", "A", 0.015, 0.06, 180), "S", "Sanctuary");
+                new LedgeSpec("S-A", "A", 0.015, 0.06, 180), "S", "Sanctuary", new[] {
+                    new VisitorSpec("Gardener", TravelerKind.Walker, "A", "A-G"),
+                    new VisitorSpec("Merchant", TravelerKind.Cart, "C", "C-E"),
+                    new VisitorSpec("Twins", TravelerKind.Walker, "G", "G-G1", "G-G2"),
+                    new VisitorSpec("Stargazer", TravelerKind.Walker, "L1", "L1-L2"),
+                    new VisitorSpec("Lantern-maker", TravelerKind.Cart, "A", "A-G")
+                });
         }
 
         // Explicitly provisional H1 test obstacle, matching D3's headless scenario. Not a measured rock.

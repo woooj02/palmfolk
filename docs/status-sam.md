@@ -10,6 +10,12 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
 
 ## Done
 
+- **S7 visitor content, Nov 11 — headless and Unity editor.** Updated from main through D11.
+  The shipped `ChapterOne` now includes all five frozen visitor mappings, using D8's public types.
+  New content regressions play the chapter and help all five visitors with each hand, then reload
+  and check all five windows, resident routes and bridge marks. Headless: 228 developer / 214 release;
+  Python 3.12 source checks pass; Unity batch compile exit 0/no `error CS`. Physical reach/H1 remains unverified.
+
 - **Unity setup, Nov 10 — Unity editor (batch mode).** Imported only this worktree with the installed
   Unity 6000.0.66f2. Initial import exited 0 with no `error CS` lines. Unity-generated defaults remain
   uncommitted as required by `unity-setup.md`.

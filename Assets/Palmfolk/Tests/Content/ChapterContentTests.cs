@@ -7,6 +7,24 @@ namespace Palmfolk.Tests.Content
 {
     public class ChapterContentTests
     {
+        [TestCase(HandSide.Left)] [TestCase(HandSide.Right)]
+        public void ShippedChapterHelpsAllFiveVisitorsAndKeepsTheirWindows(HandSide side)
+        {
+            var spec = ChapterOne.Greybox(); var game = new ValleySimulation(spec);
+            var player = new TestPlayer { Side = side };
+            Assert.That(player.RunUntil(game, () => game.IsComplete), Is.True);
+            for (int i = 0; i < 5; i++)
+            {
+                if (i > 0) player.Step(game, 1, InputCommand.RingBell);
+                int helped = i + 1;
+                Assert.That(player.RunUntil(game, () => player.Count(GameEventKind.VisitorSettled) == helped, 40000), Is.True, spec.Visitors[i].Id);
+            }
+            var resumed = new ValleySimulation(spec, resume: game.Progress);
+            var view = new ValleyPresentation(resumed, 1);
+            Assert.That(view.Windows, Is.EqualTo(5)); Assert.That(view.LitWindows, Is.EqualTo(31));
+            Assert.That(view.Residents.Count, Is.EqualTo(6));
+            Assert.That(view.BridgeMarks.Values.Aggregate(0, (a, b) => a | b), Is.EqualTo(31));
+        }
         [Test] public void ForkEdgesShareOneFullSourceZone()
         {
             var valley = ChapterOne.Greybox();
