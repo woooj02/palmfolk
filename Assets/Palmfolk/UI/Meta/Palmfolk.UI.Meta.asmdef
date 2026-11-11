@@ -1,0 +1,4 @@
+{
+  "name": "Palmfolk.UI.Meta",
+  "references": ["Palmfolk.UI", "Palmfolk.Views", "Palmfolk.Platform", "Oculus.VR"]
+}

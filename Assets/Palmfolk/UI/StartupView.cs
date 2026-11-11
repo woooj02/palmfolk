@@ -9,7 +9,7 @@ namespace Palmfolk.UI
 {
     public sealed class StartupView : MonoBehaviour, IPalmfolkView, IValleyView
     {
-        private Transform startup, seed, palm, controllers;
+        private Transform startup, seed, palm, controllers, tolerance;
         private TextMesh startupText, qualityText;
         private Material wood, glow, ghost;
         private ValleyStage? previous;
@@ -30,7 +30,7 @@ namespace Palmfolk.UI
         public void Present(WorldPresentation frame)
             => PresentState(frame.Stage, frame.Tick, frame.PlantProgress, frame.PutControllersDown, frame.ShowStartupText);
         public void Present(ValleyPresentation frame)
-            => PresentState(frame.PlantingStage, frame.Tick, frame.PlantProgress, frame.PutControllersDown, frame.ShowStartupText);
+        { quality = frame.QualityPrompt; PresentState(frame.PlantingStage, frame.Tick, frame.PlantProgress, frame.PutControllersDown, frame.ShowStartupText); tolerance.gameObject.SetActive(frame.StillnessLoosened); }
         private void PresentState(ValleyStage stage, long tick, double plantProgress, bool putControllersDown, bool showStartupText)
         {
             Ensure();
@@ -83,6 +83,9 @@ namespace Palmfolk.UI
             }
             startupText = Text("Startup text", new Vector3(0, -0.095f, 0), startup);
             qualityText = Text("Tracking-quality prompt", new Vector3(0, -0.12f, 0), transform);
+            tolerance = new GameObject("Loosened stillness icon").transform; tolerance.SetParent(transform, false); tolerance.localPosition = new Vector3(0.075f, -0.10f, 0);
+            for (int i = 0; i < 3; i++) Part(tolerance, PrimitiveType.Cube, "Relaxed stillness bar", new Vector3((i - 1) * 0.006f, 0, 0), new Vector3(0.003f, 0.014f, 0.002f), glow);
+            tolerance.gameObject.SetActive(false);
         }
         private static Transform Part(Transform parent, PrimitiveType type, string name, Vector3 position, Vector3 size, Material material)
         { var p = PalmfolkView.Primitive(type, name, material, parent); p.localPosition = position; p.localScale = size; return p; }

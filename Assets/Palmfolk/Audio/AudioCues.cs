@@ -20,6 +20,8 @@ namespace Palmfolk.Audio
                 case GameEventKind.BridgeBaked: cue = Cue.BuildDone; return true;
                 case GameEventKind.Refused: cue = Cue.Refusal; return true;
                 case GameEventKind.BramFinished: cue = Cue.Lantern; return true;
+                case GameEventKind.VisitorArrived: cue = Cue.VisitorArrival; return true;
+                case GameEventKind.VisitorSettled: cue = Cue.Lantern; return true;
                 default: cue = default; return false;
             }
         }
@@ -60,7 +62,18 @@ namespace Palmfolk.Audio
         public void Consume(IReadOnlyList<GameEvent> events, WorldPresentation frame)
             => Consume(events, frame?.Pose, frame == null ? Vec3.Zero : frame.Pip);
         public void Consume(IReadOnlyList<GameEvent> events, ValleyPresentation frame)
-            => Consume(events, frame?.Pose, frame == null ? Vec3.Zero : frame.Pip);
+        {
+            if (frame?.Pose == null) return;
+            foreach (var e in events)
+                if (CueCatalog.TryMap(e.Kind, out var cue))
+                {
+                    var position = frame.Pip;
+                    if (e.Kind == GameEventKind.VisitorArrived)
+                        position = frame.VisitorFigure?.Position ?? frame.Valley.Island(frame.Visitor?.From ?? frame.Valley.Sanctuary).Top;
+                    if (e.Kind == GameEventKind.VisitorSettled || e.Kind == GameEventKind.BramFinished) position = frame.Valley.Island(frame.Valley.Sanctuary).Top;
+                    Play(cue, frame.Pose.ToWorld(position));
+                }
+        }
         private void Consume(IReadOnlyList<GameEvent> events, ValleyPose pose, Vec3 pip)
         {
             if (pose == null) return;

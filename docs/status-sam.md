@@ -3,12 +3,22 @@
 Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity editor, simulator, Quest 2.
 
 Latest verification, Nov 11 after D11 and the waystone binding: **headless** 228 developer / 214 release
-tests; Python 3.12 source checks. **Unity editor**: compile exit 0/no `error CS`, 259 release tests pass.
+tests; Python 3.12 source checks. **Unity editor**: compile exit 0/no `error CS`, 263 release tests pass.
 The developer gate and manifest regressions will be rerun with the remaining presentation integration.
 No simulator, Quest 2, Quest 3/3S,
 APK, installed build or M1 sign-off is claimed. Individual results below are historical by item.
 
 ## Done
+
+- **S2/S5/S8/S9 live composition, Nov 11 — Unity editor.** Added the scene setup menu and
+  `GamePresentation` bound to runner Opened/Ticked/Presented; actual saved settings control the views,
+  x-ray, captions and music. D8 supplies visitor/resident figures, shape-coded bridge marks and five
+  bitmask-driven windows, including on reload. D10 supplies four distinct carved need-sign shapes.
+  Anchor search shows Pip waving and the search line; a lost anchor returns to the existing planting
+  invitation. T18's quality line/loosened-stillness icon use actual presentation flags. Arrival/settling
+  sounds use actual visitor events/locations. Table dimming now calls the SDK brightness API but remains
+  capped at zero until owner verification. Headless 228 / 214, source checks, compile and 263 release
+  Edit Mode tests pass. Setup and limits: `testing/live-presentation.md`. No shared scene/settings changed.
 
 - **S4 runner binding, Nov 11 — Unity editor.** `WaystoneBinding` queues pause/resume/restart/replant/bell,
   applies and saves every setting, chooses mode through D9 (reflecting real VR fallback), and saves before quit.
@@ -138,30 +148,28 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
 ## In progress
 
 - Source implementations against the current published contracts are prepared. Next integration needs
-  Dario's remaining platform/save/visitor contracts, then owner-run M1 and quality review below.
-  S4 is blocked on the command/save contract below.
-  D5 is now available; its menu/save binding is next before the source handoff.
+  measured developer stats and release preparation, then owner-run M1 and quality review below.
+  Dario's D6–D11 changes are integrated; the previous command/save/visitor/gaze dependency blocks are cleared.
 
 ## Blocked
 
-- D3 content types are now available; the previous S7 puzzle-data block is cleared. Visitor types still await D8.
 - S2 full valley integration is implemented. The contracts expose a route, not a full
   recovery skeleton or puzzle-specific hint pose; these need a published input/solution binding, not guessed joints.
-- S3 full valley graph is implemented. Measured stats labels still await D6/D10 runtime bindings.
-- S4 input/view is implemented (`testing/waystone.md`), but current `InputCommand` supports pause/resume/replant without full restart/mode/settings/bell/quit
-  or save-setting contract. Need Dario's published input/save adapter (D3/D5) and ISDK poke/gaze source
-  binding (D6/D10) before a full-session waystone can be verified. Do not mutate Core from a view or
-  add substitute puzzle-solving menu commands. Required row geometry remains ≤4 × ≥6° targets + ≥1° gaps.
-- S5 final binding needs explicit connection-lock/visitor events and the live scene driver. Foot-contact
-  and night-music ports are implemented. Owner must judge audio/caption quality and
+- S3 full valley graph is implemented. Measured stats binding is next against the available D6/D10 APIs.
+- S4 commands/settings/mode/gaze and ten poke tips are bound. A full session with either hand alone,
+  including real ISDK poke and system-menu rejection, remains an owner headset check.
+- S5 still lacks an explicit connection-lock event; no chime is invented from geometric proximity.
+  Foot-contact, visitor and night-music ports are bound. Owner must judge audio/caption quality and
   sound-alone build-completion recognition; procedural cues remain placeholders until polished.
 - S6 route-relative foot planting/callbacks are implemented. Surface transitions, final contact treatment/
   props and 3 cm readability still need owner editor/headset review; do not claim a live sliding-free pass.
   The view projects the displayed traveler onto a route because the presentation does not expose its
   actual support cursor. Ambiguous/self-crossing live geometry needs that cursor binding before a strict
   contact guarantee; no Core type was changed to guess it.
-- S9 counts/bridges/music use D3; visitor windows await D8. Final art and audio-quality review remain open.
-  Actual passthrough dimming stays disabled until Dario's platform integration and owner edge-visibility test.
+- S9 counts/bridges/music and D8 visitor windows are bound. Final art/audio review remains open.
+  Actual passthrough dimming stays at zero until the owner supplies a table-edge visibility limit.
+- Dynamic settings/mode changes are not represented in format-2 recordings. This needs Dario's recorder
+  contract/review; these sessions must not claim identical replay.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward); the Lookout Fork spans about 68°.
   T14 and V5 cannot be certified from coordinates. D4 geometry is integrated; H1 and owner-run natural
   spread/reach/comfort remain open.
@@ -172,8 +180,9 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
 - S10: run `testing/tooling.md`'s owner APK command after the reviewed Slice 0 configuration is committed.
   It deliberately refuses uncommitted project assets or mismatched release/developer defines. Final
   APK manifest and offline Table-mode anchor behavior remain unverified until that owner pass.
-- S12: choose target launch date, credit display names and privacy-policy URL; create the Competition
-  invite and test access with a second account. Real final-build video/screenshots and P9 assets are pending.
+- Owner chose Nov 13–15, 2026 as the target launch window and Aryan Neopane as the sole display credit.
+  Submission draft work is deferred at the owner's request. A privacy page is being prepared; public
+  support contact is requested. Competition invite/second-account access, real footage/screenshots and P9 assets remain pending.
 - The older build plan reserves pushing for the owner and gates later work on M1. The current owner
   instruction explicitly authorizes item-by-item pushes and source preparation; no headset gate or
   M1 sign-off is treated as passed by that authorization.

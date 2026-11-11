@@ -13,7 +13,8 @@ namespace Palmfolk.Views
         private Material ground, darkWindow, litWindow, lightRun;
         private readonly List<LineRenderer> bridgeLights = new List<LineRenderer>();
         private CurveTree[] bridges = Array.Empty<CurveTree>();
-        private int solved = -1, lit;
+        private int solved = -1, lit, windowBits, windowCount = 5;
+        private IReadOnlyDictionary<string, CurveTree> seenBridges;
         private bool finale;
         private float start = 1, target = 1, elapsed = 1;
         private float verifiedLimit;
@@ -54,7 +55,7 @@ namespace Palmfolk.Views
             if (solvedPuzzles < 0 || solvedPuzzles > 6 || litWindows < 0 || litWindows > 5) throw new ArgumentOutOfRangeException();
             if (solved != solvedPuzzles || finale != showFinale)
             { start = Intensity; target = showFinale ? 1 : 1 - solvedPuzzles / 6f * 0.75f; elapsed = 0; solved = solvedPuzzles; }
-            lit = litWindows; finale = showFinale;
+            lit = litWindows; windowBits = (1 << litWindows) - 1; finale = showFinale;
             if (actualBridges == null) bridges = Array.Empty<CurveTree>();
             else { bridges = new CurveTree[actualBridges.Count]; for (int i = 0; i < bridges.Length; i++) bridges[i] = actualBridges[i] ?? throw new ArgumentException("Null bridge."); }
         }
@@ -71,7 +72,13 @@ namespace Palmfolk.Views
             => Draw(frame.Pose, frame.Tick);
         public void Present(ValleyPresentation frame)
         {
-            SetState(frame.Complete ? 6 : frame.PuzzleIndex, lit, frame.Complete || frame.Stage == DirectorStage.BramCrossing, new List<CurveTree>(frame.Bridges.Values));
+            int count = 0; for (int i = 0; i < frame.Windows; i++) if ((frame.LitWindows & (1 << i)) != 0) count++;
+            bool changed = !ReferenceEquals(seenBridges, frame.Bridges);
+            if (changed) { seenBridges = frame.Bridges; bridges = new CurveTree[frame.Bridges.Count]; int index = 0; foreach (var bridge in frame.Bridges.Values) bridges[index++] = bridge; }
+            int next = frame.Complete ? 6 : frame.PuzzleIndex; bool showFinale = frame.Complete || frame.Stage == DirectorStage.BramCrossing;
+            if (solved != next || finale != showFinale)
+            { start = Intensity; target = showFinale ? 1 : 1 - next / 6f * 0.75f; elapsed = 0; solved = next; }
+            lit = count; windowBits = frame.LitWindows; windowCount = frame.Windows; finale = showFinale;
             Draw(frame.Pose, frame.Tick);
         }
         private void Draw(ValleyPose pose, long tick)
@@ -83,7 +90,8 @@ namespace Palmfolk.Views
             environment.gameObject.SetActive(!TableMode);
             ground.color = new Color(0.15f, 0.18f, 0.24f) * Intensity;
             windows.gameObject.SetActive(solved >= 5 || lit > 0);
-            for (int i = 0; i < 5; i++) windows.GetChild(i).GetComponent<Renderer>().sharedMaterial = i < lit ? litWindow : darkWindow;
+            for (int i = 0; i < 5; i++)
+            { var window = windows.GetChild(i); window.gameObject.SetActive(i < windowCount); window.GetComponent<Renderer>().sharedMaterial = (windowBits & (1 << i)) != 0 ? litWindow : darkWindow; }
             int index = 0;
             drawn.Clear();
             if (finale) foreach (var tree in bridges) foreach (var curve in tree.Curves)
