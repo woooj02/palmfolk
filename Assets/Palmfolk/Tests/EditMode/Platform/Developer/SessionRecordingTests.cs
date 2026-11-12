@@ -39,8 +39,8 @@ namespace Palmfolk.Tests
             Assert.That(probe.Logged, Is.GreaterThan(0));
             recording.Write(folder);
             var files = Directory.GetFiles(folder);
-            Assert.That(files.Count(f => f.EndsWith(".pfr2")), Is.EqualTo(1)); Assert.That(files.Count(f => f.EndsWith("-radii.txt")), Is.EqualTo(1));
-            var decoded = GameRecordingCodec.Decode(File.ReadAllBytes(files.Single(f => f.EndsWith(".pfr2"))), Application.version);
+            Assert.That(files.Count(f => f.EndsWith(".pfr3")), Is.EqualTo(1)); Assert.That(files.Count(f => f.EndsWith("-radii.txt")), Is.EqualTo(1));
+            var decoded = GameRecordingCodec.Decode(File.ReadAllBytes(files.Single(f => f.EndsWith(".pfr3"))), Application.version);
             Assert.That(decoded.Frames.Count, Is.EqualTo(runner.Game.Tick + 1));
             var replay = GameReplay.Run(decoded, TestValley.Chapter1());
             Assert.That(replay.SameDecisions && replay.SameFinalState, Is.True);

@@ -118,6 +118,8 @@ namespace Palmfolk.Platform
         public event Action<PalmfolkRunner> Opened;
         // The running mode changed (fallback, or the waystone's choice).
         public event Action<PalmfolkRunner> ModeChanged;
+        // The waystone's player settings were applied to the game (Player holds them).
+        public event Action<PalmfolkRunner> SettingsApplied;
         // GZ1: the sign held up (null: put down). GZ2: a waystone button chosen by look and pinch.
         public event Action<GazeTarget> NeedSignChanged;
         public event Action<string> GazeSelected;
@@ -222,7 +224,7 @@ namespace Palmfolk.Platform
         public void Apply(PlayerSettings player)
         {
             if (Game == null) throw new InvalidOperationException("Open a game first.");
-            Game.Apply(player); Player = player.Copy(); Place(); SaveNow();
+            Game.Apply(player); Player = player.Copy(); Place(); SettingsApplied?.Invoke(this); SaveNow();
         }
 
         public SaveData Capture()

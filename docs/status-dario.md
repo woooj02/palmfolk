@@ -143,6 +143,21 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   Verified headless: 226 developer-mode and 212 release-mode tests pass. Unity editor: 253 EditMode tests pass,
   270 with `PALMFOLK_DEVELOPMENT`. The 72 fps headroom on the Quest 2 is not measured yet (below).
 
+- **View contracts for Sam, Nov 12.** The four things Sam's status asked of Core and the recorder:
+  - E17: a `ConnectionLocked` event and flag. It turns on when the hand holds every anchor (the Board: when the
+    fingertip holds the next island), once per hold.
+  - S6: each traveler's bridge and cursor (`Support`, `SupportCursor`), so feet stay on the deck. Bram, residents
+    and the arriving visitor too, and Pip's cursor on a carrying hand.
+  - T5 and E8: the whole hand behind the recovery ghost (`GhostHand`), and a working shape for the hint hand
+    (`Hint`: which shape, and a bridge that passes the rules).
+  - Recording format 3 keeps the waystone's settings and mode changes, so those sessions replay identically.
+    Format 2 still loads.
+  Verified headless over chapter one and all five visitors: every build starts on a locked connection, travelers
+  stand on their decks, and every interaction's hint passes validation (only the Width ledge before widening has
+  none). A run with settings and mode changed mid-session replays with identical decisions and final save.
+  Headless: 234 developer-mode and 218 release-mode tests pass. Unity editor (batch mode): 268 EditMode tests
+  pass, 289 with `PALMFOLK_DEVELOPMENT`. Not seen in Sam's views or on a headset yet.
+
 ## Next
 
 - Nothing left in my items. What remains is the owner's headset checks (below) and Sam's views.
@@ -199,6 +214,11 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   `Bridges` and `BridgeMarks` are shared read-only copies: they change only when a bridge does, so comparing the
   reference tells you when to rebuild. For need signs each frame, `NeedSigns.Targets(game, pose, list)` fills your
   list without allocating.
+- For Sam (view contracts): play the connection chime and dust on `ConnectionLocked` (event, or the
+  presentation flag). Plant feet with `TravelerView.Support`/`SupportCursor` (and `BramWalk`, `PipCursor`) instead of
+  projecting. Draw the carved ghost from `GhostHand` and the moving hint hand along `Hint.Tree` in `Hint.Shape`
+  after `HintDue`. `SessionRecording` now writes `.pfr3` and picks up `PalmfolkRunner.SettingsApplied` and
+  `ModeChanged` itself; `docs/testing/waystone.md`'s recording note can go.
 - Defaults to check on the headset (H2): reference hand length 18 cm, scale clamp 0.75 to 1.3, palm half
   thickness 1.5 cm, and whether a 20 degree tilt limit is right on a lap.
 

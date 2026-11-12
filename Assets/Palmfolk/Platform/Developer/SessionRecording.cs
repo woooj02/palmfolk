@@ -30,9 +30,13 @@ namespace Palmfolk.Platform.Developer
         {
             if (runner == null) return;
             runner.Opened -= Begin; runner.Opened += Begin;
+            runner.SettingsApplied -= NoteSettings; runner.SettingsApplied += NoteSettings;
+            runner.ModeChanged -= NoteMode; runner.ModeChanged += NoteMode;
             if (runner.Game != null && Recorder == null && runner.Game.Plantings == 0 && runner.Game.Events.Count == 0) Begin(runner);
         }
-        private void Detach() { if (runner != null) runner.Opened -= Begin; }
+        private void Detach() { if (runner != null) { runner.Opened -= Begin; runner.SettingsApplied -= NoteSettings; runner.ModeChanged -= NoteMode; } }
+        private void NoteSettings(PalmfolkRunner changed) => Recorder?.NoteSettings(changed.Player);
+        private void NoteMode(PalmfolkRunner changed) { if (changed.Flow != null) Recorder?.NoteMode(changed.Flow.Running); }
 
         private void Begin(PalmfolkRunner opened)
         {
@@ -53,7 +57,7 @@ namespace Palmfolk.Platform.Developer
             if (Recorder == null || Recorder.FrameCount == 0) return;
             Directory.CreateDirectory(folder);
             string stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-            string path = Path.Combine(folder, "session-" + stamp + ".pfr2");
+            string path = Path.Combine(folder, "session-" + stamp + ".pfr3");
             File.WriteAllBytes(path, GameRecordingCodec.Encode(Recorder.Finish()));
             File.WriteAllText(Path.Combine(folder, "session-" + stamp + "-radii.txt"), RadiusLog(Recorder.Radii, runner?.Hands as XRHandsReader));
             File.WriteAllText(Path.Combine(folder, "session-" + stamp + "-dropouts.txt"), Recorder.Dropouts.Log());

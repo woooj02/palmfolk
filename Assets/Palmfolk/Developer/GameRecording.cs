@@ -30,8 +30,28 @@ namespace Palmfolk.Developer
         }
     }
 
-    // A recording of the whole game (format 2): world-space frames fed to PalmfolkGame from an opened save. Holds
-    // the live run's digest and final save so a replay proves it made the same decisions.
+    // Something the player changed between ticks, before frame Frame was stepped (Frame == frame count: after the
+    // last). Settings: the waystone's player settings, applied to the game. Mode: Table or VR, kept for the save.
+    public sealed class SessionChange
+    {
+        public int Frame { get; }
+        public PlayerSettings Settings { get; }
+        public ValleyMode? Mode { get; }
+        public SessionChange(int frame, PlayerSettings settings)
+        {
+            if (frame < 0 || settings == null) throw new ArgumentException("Invalid settings change.");
+            settings.Validate(); Frame = frame; Settings = settings.Copy();
+        }
+        public SessionChange(int frame, ValleyMode mode)
+        {
+            if (frame < 0 || !Enum.IsDefined(typeof(ValleyMode), mode)) throw new ArgumentException("Invalid mode change.");
+            Frame = frame; Mode = mode;
+        }
+    }
+
+    // A recording of the whole game (format 3): world-space frames fed to PalmfolkGame from an opened save, and the
+    // settings and mode changes made along the way. Holds the live run's digest and final save so a replay proves it
+    // made the same decisions. Format 2 recordings (no changes) still load.
     public sealed class GameRecording
     {
         public string BuildVersion { get; }
@@ -47,11 +67,14 @@ namespace Palmfolk.Developer
         public ulong Digest { get; }
         private readonly byte[] final;
         public byte[] FinalSave => (byte[])final.Clone();
+        public IReadOnlyList<SessionChange> Changes { get; }
 
-        public GameRecording(string buildVersion, string contentId, GameSettings settings, SaveData initial, ValleyPose pose, long firstTick, HandFrame[] frames, bool partial, ulong digest, byte[] finalSave)
-            : this(buildVersion, contentId, settings, SaveCodec.EncodeSave(initial ?? throw new ArgumentNullException(nameof(initial))), pose, firstTick, frames, partial, digest, finalSave) { }
+        public GameRecording(string buildVersion, string contentId, GameSettings settings, SaveData initial, ValleyPose pose, long firstTick, HandFrame[] frames, bool partial, ulong digest, byte[] finalSave,
+            SessionChange[] changes = null)
+            : this(buildVersion, contentId, settings, SaveCodec.EncodeSave(initial ?? throw new ArgumentNullException(nameof(initial))), pose, firstTick, frames, partial, digest, finalSave, changes) { }
 
-        internal GameRecording(string buildVersion, string contentId, GameSettings settings, byte[] initialSave, ValleyPose pose, long firstTick, HandFrame[] frames, bool partial, ulong digest, byte[] finalSave)
+        internal GameRecording(string buildVersion, string contentId, GameSettings settings, byte[] initialSave, ValleyPose pose, long firstTick, HandFrame[] frames, bool partial, ulong digest, byte[] finalSave,
+            SessionChange[] changes)
         {
             if (string.IsNullOrWhiteSpace(buildVersion) || buildVersion.Length > 128 || string.IsNullOrWhiteSpace(contentId) || contentId.Length > 128)
                 throw new ArgumentException("Invalid recording header.");
@@ -66,6 +89,19 @@ namespace Palmfolk.Developer
                 timestamp = frame.TimestampMicroseconds;
             }
             Frames = Array.AsReadOnly((HandFrame[])frames.Clone());
+            changes = changes ?? Array.Empty<SessionChange>();
+            if (changes.Length > 4096) throw new ArgumentException("Too many recorded changes.");
+            for (int i = 0; i < changes.Length; i++)
+                if (changes[i] == null || changes[i].Frame > frames.Length || (i > 0 && changes[i].Frame < changes[i - 1].Frame)) throw new ArgumentException("Nonsequential recorded changes.");
+            Changes = Array.AsReadOnly((SessionChange[])changes.Clone());
+        }
+
+        // The save as it stands after the recorded changes: the last settings and mode.
+        internal SaveData Ending(SaveData opened, out PlayerSettings player)
+        {
+            player = (opened.Settings ?? new PlayerSettings()).Copy();
+            foreach (var change in Changes) { if (change.Settings != null) player = change.Settings.Copy(); if (change.Mode.HasValue) opened.Mode = change.Mode.Value; }
+            return opened;
         }
     }
 
@@ -80,7 +116,7 @@ namespace Palmfolk.Developer
         private readonly ValleyPose pose;
         private readonly long firstTick;
         private readonly int maximumFrames;
-        private readonly PlayerSettings player;
+        private readonly List<SessionChange> changes = new List<SessionChange>();
         public PalmfolkGame Game { get; }
         public DecisionDigest Digest { get; } = new DecisionDigest();
         public RadiusWatcher Radii { get; } = new RadiusWatcher();
@@ -99,9 +135,14 @@ namespace Palmfolk.Developer
             this.buildVersion = buildVersion; this.contentId = contentId; this.pose = pose; this.maximumFrames = maximumFrames;
             this.settings = (settings ?? new GameSettings()).Copy();
             var save = openedFrom ?? new SaveData();
-            initial = SaveCodec.EncodeSave(save); player = (save.Settings ?? new PlayerSettings()).Copy();
+            initial = SaveCodec.EncodeSave(save);
             firstTick = game.Tick;
         }
+
+        // The runner applied new player settings to the game, or the mode changed, before the next frame: recorded
+        // so the replay applies them at the same point.
+        public void NoteSettings(PlayerSettings player) { if (!RecordingLimitReached && changes.Count < 4096) changes.Add(new SessionChange(frames.Count, player)); }
+        public void NoteMode(ValleyMode mode) { if (!RecordingLimitReached && changes.Count < 4096) changes.Add(new SessionChange(frames.Count, mode)); }
 
         public void Step(HandFrame frame)
         {
@@ -113,9 +154,11 @@ namespace Palmfolk.Developer
 
         public GameRecording Finish()
         {
-            var opened = SaveCodec.DecodeSave(initial);
+            var recording = new GameRecording(buildVersion, contentId, settings, initial, pose, firstTick, frames.ToArray(), RecordingLimitReached,
+                Digest.Value, Array.Empty<byte>(), changes.ToArray());
+            var ending = recording.Ending(SaveCodec.DecodeSave(initial), out var player);
             return new GameRecording(buildVersion, contentId, settings, initial, pose, firstTick, frames.ToArray(), RecordingLimitReached,
-                Digest.Value, SaveCodec.EncodeSave(Game.Capture(player, opened)));
+                Digest.Value, SaveCodec.EncodeSave(Game.Capture(player, ending)), changes.ToArray());
         }
     }
 
@@ -140,9 +183,14 @@ namespace Palmfolk.Developer
             var opened = recording.Initial;
             var game = PalmfolkGame.Open(valley, opened, recording.Pose, recording.Settings);
             if (game.Tick != recording.FirstTick) throw new InvalidDataException("The recording starts at a different tick.");
-            var digest = new DecisionDigest();
-            foreach (var frame in recording.Frames) { game.Step(frame); digest.Observe(game); }
-            var final = SaveCodec.EncodeSave(game.Capture(opened.Settings, opened));
+            var digest = new DecisionDigest(); var changes = recording.Changes; int next = 0;
+            for (int i = 0; i < recording.Frames.Count; i++)
+            {
+                for (; next < changes.Count && changes[next].Frame == i; next++) if (changes[next].Settings != null) game.Apply(changes[next].Settings);
+                game.Step(recording.Frames[i]); digest.Observe(game);
+            }
+            var ending = recording.Ending(opened, out var player);
+            var final = SaveCodec.EncodeSave(game.Capture(player, ending));
             bool sameState = final.Length == recording.FinalSave.Length;
             var expected = recording.FinalSave;
             for (int i = 0; sameState && i < final.Length; i++) sameState = final[i] == expected[i];
@@ -152,7 +200,7 @@ namespace Palmfolk.Developer
 
     public static class GameRecordingCodec
     {
-        private const int Magic = 0x50465232, Version = 2;
+        private const int Magic = 0x50465232, Version = 3;
 
         public static byte[] Encode(GameRecording recording)
         {
@@ -170,6 +218,17 @@ namespace Palmfolk.Developer
                 {
                     w.Write(f.Tick); w.Write(f.TimestampMicroseconds); w.Write(f.HasFocus); w.Write((int)f.Command); w.Write(f.ControllersInHand);
                     RecordingCodec.WriteHand(w, f.Left); RecordingCodec.WriteHand(w, f.Right);
+                }
+                w.Write(recording.Changes.Count);
+                foreach (var c in recording.Changes)
+                {
+                    w.Write(c.Frame); w.Write(c.Settings != null);
+                    if (c.Settings != null)
+                    {
+                        var s = c.Settings;
+                        w.Write(s.StillnessToleranceStep); w.Write(s.WorldScale); w.Write(s.ReducedMotion); w.Write(s.Captions); w.Write(s.HighContrast); w.Write(s.XRay);
+                    }
+                    else w.Write((int)c.Mode.Value);
                 }
                 using (var sha = SHA256.Create()) w.Write(sha.ComputeHash(stream.ToArray()));
                 return stream.ToArray();
@@ -189,7 +248,9 @@ namespace Palmfolk.Developer
             {
                 using (var stream = new MemoryStream(data, 0, data.Length - 32, false)) using (var r = new BinaryReader(stream))
                 {
-                    if (r.ReadInt32() != Magic || r.ReadInt32() != Version || r.ReadInt32() != GameSettings.TickRate) throw new InvalidDataException("Unsupported recording header.");
+                    if (r.ReadInt32() != Magic) throw new InvalidDataException("Unsupported recording header.");
+                    int version = r.ReadInt32();
+                    if ((version != 2 && version != Version) || r.ReadInt32() != GameSettings.TickRate) throw new InvalidDataException("Unsupported recording header.");
                     string build = r.ReadString(); if (build != expectedBuildVersion) throw new InvalidDataException("Replay requires the same build version.");
                     string content = r.ReadString();
                     var settings = ReadSettings(r);
@@ -205,8 +266,24 @@ namespace Palmfolk.Developer
                         if (!Enum.IsDefined(typeof(InputCommand), command)) throw new InvalidDataException("Unknown command.");
                         frames[i] = new HandFrame(tick, timestamp, RecordingCodec.ReadHand(r, HandSide.Left), RecordingCodec.ReadHand(r, HandSide.Right), focus, (InputCommand)command, controllers);
                     }
+                    var changes = new SessionChange[version == 2 ? 0 : Count(r, 4096)];
+                    for (int i = 0; i < changes.Length; i++)
+                    {
+                        int frame = r.ReadInt32();
+                        if (r.ReadBoolean())
+                            changes[i] = new SessionChange(frame, new PlayerSettings
+                            {
+                                StillnessToleranceStep = r.ReadInt32(), WorldScale = r.ReadDouble(), ReducedMotion = r.ReadBoolean(),
+                                Captions = r.ReadBoolean(), HighContrast = r.ReadBoolean(), XRay = r.ReadBoolean()
+                            });
+                        else
+                        {
+                            int mode = r.ReadInt32(); if (!Enum.IsDefined(typeof(ValleyMode), mode)) throw new InvalidDataException("Invalid mode.");
+                            changes[i] = new SessionChange(frame, (ValleyMode)mode);
+                        }
+                    }
                     if (stream.Position != stream.Length) throw new InvalidDataException("Trailing recording data.");
-                    return new GameRecording(build, content, settings, initial, pose, firstTick, frames, partial, digest, final);
+                    return new GameRecording(build, content, settings, initial, pose, firstTick, frames, partial, digest, final, changes);
                 }
             }
             catch (Exception e) when (e is EndOfStreamException || e is ArgumentException || e is OverflowException) { throw new InvalidDataException("Invalid recording data.", e); }

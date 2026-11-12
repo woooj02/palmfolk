@@ -92,10 +92,12 @@ on when reported, scaled with the tracking space. Non-finite poses become invali
 A rendered frame longer than 0.1 s counts as 0.1 s: after a hitch or a suspend the game does not fast-forward.
 
 Developer builds also have `SessionRecording` (records from the moment a game opens, only with the tester's consent
-ticked; writes `recordings/session-*.pfr2` and the H3 radius log on pause or quit) and `CoreProbe` (markers for the
+ticked; writes `recordings/session-*.pfr3` and the H3 radius log on pause or quit) and `CoreProbe` (markers for the
 valley origin, planting progress and Pip; every event to the device log). `GameRecording` (Developer) is the
-recording format 2 for the whole game; `GameReplay.Run(recording, valley)` replays it and reports `SameDecisions`
-and `SameFinalState`.
+recording format 3 for the whole game, with the settings and mode changes made along the way (`Changes`; format 2
+still loads); `GameReplay.Run(recording, valley)` replays it and reports `SameDecisions` and `SameFinalState`.
+`GameRecorder.NoteSettings(player)` and `NoteMode(mode)` record a change before the next frame; `SessionRecording`
+calls them from `PalmfolkRunner.SettingsApplied` and `ModeChanged`.
 
 Setup: **Palmfolk > Platform > 1. Enable XR Hands** (turns on the XR Hands OpenXR feature; Android builds fail
 without it) and **2. Add Runner To Open Scene** (wires the camera rig's TrackingSpace and a new Valley Origin).
@@ -401,3 +403,18 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
   - `ValleyPresentation.Bridges` and `BridgeMarks` are shared read-only snapshots, replaced only when a bridge
     changes.
   - The live hand route in `ValleySimulation` is still a fresh object each tick (views and the build keep it).
+- **View contracts, Nov 12.** Added:
+  - `GameEventKind.ConnectionLocked` (last in the enum), `EdgeSession.ConnectionLocked` and
+    `ValleyPresentation.ConnectionLocked` (E17). Raised when the hand holds every anchor, once per hold, and again
+    after a pause or a loss. The Board's carry locks when the fingertip holds the next island.
+  - `Traveler.Support`, `SupportCursor`, `PreviousSupport` and `PreviousSupportCursor`; `TravelerView.Support` and
+    `SupportCursor` (interpolated; a supported view's `Position` is `Support.Evaluate(SupportCursor)`). Also
+    `ValleyPresentation.BramWalk`, and `PipCursor` on `FilteredHandRoute` while a hand carries Pip.
+  - `Recovery.GhostHand` and `ValleyPresentation.GhostHand`: the owning hand as last read whole, valley-local
+    (null after resuming from a save).
+  - `SolutionHint` (`Shape`, `Tree`, `Rise`), `HintShape`, `EdgeSession.Hint` and `ValleyPresentation.Hint` (E8).
+    A bridge that passes the current rules, found once per interaction, or null while a ledge is too narrow.
+  - `SessionChange`, `GameRecording.Changes`, `GameRecorder.NoteSettings` and `NoteMode`;
+    `PalmfolkRunner.SettingsApplied`.
+  Changed: recordings are format 3 (`.pfr3`). a traveler's `Position` (and `ValleyPresentation.Bram`) on a bridge
+  is now the point on the deck rather than a straight-line blend between ticks (tested within 2 mm of it).

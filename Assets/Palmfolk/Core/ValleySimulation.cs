@@ -39,6 +39,12 @@ namespace Palmfolk.Core
         public Vec3 Position { get; private set; }
         public Vec3 PreviousPosition { get; private set; }
         public bool Arrived { get; private set; }
+        // The bridge under the traveler's feet and where on it, or null on an island or the way between.
+        // Previous* are the last tick's, for interpolation.
+        public Route Support => onLeg ? legs[leg] : null;
+        public RouteCursor SupportCursor => cursor;
+        public Route PreviousSupport { get; private set; }
+        public RouteCursor PreviousSupportCursor { get; private set; }
         // How many bridges this traveler has finished crossing.
         public int Crossed => leg;
         internal Traveler(TravelerKind kind, string destination, Vec3 start, List<Route> legs, Vec3 end)
@@ -48,7 +54,7 @@ namespace Palmfolk.Core
         // Returns true on the tick a bridge crossing is finished.
         internal bool Step(double distance)
         {
-            PreviousPosition = Position;
+            PreviousPosition = Position; PreviousSupport = Support; PreviousSupportCursor = cursor;
             if (Arrived) return false;
             if (leg < legs.Count)
             {
@@ -67,7 +73,7 @@ namespace Palmfolk.Core
             if (Vec3.Distance(Position, end) < 1e-9) Arrived = true;
             return false;
         }
-        internal void Settle() => PreviousPosition = Position;
+        internal void Settle() { PreviousPosition = Position; PreviousSupport = Support; PreviousSupportCursor = cursor; }
     }
 
     // D3: the valley and its six puzzles. Feed valley-local frames (PalmfolkGame does the conversion).

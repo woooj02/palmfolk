@@ -11,7 +11,9 @@ namespace Palmfolk.Core
         RecoveryAligned, RecoveryCompleted, ReturningToCheckpoint, HintDue, QualityPromptDue, PersistentBridgeObserved, StartupPromptDue,
         Planted, ReplantStarted,
         PuzzleStarted, PuzzleCompleted, LedgeWidening, LedgeWidened, RebuildNeeded, TravelersStarted, TravelerArrived, CrossingCompleted,
-        VisitorCalled, VisitorArrived, VisitorSettled
+        VisitorCalled, VisitorArrived, VisitorSettled,
+        // E17: the hand now spans the gap (source and every end held); raised again if it lets go and locks again.
+        ConnectionLocked
     }
     public readonly struct GameEvent
     {

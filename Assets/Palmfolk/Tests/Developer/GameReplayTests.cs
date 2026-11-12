@@ -126,6 +126,49 @@ namespace Palmfolk.Tests
             Assert.Throws<InvalidDataException>(() => GameRecordingCodec.Decode(bytes.Take(bytes.Length - 1).ToArray(), "b"));
         }
 
+        // Format 3 (for S4): settings and mode changed on the waystone mid-session are recorded where they happened,
+        // so the replay applies them at the same point and ends on the same save.
+        [Test] public void SettingsAndModeChangedMidSessionReplay()
+        {
+            var save = new SaveData(); var settings = new GameSettings();
+            var game = PalmfolkGame.Open(TestValley.Chapter1(), save, null, settings);
+            var recorder = new GameRecorder(true, "b", "test-chapter", game, save, null, settings);
+            var changed = new PlayerSettings { StillnessToleranceStep = 2, WorldScale = 1.2, Captions = false };
+            LiveInputTests.LivePlay.Run(game, recorder, 72, g => g.Valley != null && g.Valley.IsComplete, onFrame: (source, frame) =>
+            {
+                if (frame == 2500) { game.Apply(changed); recorder.NoteSettings(changed); }
+                if (frame == 4000) recorder.NoteMode(ValleyMode.VR);
+            });
+            Assert.That(game.Valley.IsComplete, Is.True);
+            var recording = GameRecordingCodec.Decode(GameRecordingCodec.Encode(recorder.Finish()), "b");
+            Assert.That(recording.Changes.Count, Is.EqualTo(2));
+            Assert.That(recording.Changes[0].Settings.WorldScale, Is.EqualTo(1.2)); Assert.That(recording.Changes[1].Mode, Is.EqualTo(ValleyMode.VR));
+            var final = SaveCodec.DecodeSave(recording.FinalSave);
+            Assert.That(final.Mode, Is.EqualTo(ValleyMode.VR)); Assert.That(final.Settings.StillnessToleranceStep, Is.EqualTo(2)); Assert.That(final.Settings.Captions, Is.False);
+            var replay = GameReplay.Run(recording, TestValley.Chapter1());
+            Assert.That(replay.SameDecisions, Is.True, "decisions"); Assert.That(replay.SameFinalState, Is.True, "final state");
+            Assert.That(replay.Game.Valley.Settings.StillnessToleranceStep, Is.EqualTo(2)); Assert.That(replay.Game.Pose.Scale, Is.EqualTo(game.Pose.Scale));
+            // Without the changes the same frames end elsewhere.
+            var bare = new GameRecording(recording.BuildVersion, recording.ContentId, recording.Settings, recording.Initial, recording.Pose, recording.FirstTick,
+                recording.Frames.ToArray(), false, recording.Digest, recording.FinalSave);
+            var without = GameReplay.Run(bare, TestValley.Chapter1());
+            Assert.That(without.SameDecisions && without.SameFinalState, Is.False);
+        }
+
+        // A format 2 recording (before changes were recorded) still loads and replays.
+        [Test] public void FormatTwoRecordingsStillLoad()
+        {
+            var recording = Record();
+            var three = GameRecordingCodec.Encode(recording);
+            // Format 2 is format 3 without the change count before the checksum.
+            var body = three.Take(three.Length - 32 - 4).ToArray(); BitConverter.GetBytes(2).CopyTo(body, 4);
+            byte[] two;
+            using (var sha = System.Security.Cryptography.SHA256.Create()) two = body.Concat(sha.ComputeHash(body)).ToArray();
+            var decoded = GameRecordingCodec.Decode(two, "test-build");
+            Assert.That(decoded.Changes, Is.Empty); Assert.That(decoded.Frames.Count, Is.EqualTo(recording.Frames.Count));
+            Assert.That(GameReplay.Run(decoded, TestValley.Chapter1()).SameDecisions, Is.True);
+        }
+
         private static PalmfolkGame PlantedOnce()
         {
             var game = new PalmfolkGame(TestValley.Chapter1()); var table = new Planted.Placement();

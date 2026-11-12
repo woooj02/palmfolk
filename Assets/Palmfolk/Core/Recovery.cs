@@ -17,6 +17,9 @@ namespace Palmfolk.Core
         private Vec3 frozen, returnFrom;
         private int elapsed, aligned, blending, returning;
         public Route Ghost { get; private set; }
+        // The whole hand as last seen before the loss (valley-local), for the carved ghost. Null after a resume from
+        // a save, or if the hand was never read whole.
+        public HandSample GhostHand { get; internal set; }
         public RecoveryPhase Phase { get; private set; } = RecoveryPhase.Frozen;
         public Vec3 Position { get; private set; }
         public Recovery(Route ghost, Vec3 position, Vec3 checkpoint, GameSettings settings)

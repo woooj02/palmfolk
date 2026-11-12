@@ -10,10 +10,25 @@ namespace Palmfolk.Core
         public string Destination { get; }
         public Vec3 Position { get; }
         public bool Arrived { get; }
+        // S6 contact: the bridge the traveler stands on and where (interpolated), or null off bridges. When set,
+        // Position is Support.Evaluate(SupportCursor), so feet planted on the deck stay on it.
+        public Route Support { get; }
+        public RouteCursor SupportCursor { get; }
         public TravelerView(Traveler traveler, double alpha)
         {
             Kind = traveler.Kind; Destination = traveler.Destination; Arrived = traveler.Arrived;
             Position = Vec3.Lerp(traveler.PreviousPosition, traveler.Position, alpha);
+            var support = traveler.Support;
+            if (support == null) return;
+            // Stepping on this tick: the walk to the deck ended at its start.
+            var from = ReferenceEquals(traveler.PreviousSupport, support) ? traveler.PreviousSupportCursor : new RouteCursor(0, 0);
+            Support = support; SupportCursor = Between(support, from, traveler.SupportCursor, alpha); Position = support.Evaluate(SupportCursor);
+        }
+        internal static RouteCursor Between(Route route, RouteCursor a, RouteCursor b, double alpha)
+        {
+            double x = a.Segment + a.Fraction + (b.Segment + b.Fraction - a.Segment - a.Fraction) * Vec3.Clamp(alpha, 0, 1);
+            int last = route.Points.Count - 2, segment = Math.Min(last, Math.Max(0, (int)Math.Floor(x)));
+            return new RouteCursor(segment, Vec3.Clamp(x - segment, 0, 1));
         }
     }
 
@@ -28,6 +43,16 @@ namespace Palmfolk.Core
         public bool Complete { get; }
         public Vec3 Pip { get; }
         public Vec3 Bram { get; }
+        // Bram while he walks the finale route (null otherwise), with his support like any traveler.
+        public TravelerView BramWalk { get; }
+        // E17: the active hand holds every anchor (see EdgeSession.ConnectionLocked).
+        public bool ConnectionLocked { get; }
+        // While Pip rides a carrying hand (Board): where he stands on FilteredHandRoute. Null otherwise.
+        public RouteCursor? PipCursor { get; }
+        // T5: the whole hand as last seen before the loss, for the carved ghost (null if unknown). E8: the shape and a
+        // passing bridge for the hint hand, shown on HintDue (null when no interaction waits or nothing fits).
+        public HandSample GhostHand { get; }
+        public SolutionHint Hint { get; }
         public IReadOnlyList<TravelerView> Travelers { get; }
         // Finished bridges by edge id.
         public IReadOnlyDictionary<string, CurveTree> Bridges { get; }
@@ -90,7 +115,8 @@ namespace Palmfolk.Core
             if (game == null) throw new ArgumentNullException(nameof(game));
             Tick = game.Tick; Valley = game.Valley; Puzzle = game.Puzzle.Kind; PuzzleIndex = game.PuzzleIndex; Stage = game.Stage; Complete = game.IsComplete;
             Pip = Vec3.Lerp(game.PreviousPip, game.Pip, interpolationAlpha);
-            Bram = game.Bram == null ? game.BramPosition : Vec3.Lerp(game.Bram.PreviousPosition, game.Bram.Position, interpolationAlpha);
+            if (game.Bram != null) { BramWalk = new TravelerView(game.Bram, interpolationAlpha); Bram = BramWalk.Position; }
+            else Bram = game.BramPosition;
             var travelers = game.Travelers;
             var travelerViews = travelers.Count == 0 ? Array.Empty<TravelerView>() : new TravelerView[travelers.Count];
             for (int i = 0; i < travelerViews.Length; i++) travelerViews[i] = new TravelerView(travelers[i], interpolationAlpha);
@@ -117,7 +143,8 @@ namespace Palmfolk.Core
             HandOwner = session.Owner; FilteredHandRoute = session.ActiveRoute; GhostRoute = session.Recovery?.Ghost; RouteTier = session.RouteTier;
             Scaffold = session.Build?.Phase == Core.BuildPhase.Removed ? null : session.Build?.FrozenRoute();
             BuildPhase = session.Build?.Phase; BuildProgress = session.Build?.Progress ?? 0; ScaffoldRemovalProgress = session.Build?.RemovalProgress ?? 0;
-            Recovering = session.Recovery != null; RecoveryPhase = session.Recovery?.Phase;
+            Recovering = session.Recovery != null; RecoveryPhase = session.Recovery?.Phase; GhostHand = session.Recovery?.GhostHand;
+            ConnectionLocked = session.ConnectionLocked; PipCursor = session.PipCursor; Hint = session.Hint;
         }
 
         public ValleyPresentation(PalmfolkGame game, double interpolationAlpha)

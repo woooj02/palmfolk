@@ -27,7 +27,11 @@ namespace Palmfolk.Core
         private CurveTree activeTree;
         private ForkLayout layout, leftLayout, rightLayout;
         private RouteCursor cursor;
-        private bool attached, transferring;
+        private bool attached, transferring, locked;
+        // The owning hand's last readable sample (valley-local), kept for the recovery ghost (T5).
+        private readonly HandSample lastLeft = new HandSample(HandSide.Left), lastRight = new HandSample(HandSide.Right);
+        private bool haveLast;
+        private SolutionHint hint; private bool hintFound;
         private Dictionary<string, CurveTree> results = new Dictionary<string, CurveTree>();
 
         public string Edge => edges[0];
@@ -59,6 +63,21 @@ namespace Palmfolk.Core
         // Set on the tick Step returns Baked: the new bridge for each edge that passed. Fork bridges share their trunk.
         public IReadOnlyDictionary<string, CurveTree> Results => results;
         public CurveTree Result => results.TryGetValue(Edge, out var tree) ? tree : null;
+        // E17: the hand holds every anchor (a carry: its fingertip holds the destination). ConnectionLocked is raised
+        // when this turns on.
+        public bool ConnectionLocked => locked;
+        // While Pip rides the hand in a carry (Board): where he stands on ActiveRoute. Null otherwise.
+        public RouteCursor? PipCursor => Carry && attached && !transferring && Recovery == null && activeRoute != null ? cursor : (RouteCursor?)null;
+        // E8: a shape that solves this edge under the current rules, found once per interaction. Null if none
+        // fits (a ledge still too narrow for the traveler).
+        public SolutionHint Hint
+        {
+            get
+            {
+                if (!hintFound) { hint = SolutionHints.Find(Carry, Source, sources, destinations, Rule, WidthCap, settings, clearance); hintFound = true; }
+                return hint;
+            }
+        }
 
         public EdgeSession(string edge, bool carry, AnchorZone source, AnchorZone destination, TravelerKind rule, double widthCap,
             Vec3 pip, GameSettings settings, IClearanceField clearance, Action<GameEventKind> emit)
@@ -142,7 +161,11 @@ namespace Palmfolk.Core
                     else if (Recovery.Phase == RecoveryPhase.Returned) { Pip = Source.Centre; transferring = false; ReleaseHand(); Recovery = null; }
                     return SessionResult.Continue;
                 }
-                if (live != null) { activeRoute = live; activeTree = liveTree; width.Step(MinimumWidth(liveTree)); }
+                if (live != null)
+                {
+                    activeRoute = live; activeTree = liveTree; width.Step(MinimumWidth(liveTree));
+                    Array.Copy(hand.Buffer, (hand.Side == HandSide.Left ? lastLeft : lastRight).Buffer, 26); haveLast = true;
+                }
             }
             if (transferring)
             {
@@ -213,13 +236,14 @@ namespace Palmfolk.Core
             Owner = chooseLeft ? HandSide.Left : HandSide.Right; activeRoute = route; activeTree = tree;
             layout = IsFork ? forkLayout : null;
             width.Step(MinimumWidth(activeTree));
-            cursor = new RouteCursor(0, 0); attached = false; stillness.Reset(); foreach (var c in destinationContacts) c.Reset();
+            cursor = new RouteCursor(0, 0); attached = false; locked = false; haveLast = false; stillness.Reset(); foreach (var c in destinationContacts) c.Reset();
         }
 
         private SessionResult StepCarry()
         {
             double distance = Destination.ConnectionDistance(activeRoute.End, settings);
             destinationContacts[0].Step(distance, true, settings);
+            Lock(destinationContacts[0].Connected);
             cursor = activeRoute.Advance(cursor, settings.TravelerSpeed * GameSettings.Delta);
             Pip = activeRoute.Evaluate(cursor);
             if (activeRoute.AtEnd(cursor) && destinationContacts[0].Connected && distance < settings.ConnectDistance) transferring = true;
@@ -239,6 +263,7 @@ namespace Palmfolk.Core
                 destinationContacts[i].Step(destinations[i].ConnectionDistance(end, settings), true, settings);
                 connected &= destinationContacts[i].Connected;
             }
+            Lock(connected);
             if (Build == null)
             {
                 // Pip rides the fingertip he boarded at until the build starts, so a hand that settles a little
@@ -307,15 +332,24 @@ namespace Palmfolk.Core
             return new CurveTree(curves, parents);
         }
 
+        private void Lock(bool connected)
+        {
+            if (connected && !locked) emit(GameEventKind.ConnectionLocked);
+            locked = connected;
+        }
+
         private void BeginRecovery(bool trackingLost)
         {
             if (activeRoute == null) return;
-            Recovery = new Recovery(activeRoute, Pip, Source.Centre, settings); leftFilter.Reset(); rightFilter.Reset(); stillness.Reset();
+            Recovery = new Recovery(activeRoute, Pip, Source.Centre, settings);
+            if (haveLast && Owner.HasValue) Recovery.GhostHand = (Owner == HandSide.Left ? lastLeft : lastRight).Copy();
+            locked = false;
+            leftFilter.Reset(); rightFilter.Reset(); stillness.Reset();
             if (trackingLost) emit(GameEventKind.TrackingLost);
         }
         private void ReleaseHand()
         {
-            Owner = null; attached = false; activeRoute = null; activeTree = null; layout = null;
+            Owner = null; attached = false; locked = false; haveLast = false; activeRoute = null; activeTree = null; layout = null;
             leftContact.Reset(); rightContact.Reset(); foreach (var c in destinationContacts) c.Reset(); stillness.Reset();
             emit(GameEventKind.HandReleased);
         }
