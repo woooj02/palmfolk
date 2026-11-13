@@ -6,10 +6,10 @@ using UnityEngine;
 
 namespace Palmfolk.Audio
 {
-    public enum Cue { Footstep, Hammer, RopeCreak, Connection, BuildDone, Refusal, VisitorArrival, Lantern }
+    public enum Cue { Footstep, Hammer, RopeCreak, Connection, BuildDone, Refusal, VisitorArrival, Lantern, Wind, Shielded, Gusted }
     public static class CueCatalog
     {
-        private static readonly string[] captions = { "Footsteps", "Hammer taps", "Rope creaks", "Connection locked", "Bridge finished", "Route refused", "A visitor arrives", "Lantern chime" };
+        private static readonly string[] captions = { "Footsteps", "Hammer taps", "Rope creaks", "Connection locked", "Bridge finished", "Route refused", "A visitor arrives", "Lantern chime", "Wind gathering", "Wind blocked", "Wind gusts" };
         public static string Caption(Cue cue) => captions[(int)cue];
         public static bool TryMap(GameEventKind kind, out Cue cue)
         {
@@ -23,6 +23,9 @@ namespace Palmfolk.Audio
                 case GameEventKind.ConnectionLocked: cue = Cue.Connection; return true;
                 case GameEventKind.VisitorArrived: cue = Cue.VisitorArrival; return true;
                 case GameEventKind.VisitorSettled: cue = Cue.Lantern; return true;
+                case GameEventKind.GustGathering: cue = Cue.Wind; return true;
+                case GameEventKind.GustBlocked: cue = Cue.Shielded; return true;
+                case GameEventKind.GustHit: cue = Cue.Gusted; return true;
                 default: cue = default; return false;
             }
         }
@@ -30,8 +33,8 @@ namespace Palmfolk.Audio
         public static float[] Samples(Cue cue, int rate = 22050)
         {
             if (!Enum.IsDefined(typeof(Cue), cue) || rate < 8000 || rate > 96000) throw new ArgumentOutOfRangeException();
-            double duration = cue == Cue.BuildDone ? 0.42 : cue == Cue.Footstep ? 0.065 : 0.22;
-            double[] frequencies = { 170, 480, 90, 880, 660, 220, 1046.5, 784 };
+            double duration = cue == Cue.BuildDone ? 0.42 : cue == Cue.Footstep ? 0.065 : cue == Cue.Wind ? 1.2 : cue == Cue.Gusted ? 0.7 : 0.22;
+            double[] frequencies = { 170, 480, 90, 880, 660, 220, 1046.5, 784, 300, 523.25, 240 };
             var samples = new float[(int)(duration * rate)];
             uint noise = 37;
             for (int i = 0; i < samples.Length; i++)
@@ -45,6 +48,14 @@ namespace Palmfolk.Audio
                 if (cue == Cue.BuildDone) wave = (wave + Math.Sin(2 * Math.PI * frequency * 1.5 * t)) / 2;
                 if (cue == Cue.Hammer || cue == Cue.Footstep || cue == Cue.RopeCreak)
                 { noise = unchecked(noise * 1664525u + 1013904223u); wave = wave * 0.7 + (noise / (double)uint.MaxValue * 2 - 1) * 0.3; }
+                // Wind: mostly noise, swelling (gathering) or a sharp rush (a gust that gets through).
+                if (cue == Cue.Wind || cue == Cue.Gusted)
+                {
+                    noise = unchecked(noise * 1664525u + 1013904223u); double hiss = noise / (double)uint.MaxValue * 2 - 1;
+                    wave = wave * 0.15 + hiss * 0.85;
+                    if (cue == Cue.Wind) envelope = Math.Sin(Math.PI * u) * u;
+                }
+                if (cue == Cue.Shielded) wave = (wave + Math.Sin(2 * Math.PI * frequency * 2 * t) * 0.5) / 1.5;
                 samples[i] = (float)(wave * envelope * 0.35);
             }
             return samples;
@@ -73,6 +84,7 @@ namespace Palmfolk.Audio
                     if (e.Kind == GameEventKind.VisitorArrived)
                         position = frame.VisitorFigure?.Position ?? frame.Valley.Island(frame.Visitor?.From ?? frame.Valley.Sanctuary).Top;
                     if (e.Kind == GameEventKind.VisitorSettled || e.Kind == GameEventKind.BramFinished) position = frame.Valley.Island(frame.Valley.Sanctuary).Top;
+                    if (e.Kind == GameEventKind.GustGathering && frame.GustOrigin.HasValue) position = frame.GustOrigin.Value;
                     Play(cue, frame.Pose.ToWorld(position));
                 }
         }
