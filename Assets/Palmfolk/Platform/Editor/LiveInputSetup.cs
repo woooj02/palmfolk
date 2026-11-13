@@ -1,6 +1,9 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Xml;
 using UnityEditor;
+using UnityEditor.Android;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
@@ -119,6 +122,41 @@ namespace Palmfolk.Platform.Editor
             if (report.summary.platform != BuildTarget.Android) return;
             if (!LiveInputSetup.HandsEnabled(BuildTargetGroup.Android))
                 throw new BuildFailedException("XR Hands hand tracking is off for Android. Run Palmfolk > Platform > 1. Enable XR Hands, then build again.");
+        }
+    }
+
+    // Palmfolk is hands-only, so the store must offer it only where hand tracking exists. XR Hands (order 10) writes
+    // oculus.software.handtracking as optional; this puts it back to required before Meta's pass (99999) and
+    // Slice0BuildChecks (100000) inspect the manifest. Unity adds microphone, Bluetooth and network-state permissions
+    // because Meta's voice and platform packages reference those APIs; Palmfolk uses none of them, so they are
+    // marked removed (Test-Slice0Apk.ps1 checks the merged APK against its allowlist).
+    public sealed class HandsOnlyManifest : IPostGenerateGradleAndroidProject
+    {
+        private const string AndroidNamespace = "http://schemas.android.com/apk/res/android";
+        private const string ToolsNamespace = "http://schemas.android.com/tools";
+        private static readonly string[] Unused =
+        {
+            "android.permission.RECORD_AUDIO", "android.permission.MODIFY_AUDIO_SETTINGS",
+            "android.permission.BLUETOOTH", "android.permission.ACCESS_NETWORK_STATE"
+        };
+        public int callbackOrder => 50000;
+        public void OnPostGenerateGradleAndroidProject(string path)
+        {
+            var manifestPath = Path.Combine(path, "src/main/AndroidManifest.xml");
+            if (!File.Exists(manifestPath)) return;
+            var doc = new XmlDocument(); doc.Load(manifestPath);
+            bool changed = false;
+            foreach (XmlElement feature in doc.SelectNodes("/manifest/uses-feature").OfType<XmlElement>())
+            {
+                if (feature.GetAttribute("name", AndroidNamespace) != "oculus.software.handtracking" || feature.GetAttribute("required", AndroidNamespace) == "true") continue;
+                feature.SetAttribute("required", AndroidNamespace, "true"); changed = true;
+            }
+            foreach (XmlElement permission in doc.SelectNodes("/manifest/uses-permission").OfType<XmlElement>())
+            {
+                if (!Unused.Contains(permission.GetAttribute("name", AndroidNamespace)) || permission.GetAttribute("node", ToolsNamespace) == "remove") continue;
+                permission.SetAttribute("node", ToolsNamespace, "remove"); changed = true;
+            }
+            if (changed) doc.Save(manifestPath);
         }
     }
 }

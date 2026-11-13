@@ -5,6 +5,7 @@
 [Bb]uild/
 [Bb]uilds/
 [Ll]ogs/
+.utmp/
 [Uu]ser[Ss]ettings/
 [Mm]emoryCaptures/
 *.csproj
