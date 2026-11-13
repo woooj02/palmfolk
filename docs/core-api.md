@@ -418,3 +418,15 @@ The hand already resting keeps its turn; otherwise the left hand is read first.
     `PalmfolkRunner.SettingsApplied`.
   Changed: recordings are format 3 (`.pfr3`). a traveler's `Position` (and `ValleyPresentation.Bram`) on a bridge
   is now the point on the deck rather than a straight-line blend between ticks (tested within 2 mm of it).
+
+## Hand-sculpting additions (Nov 13)
+
+- `GameSettings.SkipBoard`: a valley with no completed puzzles opens on First Bridge, with Pip on the far side of
+  Board's gap. Saves with progress are left alone. `PalmfolkRunner.LiveSettings()` turns it on for live play.
+- `GameSettings.Gusts` and `BraceTicks` (75): while travelers or Bram cross, `GustField` sends a gust from the side
+  of the walker, alternating sides: 90 ticks after the crossing starts, then every 420. It gathers for 150 ticks and
+  blows for 60. `GustField.Shields(hand, origin, target)`: the palm faces sideways (|normal.y| <= 0.6) and its
+  plane cuts the wind's path within 8.5 cm of the hand's centre. Shielded for at least half the blow:
+  `GustBlocked`; otherwise `GustHit`, and the walkers brace (don't move) for `BraceTicks`.
+- `ValleySimulation.CurrentGust`, `GustsBlocked`, `GustHits`, `Bracing`; `ValleyPresentation.GustOrigin`,
+  `GustTarget`, `GustPhase`, `GustProgress`, `GustShielded`, `Bracing`, `GustsBlocked` (valley-local).

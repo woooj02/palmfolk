@@ -158,9 +158,31 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   Headless: 234 developer-mode and 218 release-mode tests pass. Unity editor (batch mode): 268 EditMode tests
   pass, 289 with `PALMFOLK_DEVELOPMENT`. Not seen in Sam's views or on a headset yet.
 
+- **First Quest 2 run, Nov 12-13.** The Developer APK (Table mode) builds, installs and runs on the owner's
+  Quest 2. Fixes on the way: Meta's dev-agent screen capture service and operator OpenXR layer are kept out of the
+  APK, the manifest stays hands-only, and the Platform SDK's `hzplatformclientcore` supplement requirement is
+  dropped (the headset refused the install; the game makes no Platform SDK calls). The headset needed Horizon OS
+  v74: on v65 the runtime only spoke OpenXR 1.0 and the display never started. Quest 2: 72 FPS, no stale frames,
+  GPU about a third busy, hands-only mode and the hand tracking service connected, planting works (`Planted`).
+- **Owner's verdict, Nov 13 (Quest 2): "very very hard", "didn't feel intuitive at all".** Nothing on screen said
+  what to do; carrying Pip came first; the 2 cm connection and 4 cm break were too tight to find by feel (the logs
+  show two connections lost within a second); Pip was a tan figure 3 cm tall; Slice 0's two grey boxes were still
+  in M1 and read as the islands. The owner then changed the concept to hand-sculpting and handed Sam's paths to me
+  while Sam is away: [`concept-sculpting.md`](concept-sculpting.md).
+- **Opening and guidance, Nov 13.** Live play skips Board (`GameSettings.SkipBoard`), connects within 4 cm and
+  breaks past 8 cm (`PalmfolkRunner.LiveSettings`); Core defaults are unchanged. The valley view adds glowing
+  anchor rings, a one-line instruction (including why a bridge was refused) and a larger gold Pip; the greybox
+  islands are removed from M1. Headless: 236 tests pass. Unity editor (batch mode): compiles.
+- **Walls, Nov 13.** `GustField` sends a gust at crossing travelers; an upright hand across its path shields them,
+  otherwise they brace for 75 ticks. Live play only (`GameSettings.Gusts`). Headless: 240 tests pass, including
+  shielding geometry and a full chapter with gusts. Not seen on a headset yet.
+
 ## Next
 
-- Nothing left in my items. What remains is the owner's headset checks (below) and Sam's views.
+- Quest 2 pass on the new opening and walls, then the bake moment, gust sounds and a tidier waystone
+  ([`concept-sculpting.md`](concept-sculpting.md)).
+- For Sam, when back: I merged `sam/hand-guidance` into my branch and edited `Views/ValleyView.cs` (rings, prompt,
+  Pip, gusts) and the M1 scene (greybox removed). Delete untracked generated files before rebasing onto `main`.
 
 ## Notes for later items
 
