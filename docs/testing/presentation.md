@@ -80,8 +80,9 @@ the input adapter, never a view mutation of Core. `GamePresentation` now supplie
 the setup menu configures the open scene for owner review without saving it or editing platform code.
 
 The preview is geometric. Core now exposes the connection lock; its event drives the chime/caption and
-brief anchor dust, with no feedback fabricated from proximity. The full recovery skeleton, solution hint pose and
-strict foot support cursor remain open contracts. D4's single-hand Fork is bound; natural reach/spread
+brief anchor dust, with no feedback fabricated from proximity. `HandGuidanceView` now binds the observed
+recovery hand and the passing solution hint after `HintDue`, while the traveler rigs use Core's support
+cursors. D4's single-hand Fork is bound; natural reach/spread
 and headset performance/feel remain owner checks.
 
 D4 binding: the live and frozen scaffolds use full curve trees, refused branch indices address the correct
