@@ -130,11 +130,15 @@ namespace Palmfolk.Platform.Editor
     // Slice0BuildChecks (100000) inspect the manifest. Unity adds microphone, Bluetooth and network-state permissions
     // because Meta's voice and platform packages reference those APIs, and Meta's dev-agent library brings a screen
     // capture service with foreground-service permissions. Palmfolk uses none of them, so they are marked removed for
-    // the manifest merge (Test-Slice0Apk.ps1 checks the merged APK against its allowlist).
+    // the manifest merge (Test-Slice0Apk.ps1 checks the merged APK against its allowlist). Meta's Platform SDK (order 1)
+    // also demands the hzplatformclientcore Horizon OS supplement, which the Quest 2 on v74 lacks, so the install is
+    // refused; Palmfolk makes no Platform SDK calls, so that requirement is dropped too.
     public sealed class HandsOnlyManifest : IPostGenerateGradleAndroidProject
     {
         private const string AndroidNamespace = "http://schemas.android.com/apk/res/android";
         private const string ToolsNamespace = "http://schemas.android.com/tools";
+        private const string HorizonNamespace = "http://schemas.horizonos/sdk";
+        private const string PlatformSupplement = "horizonos-supplement-hzplatformclientcore";
         private static readonly string[] Unused =
         {
             "android.permission.RECORD_AUDIO", "android.permission.MODIFY_AUDIO_SETTINGS",
@@ -157,6 +161,9 @@ namespace Palmfolk.Platform.Editor
             var root = doc.DocumentElement; var application = (XmlElement)doc.SelectSingleNode("/manifest/application");
             foreach (var name in Unused) changed |= Remove(doc, root, "uses-permission", name);
             if (application != null) foreach (var name in UnusedServices) changed |= Remove(doc, application, "service", name);
+            foreach (var supplement in root.ChildNodes.OfType<XmlElement>().Where(e => e.LocalName == "uses-horizonos-supplement" && e.NamespaceURI == HorizonNamespace
+                && e.GetAttribute("name") == PlatformSupplement).ToList())
+            { root.RemoveChild(supplement); changed = true; }
             if (changed) doc.Save(manifestPath);
         }
 
