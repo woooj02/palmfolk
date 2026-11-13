@@ -105,6 +105,15 @@ namespace Palmfolk.Core
         public bool Recovering { get; }
         public RecoveryPhase? RecoveryPhase { get; }
         // Planting (D2). Playing and Identity when built from a ValleySimulation alone; Pose is null before the first planting.
+        // The wall sculpt: the gust gathering or blowing (null when none), whether a hand shields it this tick,
+        // whether the travelers brace, and the score.
+        public Vec3? GustOrigin { get; }
+        public Vec3? GustTarget { get; }
+        public GustPhase? GustPhase { get; }
+        public double GustProgress { get; }
+        public bool GustShielded { get; }
+        public bool Bracing { get; }
+        public int GustsBlocked { get; }
         public ValleyStage PlantingStage { get; } = ValleyStage.Playing;
         public ValleyPose Pose { get; } = ValleyPose.Identity;
         public double PlantProgress { get; }
@@ -132,6 +141,9 @@ namespace Palmfolk.Core
             for (int i = 0; i < residents; i++) residentViews[i] = new TravelerView(game.ResidentAt(i), interpolationAlpha);
             Residents = residentViews;
             BridgeMarks = game.MarksCopy();
+            var gust = game.CurrentGust;
+            if (gust != null) { GustOrigin = gust.Origin; GustTarget = gust.Target; GustPhase = gust.Phase; GustProgress = gust.Progress; GustShielded = gust.Shielded; }
+            Bracing = game.Bracing; GustsBlocked = game.GustsBlocked;
             var session = game.Session;
             PutControllersDown = game.PuzzleIndex == 0 && session != null && !session.Owner.HasValue && game.ControllersInHand;
             Refusals = session?.Refusals ?? game.RefusedFailures;

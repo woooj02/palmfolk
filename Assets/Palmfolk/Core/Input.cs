@@ -143,6 +143,9 @@ namespace Palmfolk.Core
         public double WorldScaleAdjustment { get; set; } = 1;
         // Start with Pip already across Board's gap, so play opens on building rather than carrying him.
         public bool SkipBoard { get; set; }
+        // Gusts blow at crossing travelers; an upright hand shields them (GustField).
+        public bool Gusts { get; set; }
+        public int BraceTicks { get; set; } = 75;
 
         // The capacity table (Definitions). H1 may change these after the Arch playtest; the rock, span and anchor
         // heights are valley content. EndRampLength > 0 lets Pip add end ramps: deck within that distance (along the
@@ -167,7 +170,7 @@ namespace Palmfolk.Core
                 if (!Vec3.Finite(rule.MinimumWidth) || rule.MinimumWidth <= 0 || !Vec3.Finite(rule.MaximumSlopeDegrees) || rule.MaximumSlopeDegrees <= 0 ||
                     rule.MaximumSlopeDegrees >= 90 || !Vec3.Finite(rule.MinimumClearance) || rule.MinimumClearance < 0) throw new ArgumentException("Invalid capacity rule.");
             if (!Vec3.Finite(EndRampLength) || EndRampLength < 0 || EndRampLength > 0.05) throw new ArgumentException("Invalid end ramp length.");
-            int[] ticks = { ConnectTicks, StillnessTicks, BuildTicks, ScaffoldTicks, RemovalTicks, AlignmentTicks, BlendTicks, RecoveryTicks, ReturnTicks, PlantTicks };
+            int[] ticks = { ConnectTicks, StillnessTicks, BuildTicks, ScaffoldTicks, RemovalTicks, AlignmentTicks, BlendTicks, RecoveryTicks, ReturnTicks, PlantTicks, BraceTicks };
             foreach (int v in ticks) if (v < 1 || v > 36000) throw new ArgumentException("Invalid tick setting.");
         }
     }

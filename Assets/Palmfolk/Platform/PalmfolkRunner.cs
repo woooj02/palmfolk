@@ -138,10 +138,11 @@ namespace Palmfolk.Platform
         }
 
         // Quest 2 headset finding (Nov 13): a 2 cm connection and a 4 cm break were too tight to find by feel, and
-        // carrying Pip read as busywork. Live play opens on building and connects within 4 cm, breaking past 8 cm.
+        // carrying Pip read as busywork. Live play opens on building, connects within 4 cm, breaks past 8 cm, and
+        // sends gusts at crossing travelers for the hand to wall off.
         public static GameSettings LiveSettings() => new GameSettings
         {
-            SkipBoard = true, ConnectDistance = 0.04, BreakDistance = 0.08, ConnectTicks = 6, StillnessSpeed = 0.045
+            SkipBoard = true, Gusts = true, ConnectDistance = 0.04, BreakDistance = 0.08, ConnectTicks = 6, StillnessSpeed = 0.045
         };
 
         // Opens the newest save in `storage` (or a fresh valley). D9: VR mode (or Table mode without passthrough)

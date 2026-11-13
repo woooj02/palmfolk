@@ -106,6 +106,13 @@ namespace Palmfolk.Core
         public Vec3 PreviousPip { get; private set; }
         public string PipIsland => progress.PipIsland;
         public Traveler Bram { get; private set; }
+        // The wall sculpt (settings.Gusts): the gust now gathering or blowing, if any, and the score so far.
+        public Gust CurrentGust => gusts.Current;
+        public int GustsBlocked => gusts.Blocked;
+        public int GustHits => gusts.Hits;
+        public bool Bracing => braceTicks > 0;
+        private readonly GustField gusts = new GustField();
+        private int braceTicks;
         public Vec3 BramPosition => Bram?.Position ?? Valley.Island(Valley.Camp).Top;
         public IReadOnlyList<Traveler> Travelers => travelersView ??= travelers.AsReadOnly();
         public IReadOnlyDictionary<string, CurveTree> Bridges => progress.Bridges;
@@ -248,11 +255,17 @@ namespace Palmfolk.Core
                     }
                     break;
                 case DirectorStage.TravelersCrossing:
+                    if (settings.Gusts)
+                    {
+                        Traveler walking = null; foreach (var t in travelers) if (!t.Arrived) { walking = t; break; }
+                        if (walking != null && StepGusts(frame, walking)) break;
+                    }
                     foreach (var t in travelers) if (!t.Arrived) { t.Step(step); if (t.Arrived) Emit(GameEventKind.TravelerArrived); }
                     bool all = true; foreach (var t in travelers) all &= t.Arrived;
                     if (all) CompletePuzzle();
                     break;
                 case DirectorStage.BramCrossing:
+                    if (StepGusts(frame, Bram)) break;
                     if (Bram.Step(step)) Emit(GameEventKind.CrossingCompleted);
                     if (Bram.Arrived) { Emit(GameEventKind.BramFinished); CompletePuzzle(); }
                     break;
@@ -401,8 +414,20 @@ namespace Palmfolk.Core
             Stage = DirectorStage.BramCrossing; Emit(GameEventKind.BramStarted);
         }
 
+        // True while the travelers brace against a gust that got through (they don't walk this tick).
+        private bool StepGusts(HandFrame frame, Traveler walker)
+        {
+            if (!settings.Gusts) return false;
+            var e = gusts.Step(frame, walker.Position, walker.Position - walker.PreviousPosition);
+            if (e.HasValue) Emit(e.Value);
+            if (e == GameEventKind.GustHit) braceTicks = settings.BraceTicks;
+            if (braceTicks > 0) { braceTicks--; return true; }
+            return false;
+        }
+
         private void CompletePuzzle()
         {
+            gusts.Reset(); braceTicks = 0;
             if (Visiting) { SettleVisitor(); return; }
             Emit(GameEventKind.PuzzleCompleted);
             progress.CompletedPuzzles++;

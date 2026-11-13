@@ -13,7 +13,9 @@ namespace Palmfolk.Core
         PuzzleStarted, PuzzleCompleted, LedgeWidening, LedgeWidened, RebuildNeeded, TravelersStarted, TravelerArrived, CrossingCompleted,
         VisitorCalled, VisitorArrived, VisitorSettled,
         // E17: the hand now spans the gap (source and every end held); raised again if it lets go and locks again.
-        ConnectionLocked
+        ConnectionLocked,
+        // The wall sculpt: a gust gathers, then is shielded by an upright hand or hits the travelers (they brace).
+        GustGathering, GustBlocked, GustHit
     }
     public readonly struct GameEvent
     {

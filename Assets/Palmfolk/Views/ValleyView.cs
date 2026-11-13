@@ -42,7 +42,7 @@ namespace Palmfolk.Views
         // The one-line instruction floating over the valley (Quest 2 finding, Nov 13: without it nobody knew what to do).
         public string Prompt { get; private set; } = "";
         private PalmfolkView.ShapePool rings;
-        private Material ringIdle, ringReady, pipMaterial;
+        private Material ringIdle, ringReady, pipMaterial, gustMaterial;
         private TextMesh prompt;
         private string transient; private long transientUntil = -1, refusedAt = -1;
         public void Consume(IReadOnlyList<GameEvent> events)
@@ -56,6 +56,8 @@ namespace Palmfolk.Views
                 if (e.Kind == GameEventKind.TrackingLost) Say("Keep your hand where the headset can see it", e.Tick, 150);
                 if (e.Kind == GameEventKind.PuzzleCompleted) Say("Well done!", e.Tick, 120);
                 if (e.Kind == GameEventKind.Refused) refusedAt = e.Tick;
+                if (e.Kind == GameEventKind.GustBlocked) Say("Shielded! Your hand held back the wind", e.Tick, 150);
+                if (e.Kind == GameEventKind.GustHit) Say("Whoosh! They're bracing.\nStand your hand up like a wall to shield them", e.Tick, 180);
                 if (e.Kind == GameEventKind.ReplantStarted || e.Kind == GameEventKind.PuzzleStarted || e.Kind == GameEventKind.VisitorCalled) { planted = e.Kind == GameEventKind.ReplantStarted ? null : planted; connectionTick = null; }
             }
         }
@@ -189,7 +191,7 @@ namespace Palmfolk.Views
             refusedScaffold = new PalmfolkView.ShapePool(valley, "Refused branch removal");
             connectionDust = new PalmfolkView.ShapePool(valley, "Connection lock dust");
             rings = new PalmfolkView.ShapePool(valley, "Target rings");
-            ringIdle = Material(new Color(1f, 0.86f, 0.25f)); ringReady = Material(new Color(0.3f, 1f, 0.5f));
+            ringIdle = Material(new Color(1f, 0.86f, 0.25f)); ringReady = Material(new Color(0.3f, 1f, 0.5f)); gustMaterial = Material(new Color(0.75f, 0.9f, 1f));
             prompt = new GameObject("Instruction").AddComponent<TextMesh>(); prompt.transform.SetParent(transform, false);
             prompt.characterSize = 0.0028f; prompt.fontSize = 48; prompt.anchor = TextAnchor.MiddleCenter; prompt.alignment = TextAlignment.Center;
         }
@@ -223,6 +225,7 @@ namespace Palmfolk.Views
                 }
                 if (!held && !ReducedMotion) rings.Sphere(centre + Vector3.up * (0.03f + 0.006f * Mathf.Sin(frame.Tick / 6f)), 0.006f, ringIdle);
             }
+            DrawGust(frame);
             rings.End();
             Prompt = PromptFor(frame);
             prompt.text = Prompt; prompt.gameObject.SetActive(Prompt.Length > 0);
@@ -234,9 +237,36 @@ namespace Palmfolk.Views
             }
         }
 
+        // The gust: a swirl where it gathers and a dotted path to the traveler; while it blows, streaks run along the
+        // path and stop short (green) when a hand shields it.
+        private void DrawGust(ValleyPresentation frame)
+        {
+            if (!frame.GustOrigin.HasValue || !frame.GustTarget.HasValue) return;
+            var from = PalmfolkView.V(frame.GustOrigin.Value); var to = PalmfolkView.V(frame.GustTarget.Value) + Vector3.up * 0.01f;
+            bool blowing = frame.GustPhase == GustPhase.Blowing;
+            var wind = frame.GustShielded ? ringReady : gustMaterial;
+            float swirl = 0.012f + 0.02f * (float)(blowing ? 1 : frame.GustProgress);
+            for (int i = 0; i < 10; i++)
+            {
+                float angle = i * Mathf.PI / 5 + (ReducedMotion ? 0 : frame.Tick / 5f);
+                rings.Sphere(from + new Vector3(Mathf.Cos(angle) * swirl, (i % 3) * 0.006f, Mathf.Sin(angle) * swirl), 0.004f, wind);
+            }
+            for (int i = 1; i < 12; i++) rings.Sphere(Vector3.Lerp(from, to, i / 12f), 0.0018f, wind);
+            if (!blowing) return;
+            float reach = frame.GustShielded ? 0.55f : 1f;
+            for (int i = 0; i < 6; i++)
+            {
+                float t = ReducedMotion ? i / 6f : Mathf.Repeat(frame.Tick / 20f + i / 6f, 1f);
+                rings.Box(Vector3.Lerp(from, to, t * reach), new Vector3(0.012f, 0.002f, 0.002f), Quaternion.LookRotation(to - from) * Quaternion.Euler(0, 90, 0), wind);
+            }
+        }
+
         private string PromptFor(ValleyPresentation frame)
         {
             if (frame.Tick < transientUntil && transient != null) return transient;
+            if (frame.GustPhase == GustPhase.Gathering) return "A gust is coming!\nStand your hand up like a wall between it and them";
+            if (frame.GustPhase == GustPhase.Blowing) return frame.GustShielded ? "Hold it\u2026 shielding!" : "Block the wind with an upright hand!";
+            if (frame.Bracing) return "They're bracing against the wind\u2026";
             if (refusedAt >= 0 && frame.Tick - refusedAt < 240 && frame.Refusals.Count > 0)
             {
                 switch (frame.Refusals[0].Reason)
