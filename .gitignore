@@ -25,6 +25,9 @@ crashlytics-build.properties
 *.pem
 *.p12
 *.pfx
+# Meta's dev-agent settings hold a generated access token and this PC's address
+Assets/Resources/DevAgentSettings.asset
+Assets/Resources/DevAgentSettings.asset.meta
 .DS_Store
 
 # Playtest recordings stay off the repo (T10, T13)
