@@ -349,8 +349,8 @@ namespace Palmfolk.Tests
                 var after = player.Events.Skip(before).Select(e => e.Kind).ToList();
                 if (quick)
                 {
-                    Assert.That(after, Does.Contain(GameEventKind.HandReleased));
-                    Assert.That(after, Does.Not.Contain(GameEventKind.ReturningToCheckpoint));
+                    Assert.That(after, Has.Member(GameEventKind.HandReleased));
+                    Assert.That(after, Has.No.Member(GameEventKind.ReturningToCheckpoint));
                     Assert.That(game.Session.Recovery, Is.Null);
                 }
                 else Assert.That(game.Session.Recovery != null || after.Contains(GameEventKind.ReturningToCheckpoint), Is.True);
