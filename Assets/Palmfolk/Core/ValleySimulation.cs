@@ -189,6 +189,8 @@ namespace Palmfolk.Core
                 (progress.CurrentVisitor >= 0 && (progress.VisitorsHelped & (1 << progress.CurrentVisitor)) != 0)) progress.CurrentVisitor = -1;
             if (progress.CompletedPuzzles >= 6 && progress.CurrentVisitor < 0) progress.CurrentVisitor = NextVisitor();
             var board = valley.Edge(valley.Puzzles[0].Edges[0]);
+            if (this.settings.SkipBoard && progress.CompletedPuzzles == 0)
+            { progress.CompletedPuzzles = 1; progress.PipIsland = board.Other(valley.Puzzles[0].TravelerFrom); }
             Pip = PreviousPip = progress.CompletedPuzzles == 0 ? board.AnchorAt(valley.Puzzles[0].TravelerFrom).Centre : valley.Island(progress.PipIsland).Top;
             BeginPuzzle();
         }

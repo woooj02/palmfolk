@@ -141,6 +141,8 @@ namespace Palmfolk.Core
         public double MinimumHandScale { get; set; } = 0.75;
         public double MaximumHandScale { get; set; } = 1.3;
         public double WorldScaleAdjustment { get; set; } = 1;
+        // Start with Pip already across Board's gap, so play opens on building rather than carrying him.
+        public bool SkipBoard { get; set; }
 
         // The capacity table (Definitions). H1 may change these after the Arch playtest; the rock, span and anchor
         // heights are valley content. EndRampLength > 0 lets Pip add end ramps: deck within that distance (along the

@@ -39,6 +39,12 @@ namespace Palmfolk.Views
         public int RenderedBridgeCount => bridges.Count;
         public int RenderedUniqueCurveCount { get; private set; }
         public TravelerKind? PreviewCapacity { get; private set; }
+        // The one-line instruction floating over the valley (Quest 2 finding, Nov 13: without it nobody knew what to do).
+        public string Prompt { get; private set; } = "";
+        private PalmfolkView.ShapePool rings;
+        private Material ringIdle, ringReady, pipMaterial;
+        private TextMesh prompt;
+        private string transient; private long transientUntil = -1, refusedAt = -1;
         public void Consume(IReadOnlyList<GameEvent> events)
         {
             if (pipRig != null) { pipRig.Consume(events); bramRig.Consume(events); }
@@ -46,6 +52,10 @@ namespace Palmfolk.Views
             {
                 if (e.Kind == GameEventKind.Planted) planted = e.Tick;
                 if (e.Kind == GameEventKind.ConnectionLocked) connectionTick = e.Tick;
+                if (e.Kind == GameEventKind.BridgeBaked) Say("Bridge built! Lift your hand away; it stays", e.Tick, 180);
+                if (e.Kind == GameEventKind.TrackingLost) Say("Keep your hand where the headset can see it", e.Tick, 150);
+                if (e.Kind == GameEventKind.PuzzleCompleted) Say("Well done!", e.Tick, 120);
+                if (e.Kind == GameEventKind.Refused) refusedAt = e.Tick;
                 if (e.Kind == GameEventKind.ReplantStarted || e.Kind == GameEventKind.PuzzleStarted || e.Kind == GameEventKind.VisitorCalled) { planted = e.Kind == GameEventKind.ReplantStarted ? null : planted; connectionTick = null; }
             }
         }
@@ -58,7 +68,7 @@ namespace Palmfolk.Views
             valley.SetPositionAndRotation(PalmfolkView.V(pose.Origin), new Quaternion((float)pose.Rotation.X, (float)pose.Rotation.Y, (float)pose.Rotation.Z, (float)pose.Rotation.W));
             float growth = planted.HasValue && !ReducedMotion ? Mathf.Max(0.001f, Mathf.SmoothStep(0, 1, (frame.Tick - planted.Value) / 30f)) : 1;
             valley.localScale = Vector3.one * (float)pose.Scale * growth;
-            DrawConnection(frame);
+            DrawConnection(frame); DrawGuide(frame);
             pip.localPosition = PalmfolkView.V(frame.Pip); bram.localPosition = PalmfolkView.V(frame.Bram);
             pipRig.ReducedMotion = bramRig.ReducedMotion = ReducedMotion; pipRig.Present(frame); bramRig.Present(frame);
             cart.localPosition = bram.localPosition + bram.localRotation * Vector3.back * 0.016f; cart.localRotation = bram.localRotation;
@@ -163,7 +173,8 @@ namespace Palmfolk.Views
                 var rock = PalmfolkView.Primitive(PrimitiveType.Cube, "Configured rock", cord, islands);
                 rock.localPosition = PalmfolkView.V((obstacle.Min + obstacle.Max) / 2); rock.localScale = PalmfolkView.V(obstacle.Max - obstacle.Min);
             }
-            pip = Actor("Pip"); bram = Actor("Bram"); pipRig = pip.GetComponent<TravelerRig>(); bramRig = bram.GetComponent<TravelerRig>(); bramRig.Role = TravelerRole.Bram;
+            pipMaterial = Material(new Color(1f, 0.72f, 0.08f));
+            pip = Actor("Pip", pipMaterial); pip.localScale = Vector3.one * 1.8f; bram = Actor("Bram"); pipRig = pip.GetComponent<TravelerRig>(); bramRig = bram.GetComponent<TravelerRig>(); bramRig.Role = TravelerRole.Bram;
             cart = Cart("Lantern cart");
             capacity = new GameObject("Capacity icon").transform; capacity.SetParent(valley, false); capacityGlyph = new PalmfolkView.ShapePool(capacity, "Capacity glyph");
             ledge = PalmfolkView.Primitive(PrimitiveType.Cube, "Widening ledge", wood, valley);
@@ -177,6 +188,82 @@ namespace Palmfolk.Views
             scaffold = new PalmfolkView.ShapePool(valley, "Frozen scaffold"); ghost = new PalmfolkView.ShapePool(valley, "Recovery ghost"); refusals = new PalmfolkView.ShapePool(valley, "Refusal crosses");
             refusedScaffold = new PalmfolkView.ShapePool(valley, "Refused branch removal");
             connectionDust = new PalmfolkView.ShapePool(valley, "Connection lock dust");
+            rings = new PalmfolkView.ShapePool(valley, "Target rings");
+            ringIdle = Material(new Color(1f, 0.86f, 0.25f)); ringReady = Material(new Color(0.3f, 1f, 0.5f));
+            prompt = new GameObject("Instruction").AddComponent<TextMesh>(); prompt.transform.SetParent(transform, false);
+            prompt.characterSize = 0.0028f; prompt.fontSize = 48; prompt.anchor = TextAnchor.MiddleCenter; prompt.alignment = TextAlignment.Center;
+        }
+        private void Say(string text, long tick, int ticks) { transient = text; transientUntil = tick + ticks; }
+
+        // Glowing rings on every anchor the hand must reach (gold, green once held), and the instruction line.
+        private void DrawGuide(ValleyPresentation frame)
+        {
+            rings.Begin();
+            var targets = new List<AnchorZone>();
+            if (frame.Source.HasValue && frame.Stage == DirectorStage.Interacting)
+            {
+                targets.Add(frame.Source.Value);
+                foreach (string id in frame.ActiveEdges)
+                {
+                    var edge = spec.Edge(id); bool from = Vec3.Distance(edge.FromAnchor.Centre, frame.Source.Value.Centre) <= Vec3.Distance(edge.ToAnchor.Centre, frame.Source.Value.Centre);
+                    targets.Add(from ? edge.ToAnchor : edge.FromAnchor);
+                }
+                if (frame.ActiveEdges.Count == 0 && frame.Destination.HasValue) targets.Add(frame.Destination.Value);
+            }
+            float pulse = ReducedMotion ? 1 : 0.85f + 0.15f * Mathf.Sin(frame.Tick / 8f);
+            for (int t = 0; t < targets.Count; t++)
+            {
+                bool held = frame.ConnectionLocked || (t == 0 && frame.HandOwner.HasValue);
+                float radius = Mathf.Max(0.012f, (float)Math.Min(targets[t].Radius, rules.ConnectDistance)) * (held ? 1 : pulse);
+                var centre = PalmfolkView.V(targets[t].Centre) + Vector3.up * 0.002f;
+                for (int i = 0; i < 16; i++)
+                {
+                    float angle = i * Mathf.PI / 8;
+                    rings.Sphere(centre + new Vector3(Mathf.Cos(angle) * radius, 0, Mathf.Sin(angle) * radius), 0.0035f, held ? ringReady : ringIdle);
+                }
+                if (!held && !ReducedMotion) rings.Sphere(centre + Vector3.up * (0.03f + 0.006f * Mathf.Sin(frame.Tick / 6f)), 0.006f, ringIdle);
+            }
+            rings.End();
+            Prompt = PromptFor(frame);
+            prompt.text = Prompt; prompt.gameObject.SetActive(Prompt.Length > 0);
+            if (Prompt.Length > 0)
+            {
+                prompt.transform.position = valley.TransformPoint(new Vector3(0, 0.11f, 0));
+                var viewer = Camera.main != null ? Camera.main.transform : null;
+                if (viewer != null) prompt.transform.rotation = Quaternion.LookRotation(prompt.transform.position - viewer.position, Vector3.up);
+            }
+        }
+
+        private string PromptFor(ValleyPresentation frame)
+        {
+            if (frame.Tick < transientUntil && transient != null) return transient;
+            if (refusedAt >= 0 && frame.Tick - refusedAt < 240 && frame.Refusals.Count > 0)
+            {
+                switch (frame.Refusals[0].Reason)
+                {
+                    case Refusal.TooNarrow: return "Too narrow for them. Put your fingers together, side by side";
+                    case Refusal.TooSteep: return "Too steep. Keep your hand flatter";
+                    case Refusal.LowClearance: return "It hits the rock. Arch your hand over it";
+                    case Refusal.SelfCrossing: return "The path crosses itself. Straighten your fingers";
+                    case Refusal.TooLong: return "Too long. Try a shorter path";
+                    default: return "Both ends must touch the glowing rings";
+                }
+            }
+            if (frame.Stage == DirectorStage.AwaitingWithdrawal) return "Lift your hand away; the bridge stays";
+            if (frame.Stage != DirectorStage.Interacting || !frame.Source.HasValue) return "";
+            if (frame.Recovering) return "Bring your hand back to where it was";
+            if (frame.BuildPhase == BuildPhase.Building) return "Hold still\u2026 Pip is building " + Mathf.RoundToInt((float)frame.BuildProgress * 100) + "%";
+            if (frame.BuildPhase == BuildPhase.Paused) return "Hold still to keep building";
+            if (frame.ConnectionLocked) return "Hold still";
+            if (frame.HandOwner.HasValue) return "Stretch your fingers to the other glowing ring";
+            switch (frame.Puzzle)
+            {
+                case PuzzleKind.Width: return "The family needs a wide bridge:\nlay your fingers together, ring to ring";
+                case PuzzleKind.Fork: return "Spread your fingers to reach every glowing ring";
+                case PuzzleKind.Arch: return "Arch your hand over the rock, ring to ring";
+                case PuzzleKind.Finale: return "Bram's cart needs wide, gentle bridges";
+                default: return "Lay your hand flat from one glowing ring to the other";
+            }
         }
         private void DrawConnection(ValleyPresentation frame)
         {
@@ -207,7 +294,7 @@ namespace Palmfolk.Views
             backdrop.gameObject.SetActive(HighContrast && TableMode);
             if (contrastApplied == HighContrast) return; contrastApplied = HighContrast;
             var shader = Resources.Load<Material>("Palmfolk/" + (HighContrast ? "HighContrast" : "StandardOpaque")).shader;
-            foreach (var material in new[] { wood, cord, skin, handMaterial, islandMaterial, warning, backdropMaterial }) material.shader = shader;
+            foreach (var material in new[] { wood, cord, skin, handMaterial, islandMaterial, warning, backdropMaterial, pipMaterial }) material.shader = shader;
             wood.color = HighContrast ? Color.white : new Color(0.48f, 0.29f, 0.13f);
             cord.color = HighContrast ? Color.white : new Color(0.22f, 0.17f, 0.10f);
             skin.color = HighContrast ? Color.white : new Color(0.65f, 0.51f, 0.31f);
@@ -215,9 +302,9 @@ namespace Palmfolk.Views
             islandMaterial.color = HighContrast ? new Color(0.06f, 0.06f, 0.06f) : new Color(0.48f, 0.29f, 0.13f);
             warning.color = HighContrast ? Color.white : new Color(1, 0.65f, 0.15f);
         }
-        private Transform Actor(string name)
+        private Transform Actor(string name, Material material = null)
         {
-            var root = new GameObject(name).transform; root.SetParent(valley, false); root.gameObject.AddComponent<TravelerRig>().Initialize(skin); return root;
+            var root = new GameObject(name).transform; root.SetParent(valley, false); root.gameObject.AddComponent<TravelerRig>().Initialize(material ?? skin); return root;
         }
         private Transform Cart(string name)
         {

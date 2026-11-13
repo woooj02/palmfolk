@@ -134,8 +134,15 @@ namespace Palmfolk.Platform
         private void Start()
         {
             if (openOnStart && Game == null)
-                Open(Content(), new DirectorySaveStorage(System.IO.Path.Combine(Application.persistentDataPath, saveFolder)));
+                Open(Content(), new DirectorySaveStorage(System.IO.Path.Combine(Application.persistentDataPath, saveFolder)), LiveSettings());
         }
+
+        // Quest 2 headset finding (Nov 13): a 2 cm connection and a 4 cm break were too tight to find by feel, and
+        // carrying Pip read as busywork. Live play opens on building and connects within 4 cm, breaking past 8 cm.
+        public static GameSettings LiveSettings() => new GameSettings
+        {
+            SkipBoard = true, ConnectDistance = 0.04, BreakDistance = 0.08, ConnectTicks = 6, StillnessSpeed = 0.045
+        };
 
         // Opens the newest save in `storage` (or a fresh valley). D9: VR mode (or Table mode without passthrough)
         // resumes at the saved pose; Table mode looks for the saved anchor for up to 5 s and opens there, or plants.

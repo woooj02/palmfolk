@@ -78,6 +78,20 @@ namespace Palmfolk.Platform.Editor
 
         // D9: Table mode needs passthrough (Supported, not Required, so VR still runs without it) and spatial
         // anchors in the Android manifest, and MetaTableMode next to the runner. Run after 2. Add Runner.
+        // Slice 0's two grey boxes sat in the M1 scene beside the real valley and read as the islands on the
+        // Quest 2 (Nov 13). The valley view draws every island itself, so the boxes go.
+        [MenuItem("Palmfolk/Platform/4. Remove Slice 0 Greybox Islands")]
+        public static void RemoveGreyboxIslands()
+        {
+            var scene = EditorSceneManager.OpenScene("Assets/Palmfolk/Scenes/M1.unity");
+            int removed = 0;
+            var boxes = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Transform>(true))
+                .Where(t => t.name == "Island S" || t.name == "Island A").Select(t => t.gameObject).ToList();
+            foreach (var box in boxes) { UnityEngine.Object.DestroyImmediate(box); removed++; }
+            if (removed > 0) { EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); }
+            Debug.Log("Palmfolk: removed " + removed + " greybox islands from M1.");
+        }
+
         [MenuItem("Palmfolk/Platform/3. Enable Table Mode")]
         public static Palmfolk.Platform.Meta.MetaTableMode EnableTableMode()
         {

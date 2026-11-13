@@ -318,6 +318,22 @@ namespace Palmfolk.Tests
             Assert.That(player.Count(GameEventKind.TravelerArrived), Is.EqualTo(5)); // apprentice, group, two at the Fork, Arch
         }
 
+        [Test] public void SkippingBoardOpensOnTheFirstBridgeAndStillReachesTheFinale()
+        {
+            var game = new ValleySimulation(TestValley.Chapter1(), new GameSettings { SkipBoard = true }); var player = new TestPlayer();
+            Assert.That(game.Puzzle.Kind, Is.EqualTo(PuzzleKind.FirstBridge)); Assert.That(game.PipIsland, Is.EqualTo("A"));
+            Assert.That(player.RunUntil(game, () => game.IsComplete), Is.True, $"stuck in {game.Puzzle.Kind} at {game.Stage}");
+            Assert.That(player.Count(GameEventKind.PuzzleCompleted), Is.EqualTo(5));
+        }
+
+        [Test] public void SkippingBoardMovesAnUnstartedSaveOnButLeavesProgressAlone()
+        {
+            var fresh = new ValleySimulation(TestValley.Chapter1(), new GameSettings { SkipBoard = true }, new ValleyProgress { PipIsland = "S" });
+            Assert.That(fresh.Progress.CompletedPuzzles, Is.EqualTo(1)); Assert.That(fresh.PipIsland, Is.EqualTo("A"));
+            var later = new ValleySimulation(TestValley.Chapter1(), new GameSettings { SkipBoard = true }, new ValleyProgress { CompletedPuzzles = 3, PipIsland = "C" });
+            Assert.That(later.Progress.CompletedPuzzles, Is.EqualTo(3)); Assert.That(later.PipIsland, Is.EqualTo("C"));
+        }
+
         [Test] public void FirstBridgeIsNarrowWhateverTheHand()
         {
             var player = new TestPlayer { Plan = (p, e, a) => TestPlayer.Shape.Plank };
