@@ -146,6 +146,8 @@ namespace Palmfolk.Core
                 if (layout == null) rawReadable = activeRoute != null && HandRoutes.CanCreate(rawHand, activeRoute.Finger, activeRoute.Reversed, settings);
                 else { Read(rawHand, out raw); rawReadable = raw != null; }
                 bool poorTracking = PoorTracking = rawHand == null || (rawHand.InvalidMask & RequiredMask()) != 0;
+                if (!rawReadable && Recovery == null && settings.QuickRelease && Build == null && !poorTracking)
+                { transferring = false; ReleaseHand(); return SessionResult.Continue; }
                 if (!rawReadable && Recovery == null) BeginRecovery(poorTracking);
                 if (Recovery != null)
                 {
@@ -178,6 +180,8 @@ namespace Palmfolk.Core
                 Build.Step(null, false, false);
                 if (Build.Phase == BuildPhase.Removed && !Owner.HasValue) Build = null;
             }
+            // Quick release leaves Pip where the hand let go; he walks back to the middle of his island.
+            if (!Owner.HasValue && settings.QuickRelease && !transferring) Pip = MoveTowards(Pip, Source.Centre, settings.TravelerSpeed * GameSettings.Delta);
             if (!Owner.HasValue) Acquire(left, right);
             if (!Owner.HasValue || activeRoute == null) return SessionResult.Continue;
             if (frame.Command == InputCommand.CancelBuild || frame.Command == InputCommand.StartElsewhere || frame.Command == InputCommand.Restart)

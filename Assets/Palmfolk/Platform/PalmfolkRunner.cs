@@ -142,7 +142,7 @@ namespace Palmfolk.Platform
         // sends gusts at crossing travelers for the hand to wall off.
         public static GameSettings LiveSettings() => new GameSettings
         {
-            SkipBoard = true, Gusts = true, ConnectDistance = 0.04, BreakDistance = 0.08, ConnectTicks = 6, StillnessSpeed = 0.045
+            SkipBoard = true, Gusts = true, QuickRelease = true, ConnectDistance = 0.04, BreakDistance = 0.08, ConnectTicks = 6, StillnessSpeed = 0.045
         };
 
         // Opens the newest save in `storage` (or a fresh valley). D9: VR mode (or Table mode without passthrough)

@@ -326,6 +326,37 @@ namespace Palmfolk.Tests
             Assert.That(player.Count(GameEventKind.PuzzleCompleted), Is.EqualTo(5));
         }
 
+        // Quest 2 finding, Nov 13: a hand that slipped right after connecting sat through the ghost-hand recovery
+        // and a slow return to the checkpoint. With QuickRelease it is let go at once, and Pip walks back.
+        [Test] public void AHandThatSlipsBeforeBuildingIsLetGoAtOnce()
+        {
+            foreach (bool quick in new[] { false, true })
+            {
+                var game = new ValleySimulation(TestValley.Chapter1(), new GameSettings { SkipBoard = true, QuickRelease = quick }); var player = new TestPlayer();
+                Assert.That(player.RunUntil(game, () => game.Session != null && game.Session.Owner.HasValue, 2000), Is.True);
+                int before = player.Events.Count;
+                for (int i = 0; i < 120; i++)
+                {
+                    long tick = game.Tick + 1; var hand = player.Hand(game, tick);
+                    // The same hand turned palm up: every joint is tracked, but it no longer makes a deck.
+                    // Turned half a revolution about the forearm's line through the wrist (a rotation, not a mirror).
+                    var w = hand.Joints[1].Position;
+                    var flipped = new HandSample(hand.Side, hand.Joints.Select(j => j.WithPosition(new Vec3(j.Position.X, 2 * w.Y - j.Position.Y, 2 * w.Z - j.Position.Z))).ToArray());
+                    var previous = game.Pip;
+                    game.Step(new HandFrame(tick, tick * 16667, flipped, null, true, InputCommand.None)); player.Events.AddRange(game.Events);
+                    Assert.That(Vec3.Distance(game.Pip, previous), Is.LessThan(0.005), "Pip never jumps");
+                }
+                var after = player.Events.Skip(before).Select(e => e.Kind).ToList();
+                if (quick)
+                {
+                    Assert.That(after, Does.Contain(GameEventKind.HandReleased));
+                    Assert.That(after, Does.Not.Contain(GameEventKind.ReturningToCheckpoint));
+                    Assert.That(game.Session.Recovery, Is.Null);
+                }
+                else Assert.That(game.Session.Recovery != null || after.Contains(GameEventKind.ReturningToCheckpoint), Is.True);
+            }
+        }
+
         [Test] public void SkippingBoardMovesAnUnstartedSaveOnButLeavesProgressAlone()
         {
             var fresh = new ValleySimulation(TestValley.Chapter1(), new GameSettings { SkipBoard = true }, new ValleyProgress { PipIsland = "S" });

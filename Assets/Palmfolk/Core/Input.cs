@@ -145,6 +145,9 @@ namespace Palmfolk.Core
         public bool SkipBoard { get; set; }
         // Gusts blow at crossing travelers; an upright hand shields them (GustField).
         public bool Gusts { get; set; }
+        // A hand that loses its shape before any building starts is simply let go (try again at once), instead of
+        // the ghost-hand recovery and its slow return to the checkpoint (Quest 2 finding, Nov 13).
+        public bool QuickRelease { get; set; }
         public int BraceTicks { get; set; } = 75;
 
         // The capacity table (Definitions). H1 may change these after the Arch playtest; the rock, span and anchor
