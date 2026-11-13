@@ -177,9 +177,12 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
   otherwise they brace for 75 ticks. Live play only (`GameSettings.Gusts`). Headless: 240 tests pass, including
   shielding geometry and a full chapter with gusts. Not seen on a headset yet.
 
+- **Bake moment and wind sounds, Nov 13.** Sparks run along a bridge as it solidifies; wind, shield and gust cues
+  (`Audio/AudioCues.cs`); the instruction line counts shielded gusts. Not seen or heard on a headset yet.
+
 ## Next
 
-- Quest 2 pass on the new opening and walls, then the bake moment, gust sounds and a tidier waystone
+- Quest 2 pass on the new opening, walls, bake moment and sounds, then a tidier waystone
   ([`concept-sculpting.md`](concept-sculpting.md)).
 - For Sam, when back: I merged `sam/hand-guidance` into my branch and edited `Views/ValleyView.cs` (rings, prompt,
   Pip, gusts) and the M1 scene (greybox removed). Delete untracked generated files before rebasing onto `main`.

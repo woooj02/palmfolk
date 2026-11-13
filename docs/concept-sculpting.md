@@ -37,7 +37,10 @@ wait: the game slows, it never fails you.
 ## Still to do (owner's call on order)
 
 1. Headset pass on the new opening and on walls (Quest 2).
-2. A bake moment: planks snapping into place along the hand when the bridge solidifies, with sound.
-3. Gust and shield sounds; a tally of shielded gusts on the waystone.
+2. ~~A bake moment~~: done Nov 13. A wave of golden sparks runs along the new bridge and lifts off (the existing
+   build-done chime plays with it).
+3. ~~Gust and shield sounds; a tally of shielded gusts~~: done Nov 13. `Cue.Wind` swells while a gust gathers,
+   `Cue.Shielded` rings when a hand blocks it, `Cue.Gusted` rushes when it gets through; the prompt counts
+   shielded gusts. Unity editor (batch build): compiles. Not heard on a headset yet.
 4. Tidy the waystone (one compact menu, readable labels).
 5. Video and submission text around the new promise.
