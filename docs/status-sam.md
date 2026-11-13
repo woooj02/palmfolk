@@ -182,14 +182,25 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
 
 ## In progress
 
-- Current runtime bindings are implemented and editor-checked. Release preparation and owner-run
-  M1/quality review remain below; greybox art/audio and missing presentation signals are not signed off.
-  Dario's D6–D11 changes are integrated; the previous command/save/visitor/gaze dependency blocks are cleared.
+- Nov 12: Dario's four new contracts are published. Connection feedback, support cursors and format-3
+  waystone replay are merged and editor-checked (entries above). The full recovery/hint hands are prepared
+  on `sam/hand-guidance`, not merged: the editor startup blocker below prevents the required Unity gate.
+  Remaining release preparation and owner-run M1/quality review remain below; greybox art/audio are not signed off.
 
 ## Blocked
 
-- S2 full valley integration is implemented. The contracts expose a route, not a full
-  recovery skeleton or puzzle-specific hint pose; these need a published input/solution binding, not guessed joints.
+- **S2 editor startup blocker, Nov 12.** `sam/hand-guidance` contains `HandGuidanceView`, live composition
+  and regressions for both observed ghost hands, `HintDue`, all five hint shapes and reduced motion.
+  Ghost data comes from `GhostHand`; the separate stylised hint follows `Hint.Tree`/`Shape` and does not
+  fabricate an XR input sample. The Board illustration puts fingertips at Pip and the palm toward the next island.
+  The old missing-contract block is cleared. Pending source passes both headless configurations (234 / 218),
+  Python source checks (99 C# files), 28 manifest checks and isolated C# compilation of Views/UI/view tests
+  using the cached Unity references. **That is not a batch-Unity or editor-test pass.**
+  After an initial memory error, sequential Unity attempts repeatedly crash with -1073741819 in
+  `Logs/define-setup.log`, immediately after setting Sam's project path, before script compilation.
+  A lower-worker retry (`-JobWorkers 2`) fails at the same stage. Earlier logs are preserved under ignored
+  `Logs/hand-guidance-*-crash.log`. No global services, licence, software or other checkout was changed.
+  Required next check after the owner restores editor startup: both Unity gates, then merge this branch.
 - S3 measured labels and the full valley graph are bound. Device performance and readability remain owner checks.
 - S4 commands/settings/mode/gaze and ten poke tips are bound. A full session with either hand alone,
   including real ISDK poke and system-menu rejection, remains an owner headset check.
@@ -206,6 +217,10 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
 
 ## Questions for the owner
 
+- **Unity startup:** please save open work and restart the PC, then confirm when Sam's project can start.
+  This may clear the native startup/memory fault; its root cause is not established. After that I can rerun
+  the compile/editor checks and finish the pending ghost/hint merge. Restarting or changing system
+  software/licensing is an owner-only action, so I have not done it.
 - Headset and target-device verification remain owner-run. No Quest 2, Quest 3/3S or simulator result yet.
 - **S10 APK blocker, checked Nov 11 at clean tracked revision `9168158`.** Ran
   `powershell -ExecutionPolicy Bypass -File tools/Build-OwnerApk.ps1 -Configuration Release -TableMode`.

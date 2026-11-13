@@ -22,6 +22,11 @@ the compiled stats type in the actual compile/test invocation. It restores the p
 bytes in `finally`. `-Development` requests inclusion; without it, absence. No Android setting change is
 committed. Do not confuse this editor gate check with a final APK pass. Reopen/import after interrupted checks.
 
+`-JobWorkers 2` optionally limits Unity's job workers for both setup and the requested check; zero (the
+default) keeps Unity's normal choice. It changes neither the test set nor pass criteria. Startup failures
+now identify `Logs/define-setup.log` rather than pointing at an old compile/test log. The Nov 12 native
+startup crash also occurred with two workers, so this option is not a verified fix for that fault.
+
 `Source checks` runs the headless tests on Linux and Windows and planted bad-manifest checks on both.
 Unity checks run locally on the installed/licensed editor, not hosted CI; no CI licence is configured.
 
