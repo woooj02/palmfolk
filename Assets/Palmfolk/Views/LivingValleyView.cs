@@ -60,8 +60,7 @@ namespace Palmfolk.Views
                         var cart = PalmfolkView.Primitive(PrimitiveType.Cube, "Resident cart " + used, wood, content); cart.localScale = new Vector3(0.02f, 0.012f, 0.016f); carts.Add(cart);
                     }
                     var figure = figures[used]; figure.gameObject.SetActive(true); figure.ReducedMotion = ReducedMotion;
-                    var position = traveler.Position + new Vec3((member - (members - 1) * 0.5) * 0.006, 0, 0);
-                    figure.transform.localPosition = PalmfolkView.V(position); figure.PresentTraveler(position, frame.Tick, traveler.Arrived, frame.Pose, frame.Bridges);
+                    figure.PresentTraveler(traveler, frame.Tick, frame.Pose, (member - (members - 1) * 0.5) * 0.006);
                     carts[used].gameObject.SetActive(traveler.Kind == TravelerKind.Cart);
                     carts[used].localPosition = figure.transform.localPosition + figure.transform.localRotation * Vector3.back * 0.018f; carts[used].localRotation = figure.transform.localRotation;
                     used++;

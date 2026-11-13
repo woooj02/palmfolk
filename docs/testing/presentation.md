@@ -48,10 +48,16 @@ cart stays behind Bram. Reduced motion preserves static gesture shape.
 This is a state/rig implementation, not a final animation/readability pass. `FootPlanting` now retains
 stance feet as route coordinates, reprojects them as hand geometry moves and emits a contact after a
 12-tick swing. Island stance uses valley-local contacts. Soles/shadow shapes tilt to the supported route.
+Valley travelers now use `TravelerView.Support`/`SupportCursor`, including group lanes, residents,
+the arriving visitor and `BramWalk`. Pip's Board carry uses `PipCursor` on the live hand. Supported
+stance does not search for a nearby bridge or another segment at a crossing. A changing hand retains
+its stance coordinates across route updates; switching persistent supports resets the stance.
 The rig's `FootContact` callback supplies the **world** contact point through the current valley pose;
 the platform can subscribe `audio.FootContact`. No clock-derived pretend contact is sent.
 Synthetic tests check hand translation without sliding/false steps and one landing cue after a swing.
-Surface transitions, final rigs/props and owner judgment at 3 cm still need editor/headset review.
+Frozen recovery holds the existing feet without new landings, and the returning phase uses walking
+body language. The builder's scaffold and legacy M1 port retain projection because they do not carry
+a `TravelerView` cursor. Surface transitions, final rigs/props and owner judgment at 3 cm still need editor/headset review.
 No camera, physics or gameplay state is animated by these components.
 
 ## Full valley (D3)

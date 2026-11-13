@@ -16,6 +16,7 @@ namespace Palmfolk.Views
         private long until;
         private Vec3 previous;
         private bool hasPrevious;
+        private bool hasContacts;
         private readonly FootPlanting contacts = new FootPlanting();
         private Transform leftShadow, rightShadow;
         private ValleyPose contactPose = ValleyPose.Identity;
@@ -23,6 +24,10 @@ namespace Palmfolk.Views
         public TravelerRole Role { get; set; }
         public BodyPose CurrentPose { get; private set; }
         public bool ReducedMotion { get; set; }
+        public Route ContactSupport { get; private set; }
+        public RouteCursor? ContactCursor { get; private set; }
+        public Vec3 LeftContact => contacts.Left;
+        public Vec3 RightContact => contacts.Right;
 
         public void Initialize(Material material)
         {
@@ -87,17 +92,28 @@ namespace Palmfolk.Views
         }
         public void Present(ValleyPresentation frame)
         {
-            PresentAt(Role == TravelerRole.Bram ? frame.Bram : frame.Pip, frame.Tick, frame.GhostRoute,
+            bool bram = Role == TravelerRole.Bram;
+            PresentAt(bram ? frame.Bram : frame.Pip, frame.Tick, bram || frame.RecoveryPhase == RecoveryPhase.Returning ? null : frame.GhostRoute,
                 frame.Stage == DirectorStage.Widening ? Core.BuildPhase.Building : frame.BuildPhase, frame.Complete);
-            Vec3 position = Role == TravelerRole.Bram ? frame.Bram : frame.Pip;
-            Route support = Role == TravelerRole.Pip ? frame.GhostRoute ?? frame.FilteredHandRoute : null;
-            if (support == null)
-                foreach (var tree in frame.Bridges.Values)
-                {
-                    var candidate = Nearest(tree.Curves, position);
-                    if (candidate != null && (support == null || FootPlanting.Closest(candidate, position, out _) < FootPlanting.Closest(support, position, out _))) support = candidate;
-                }
-            contactPose = frame.Pose ?? ValleyPose.Identity; PlantFeet(support, position, frame.Tick);
+            contactPose = frame.Pose ?? ValleyPose.Identity;
+            if (bram) { PlantFeet(frame.BramWalk?.Support, frame.Bram, frame.Tick, frame.BramWalk?.Support == null ? null : (RouteCursor?)frame.BramWalk.SupportCursor); return; }
+            if (frame.PipCursor.HasValue) { PlantFeet(frame.FilteredHandRoute, frame.Pip, frame.Tick, frame.PipCursor, true); return; }
+            // Recovery freezes the last stance with Pip. No new landing is emitted while the owning hand is lost.
+            if (frame.Recovering && frame.RecoveryPhase != RecoveryPhase.Returning && hasContacts) { ApplyFeet(frame.Pip, ContactSupport != null); return; }
+            // The builder's committed scaffold and the old M1 port have no traveler cursor. Only those legacy
+            // presentation paths retain projection; valley travelers never choose support by proximity.
+            var scaffold = frame.Scaffold ?? frame.GhostRoute;
+            PlantFeet(scaffold, frame.Pip, frame.Tick);
+        }
+        public void PresentTraveler(TravelerView traveler, long tick, ValleyPose pose, double lane = 0)
+        {
+            Vec3 side = new Vec3(1, 0, 0);
+            if (traveler.Support != null)
+            { int segment = traveler.SupportCursor.Segment; side = Vec3.Cross(Vec3.Up, traveler.Support.Points[segment + 1] - traveler.Support.Points[segment]).Normalized; }
+            Vec3 position = traveler.Position + side * lane;
+            transform.localPosition = PalmfolkView.V(position); PresentAt(position, tick, null, null, traveler.Arrived);
+            contactPose = pose ?? ValleyPose.Identity;
+            PlantFeet(traveler.Support, position, tick, traveler.Support == null ? null : (RouteCursor?)traveler.SupportCursor, false, lane);
         }
         public void PresentTraveler(Vec3 position, long tick, bool arrived, ValleyPose pose, IReadOnlyDictionary<string, CurveTree> bridges)
         {
@@ -115,18 +131,25 @@ namespace Palmfolk.Views
             foreach (var route in routes) { double d = FootPlanting.Closest(route, position, out _); if (d < distance) { distance = d; best = route; } }
             return best;
         }
-        private void PlantFeet(Route support, Vec3 position, long tick)
+        private void PlantFeet(Route support, Vec3 position, long tick, RouteCursor? cursor = null, bool movingHand = false, double lane = 0)
         {
+            ContactSupport = support; ContactCursor = cursor; hasContacts = true;
             Vector3 facing = transform.localRotation * Vector3.forward;
-            contacts.Update(support, position, new Vec3(facing.x, facing.y, facing.z), tick, CurrentPose == BodyPose.Walk || CurrentPose == BodyPose.TestPlank);
+            if (support != null && cursor.HasValue) contacts.UpdateSupported(support, cursor.Value, position, new Vec3(facing.x, facing.y, facing.z), tick,
+                CurrentPose == BodyPose.Walk || CurrentPose == BodyPose.TestPlank, movingHand, lane);
+            else contacts.Update(support, position, new Vec3(facing.x, facing.y, facing.z), tick, CurrentPose == BodyPose.Walk || CurrentPose == BodyPose.TestPlank);
             if (support != null)
             {
                 Vector3 forward = PalmfolkView.V(contacts.Forward); forward.y = 0;
                 if (forward.sqrMagnitude > 1e-10f) transform.localRotation = Quaternion.LookRotation(forward, Vector3.up);
             }
+            ApplyFeet(position, support != null);
+        }
+        private void ApplyFeet(Vec3 position, bool supported)
+        {
             Quaternion inverse = Quaternion.Inverse(transform.localRotation);
             Vector3 surfaceForward = PalmfolkView.V(contacts.Forward).normalized;
-            Vector3 up = support == null ? Vector3.up : Vector3.Cross(surfaceForward, Vector3.Cross(Vector3.up, surfaceForward)).normalized;
+            Vector3 up = !supported ? Vector3.up : Vector3.Cross(surfaceForward, Vector3.Cross(Vector3.up, surfaceForward)).normalized;
             Quaternion tilt = inverse * Quaternion.LookRotation(surfaceForward.sqrMagnitude > 1e-10f ? surfaceForward : Vector3.forward, up);
             leftFoot.localRotation = rightFoot.localRotation = leftShadow.localRotation = rightShadow.localRotation = tilt;
             leftFoot.localPosition = inverse * (PalmfolkView.V(contacts.Left - position) + up * 0.001f);

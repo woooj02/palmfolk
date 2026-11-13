@@ -3,13 +3,22 @@
 Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity editor, simulator, Quest 2.
 
 Latest verification, Nov 12 with Dario's new view contracts: **headless** 234 developer / 218 release
-tests; Python 3.12 source checks (97 C# files). **Unity editor**: compile exit 0/no `error CS`, 291 developer
-Edit Mode tests pass. The last Sam release run (Nov 11) passed 264 tests; both Unity gates and manifest
-regressions will be rerun after the support/ghost/hint bindings below.
+tests; Python 3.12 source checks (97 C# files). **Unity editor**: compile exit 0/no `error CS`; connection/
+recording item passed 291 developer tests, support-cursor item passed 272 release tests. Both Unity gates
+and manifest regressions will be rerun after the ghost/hint binding below.
 No simulator, Quest 2, Quest 3/3S,
 APK, installed build or M1 sign-off is claimed. Individual results below are historical by item.
 
 ## Done
+
+- **S6 support cursors, Nov 12 — Unity editor.** Travelers, Bram, residents and the arriving visitor now
+  pass their actual `Support`/`SupportCursor` to foot planting; Pip's Board carry uses `PipCursor`.
+  No nearest-route search chooses their deck/branch. Group members have route-relative lanes. Moving
+  hand geometry retains stance, persistent-support changes reset it, frozen recovery holds the feet
+  without new landings and the returning phase walks. Tests cover an ambiguous self-crossing route,
+  translating support without false steps, and real traveler/Bram cursor delivery. Legacy M1 and the
+  builder scaffold retain projection (they are not `TravelerView` ports). Headless 234 / 218, source
+  checks, compile and 272 release Edit Mode tests pass. Device contact/readability is not verified.
 
 - **S5 connection feedback and format-3 menu replay, Nov 12 — Unity editor.** Pulled `f7237df` and
   read Dario's note. Actual `ConnectionLocked` events now drive the connection chime/caption and a short
@@ -186,11 +195,9 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
   including real ISDK poke and system-menu rejection, remains an owner headset check.
 - S5 connection-lock, foot-contact, visitor and night-music ports are bound. Owner must judge audio/caption quality and
   sound-alone build-completion recognition; procedural cues remain placeholders until polished.
-- S6 route-relative foot planting/callbacks are implemented. Surface transitions, final contact treatment/
-  props and 3 cm readability still need owner editor/headset review; do not claim a live sliding-free pass.
-  The view projects the displayed traveler onto a route because the presentation does not expose its
-  actual support cursor. Ambiguous/self-crossing live geometry needs that cursor binding before a strict
-  contact guarantee; no Core type was changed to guess it.
+- S6 authoritative traveler/carrying-hand support and foot callbacks are bound. Surface transitions,
+  final contact treatment/props and 3 cm readability still need owner editor/headset review; do not claim
+  a live sliding-free pass. The legacy M1/builder-scaffold fallback still uses projection.
 - S9 counts/bridges/music and D8 visitor windows are bound. Final art/audio review remains open.
   Actual passthrough dimming stays at zero until the owner supplies a table-edge visibility limit.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward); the Lookout Fork spans about 68°.

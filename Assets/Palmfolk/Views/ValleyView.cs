@@ -68,9 +68,8 @@ namespace Palmfolk.Views
                 {
                     if (usedTraveler == travelers.Count) { travelers.Add(Actor("Traveler " + usedTraveler)); travelerCarts.Add(Cart("Traveler cart " + usedTraveler)); }
                     int index = usedTraveler++; var actor = travelers[index]; actor.gameObject.SetActive(true);
-                    Vec3 position = traveler.Position + new Vec3(traveler.Kind == TravelerKind.Group ? (member - 1) * 0.006 : 0, 0, 0);
-                    actor.localPosition = PalmfolkView.V(position);
-                    var rig = actor.GetComponent<TravelerRig>(); rig.ReducedMotion = ReducedMotion; rig.PresentTraveler(position, frame.Tick, traveler.Arrived, frame.Pose, frame.Bridges);
+                    var rig = actor.GetComponent<TravelerRig>(); rig.ReducedMotion = ReducedMotion;
+                    rig.PresentTraveler(traveler, frame.Tick, frame.Pose, traveler.Kind == TravelerKind.Group ? (member - 1) * 0.006 : 0);
                     travelerCarts[index].gameObject.SetActive(traveler.Kind == TravelerKind.Cart);
                     travelerCarts[index].localPosition = actor.localPosition + actor.localRotation * Vector3.back * 0.018f; travelerCarts[index].localRotation = actor.localRotation;
                 }

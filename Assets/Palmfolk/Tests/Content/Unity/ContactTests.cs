@@ -9,6 +9,38 @@ namespace Palmfolk.Tests.Content
 {
     public class ContactTests
     {
+        [Test] public void AuthoritativeCursorKeepsTheCorrectArmOfASelfCrossingRoute()
+        {
+            var route = new Route(new[] { new Vec3(-0.05, 0, -0.05), new Vec3(0.05, 0, 0.05), new Vec3(-0.05, 0, 0.05), new Vec3(0.05, 0, -0.05) }, new[] { 0.04, 0.04, 0.04 });
+            var feet = new FootPlanting(); var cursor = new RouteCursor(2, 0.5);
+            feet.UpdateSupported(route, cursor, Vec3.Zero, new Vec3(1, 0, -1).Normalized, 0, true);
+            Assert.That(feet.Forward.X, Is.GreaterThan(0)); Assert.That(feet.Forward.Z, Is.LessThan(0), "the coincident first branch points the other way");
+            Assert.That(Vec3.Distance((feet.Left + feet.Right) / 2, route.Evaluate(cursor)), Is.LessThan(1e-12));
+        }
+        [Test] public void ChangingHandGeometryKeepsTheSuppliedCursorWithoutFalseSteps()
+        {
+            var feet = new FootPlanting(); int sounds = 0; feet.Landed += _ => sounds++;
+            feet.UpdateSupported(Line(), new RouteCursor(0, 0.5), new Vec3(0.05, 0, 0), new Vec3(1, 0, 0), 0, true, true);
+            feet.UpdateSupported(Line(0.1), new RouteCursor(0, 0.5), new Vec3(0.05, 0.1, 0), new Vec3(1, 0, 0), 1, true, true);
+            Assert.That(feet.Left.Y, Is.EqualTo(0.1).Within(1e-12)); Assert.That(sounds, Is.Zero);
+        }
+        [Test] public void ValleyRigsUseCoreSupportForTravelersAndBram()
+        {
+            var game = new ValleySimulation(Palmfolk.Core.Content.ChapterOne.Greybox()); var player = new TestPlayer();
+            var root = new GameObject("Support contract rigs");
+            try
+            {
+                var view = root.AddComponent<ValleyView>();
+                Assert.That(player.RunUntil(game, () => game.Travelers.Count > 0 && game.Travelers[0].Support != null), Is.True);
+                var frame = new ValleyPresentation(game, 0.5); view.Present(frame);
+                var rig = view.ValleyRoot.Find("Traveler 0").GetComponent<TravelerRig>();
+                Assert.That(rig.ContactSupport, Is.SameAs(frame.Travelers[0].Support)); Assert.That(rig.ContactCursor.Value.Segment, Is.EqualTo(frame.Travelers[0].SupportCursor.Segment));
+                Assert.That(player.RunUntil(game, () => game.Bram?.Support != null), Is.True);
+                frame = new ValleyPresentation(game, 0.5); view.Present(frame); rig = view.ValleyRoot.Find("Bram").GetComponent<TravelerRig>();
+                Assert.That(rig.ContactSupport, Is.SameAs(frame.BramWalk.Support)); Assert.That(rig.ContactCursor.Value.Fraction, Is.EqualTo(frame.BramWalk.SupportCursor.Fraction));
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
         [Test] public void RigConvertsLandingToWorldSpace()
         {
             var root = new GameObject("Contact rig"); var material = new Material(Shader.Find("Standard"));

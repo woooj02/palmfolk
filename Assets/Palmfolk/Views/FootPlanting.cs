@@ -10,6 +10,8 @@ namespace Palmfolk.Views
         private bool initialized, routeMode;
         private int finger, points, nextFoot, swing = -1;
         private bool reversed;
+        private Route previousRoute;
+        private bool wasAuthoritative;
         private double previousParameter, travel, direction = 1, startParameter, targetParameter;
         private long swingStart;
         private Vec3 previousCentre, startPlane, targetPlane;
@@ -20,18 +22,30 @@ namespace Palmfolk.Views
         public Vec3 Forward { get; private set; } = new Vec3(0, 0, 1);
         public event Action<Vec3> Landed;
         public void Update(Route route, Vec3 centre, Vec3 facing, long tick, bool canStep)
+            => UpdateCore(route, null, centre, facing, tick, canStep, false, 0);
+        // A Core cursor disambiguates crossings and nearby decks. Only a changing hand keeps contacts across
+        // new Route instances; switching to another persistent bridge resets stance without a false step.
+        public void UpdateSupported(Route route, RouteCursor cursor, Vec3 centre, Vec3 facing, long tick, bool canStep, bool movingHand = false, double lane = 0)
+        {
+            if (route == null || cursor.Segment >= route.Points.Count - 1) throw new ArgumentException("Invalid support cursor.");
+            UpdateCore(route, cursor, centre, facing, tick, canStep, movingHand, lane);
+        }
+        private void UpdateCore(Route route, RouteCursor? cursor, Vec3 centre, Vec3 facing, long tick, bool canStep, bool movingHand, double lane)
         {
             double parameter = 0;
-            if (route != null && Closest(route, centre, out parameter) > 0.015) route = null;
+            if (cursor.HasValue) parameter = cursor.Value.Segment + cursor.Value.Fraction;
+            else if (route != null && Closest(route, centre, out parameter) > 0.015) route = null;
             bool onRoute = route != null;
-            bool reset = !initialized || routeMode != onRoute || (onRoute && (finger != route.Finger || points != route.Points.Count || reversed != route.Reversed));
+            bool reset = !initialized || routeMode != onRoute || (onRoute && (wasAuthoritative != cursor.HasValue || finger != route.Finger || points != route.Points.Count || reversed != route.Reversed ||
+                (cursor.HasValue && (!wasAuthoritative || (!movingHand && !ReferenceEquals(previousRoute, route))))));
             if (reset)
             {
                 initialized = true; routeMode = onRoute; previousParameter = parameter; previousCentre = centre; travel = 0; swing = -1;
-                if (onRoute) { finger = route.Finger; points = route.Points.Count; reversed = route.Reversed; planted[0] = planted[1] = parameter; }
+                if (onRoute) { finger = route.Finger; points = route.Points.Count; reversed = route.Reversed; planted[0] = planted[1] = parameter; double facingDot = Vec3.Dot(Tangent(route, parameter), facing); direction = Math.Abs(facingDot) > 1e-8 ? Math.Sign(facingDot) : 1; }
                 var side = Vec3.Cross(Vec3.Up, facing).Normalized;
                 plane[0] = centre - side * 0.003; plane[1] = centre + side * 0.003;
             }
+            previousRoute = route; wasAuthoritative = cursor.HasValue;
             if (onRoute)
             {
                 double moved = Arc(route, parameter) - Arc(route, previousParameter);
@@ -58,7 +72,7 @@ namespace Palmfolk.Views
             Vec3 Position(int foot)
             {
                 double p = foot == swing ? startParameter + (targetParameter - startParameter) * u : planted[foot];
-                Vec3 basePoint = onRoute ? Evaluate(route, p) + Vec3.Cross(Vec3.Up, Tangent(route, p) * direction).Normalized * (foot == 0 ? -0.003 : 0.003) :
+                Vec3 basePoint = onRoute ? Evaluate(route, p) + Vec3.Cross(Vec3.Up, Tangent(route, p)).Normalized * lane + Vec3.Cross(Vec3.Up, Tangent(route, p) * direction).Normalized * (foot == 0 ? -0.003 : 0.003) :
                     foot == swing ? Vec3.Lerp(startPlane, targetPlane, u) : plane[foot];
                 return basePoint + Vec3.Up * (foot == swing ? Math.Sin(Math.PI * u) * 0.003 : 0);
             }
