@@ -18,6 +18,7 @@ namespace Palmfolk.UI
         private StartupView startup;
         private XRayView xray;
         private NeedSignView need;
+        private HandGuidanceView guidance;
         private AnchorSearchView search;
         private AudioPresenter audioView;
         private NightMusic music;
@@ -51,6 +52,7 @@ namespace Palmfolk.UI
             valley = Child<ValleyView>("Valley view"); living = Child<LivingValleyView>("Visitor views");
             startup = Child<StartupView>("Startup view"); search = Child<AnchorSearchView>("Anchor search view");
             Night = Child<NightView>("Night view"); xray = Child<XRayView>("X-ray view"); need = Child<NeedSignView>("Need signs");
+            guidance = Child<HandGuidanceView>("Recovery and solution hands");
             audioView = Child<AudioPresenter>("Game cues and captions"); music = Child<NightMusic>("Valley music"); contacts = gameObject.AddComponent<ContactAudioBinding>();
             Waystone = Child<WaystoneView>("Waystone"); Waystone.gameObject.AddComponent<WaystoneBinding>();
             Child<WaystonePokes>("Ten finger poke input");
@@ -65,7 +67,7 @@ namespace Palmfolk.UI
         private void Consume(IReadOnlyList<GameEvent> events)
         {
             if (runner.Game?.Valley == null) return;
-            valley.Consume(events); startup.Consume(events);
+            valley.Consume(events); startup.Consume(events); guidance.Consume(events);
             audioView.Consume(events, new ValleyPresentation(runner.Game, 1));
         }
         public void Present(PalmfolkRunner source)
@@ -74,6 +76,7 @@ namespace Palmfolk.UI
             search.Show(source.WaitingForAnchor, source.Player.ReducedMotion, source.Game?.Tick ?? (long)(Time.unscaledTime * 60));
             bool playing = source.Game?.Valley != null;
             valley.gameObject.SetActive(playing); living.gameObject.SetActive(playing); Night.gameObject.SetActive(playing); xray.gameObject.SetActive(playing); music.gameObject.SetActive(playing); need.gameObject.SetActive(playing);
+            guidance.gameObject.SetActive(playing);
             if (!playing) { Night.TableMode = false; startup.gameObject.SetActive(false); Waystone.gameObject.SetActive(false); GetComponentInChildren<WaystonePokes>().Refresh(source); return; }
             startup.gameObject.SetActive(true); Waystone.gameObject.SetActive(true);
             var settings = source.Player; bool table = source.Flow?.Running == ValleyMode.Table;
@@ -81,7 +84,12 @@ namespace Palmfolk.UI
             valley.HighContrast = living.HighContrast = settings.HighContrast; valley.TableMode = Night.TableMode = table;
             audioView.Captions = music.Captions = settings.Captions; xray.SetVisible(settings.XRay);
             var frame = new ValleyPresentation(source.Game, source.InterpolationAlpha);
+            guidance.ReducedMotion = settings.ReducedMotion; guidance.HighContrast = settings.HighContrast;
+            if (frame.HandOwner.HasValue) guidance.PreferredHand = frame.HandOwner.Value;
+            else if (source.Source.Left != null) guidance.PreferredHand = HandSide.Left;
+            else if (source.Source.Right != null) guidance.PreferredHand = HandSide.Right;
             valley.Present(frame, (float)source.InterpolationAlpha); living.Present(frame); startup.Present(frame); Night.Present(frame); xray.Present(frame); music.Present(frame);
+            guidance.Present(frame);
             need.Show(source.Looks.Shown, head, settings.ReducedMotion, frame.Tick);
             if (frame.Pose != null) Waystone.transform.position = PalmfolkView.V(frame.Pose.ToWorld(new Vec3(0, 0.05, -0.22)));
             if (head != null) Waystone.LayoutForViewer(head.position);

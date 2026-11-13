@@ -46,5 +46,7 @@ Reduced motion uses the existing monotonic fade. No safe nonzero value has been 
 Remaining owner checks: live poke with each finger of either hand; complete left-only/right-only menus;
 anchor found/lost/fallback; need signs at real viewing distance; resident/cart/mark readability at 3 cm;
 sound/caption quality; room dimming and table-edge visibility; full Quest 2 M1 and Quest 3/3S quality runs.
-The full recovery skeleton, solution hint pose and exact support cursor still need a published contract
-before strict hand/contact guarantees can be made.
+The full recovery hand, passing solution hints and authoritative traveler/carrying-hand support cursors
+are now bound from the Nov 12 contracts. See `hand-guidance.md` for event gating, reduced motion and the
+distinction between observed joint data and a stylised hint illustration. The builder scaffold/legacy
+M1 contact path still uses projection. Final contact and visual guarantees remain owner checks.
