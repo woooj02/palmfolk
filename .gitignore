@@ -28,6 +28,10 @@ crashlytics-build.properties
 # Meta's dev-agent settings hold a generated access token and this PC's address
 Assets/Resources/DevAgentSettings.asset
 Assets/Resources/DevAgentSettings.asset.meta
+# Meta writes its input bindings here on every build (the folder holds nothing else yet)
+Assets/StreamingAssets.meta
+Assets/StreamingAssets/RuntimeActionBindings.json
+Assets/StreamingAssets/RuntimeActionBindings.json.meta
 .DS_Store
 
 # Playtest recordings stay off the repo (T10, T13)
