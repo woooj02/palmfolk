@@ -1,5 +1,16 @@
 # Palmfolk
 
+> **Project status (Nov 13, 2026): stopped.** We are not taking Palmfolk to the competition. The first Quest 2
+> playtests showed that building with a precise hand pose over tiny islands is not playable with today's hand
+> tracking, and a full chapter would not be ready in time. This repository stays up as a record of what we planned.
+>
+> **Watch what we were going for:** [`docs/concept/palmfolk-concept.webm`](docs/concept/palmfolk-concept.webm)
+> (75 s concept animation, not gameplay footage). The same film with scene controls:
+> [`docs/concept/palmfolk-concept.html`](docs/concept/palmfolk-concept.html) (download and open in a browser).
+> The concept: lay your hand across a gap and it becomes a bridge, spread your fingers for a fork, cup your hand
+> for an arch, and stand it up like a wall to shield the travelers from the wind.
+> More in [`docs/concept-sculpting.md`](docs/concept-sculpting.md).
+
 A hands-only puzzle adventure for Meta Quest 3 and 3S. Tiny travelers walk across your fingers, and the bridges
 they build keep the shape of your hand after you let go.
 

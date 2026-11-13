@@ -180,6 +180,13 @@ Work items: [`team-plan.md`](team-plan.md#darios-work). Labels: headless, Unity 
 - **Bake moment and wind sounds, Nov 13.** Sparks run along a bridge as it solidifies; wind, shield and gust cues
   (`Audio/AudioCues.cs`); the instruction line counts shielded gusts. Not seen or heard on a headset yet.
 
+- **Quick release, Nov 13.** On the Quest 2 a hand that slipped right after connecting sat through the ghost-hand
+  recovery and a 10-20 s return to the checkpoint, three times in a row; live play now lets go at once
+  (`GameSettings.QuickRelease`). Headless: 241 tests pass. Quest 2: installed; the owner still could not build a
+  bridge.
+- **Project stopped, Nov 13.** The owner dropped Palmfolk for the competition. The concept animation of the
+  finished game is in [`concept/`](concept/) and linked from the README.
+
 ## Next
 
 - Quest 2 pass on the new opening, walls, bake moment and sounds, then a tidier waystone

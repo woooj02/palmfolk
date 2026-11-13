@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Palmfolk: concept film</title>
+<style>
+  html, body { margin: 0; background: #0b0d10; color: #e9e6df; font-family: "Segoe UI", system-ui, sans-serif; }
+  #wrap { max-width: 1280px; margin: 0 auto; padding: 12px; }
+  canvas { width: 100%; height: auto; display: block; border-radius: 10px; background: #000; }
+  #bar { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+  button { background: #22262d; color: #eee; border: 1px solid #3a3f48; border-radius: 6px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
+  button:hover { border-color: #c9a24a; }
+  input[type=range] { flex: 1; accent-color: #c9a24a; }
+  #time { font-variant-numeric: tabular-nums; min-width: 84px; text-align: right; font-size: 14px; }
+  #chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { font-size: 12px; padding: 3px 9px; border-radius: 12px; background: #1a1d22; border: 1px solid #2c3038; cursor: pointer; }
+  .chip.on { background: #3b3220; border-color: #c9a24a; }
+  #note { font-size: 12px; color: #9a968d; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="1280" height="720"></canvas>
+  <div id="bar">
+    <button id="play">Pause</button>
+    <input id="seek" type="range" min="0" max="75" step="0.01" value="0">
+    <span id="time">0:00 / 1:15</span>
+    <button id="rec" title="Plays the film from the start and saves it as a .webm video">Save as video</button>
+  </div>
+  <div id="chips"></div>
+  <div id="note">Concept animation of the finished game, not gameplay footage. Space: play/pause.</div>
+</div>
+<script>
+"use strict";
+const C = document.getElementById("c"), g = C.getContext("2d");
+const W = 1280, H = 720, DUR = 75;
+
+// ---------- math ----------
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const len = a => Math.hypot(a[0], a[1], a[2]);
+const norm = a => mul(a, 1 / (len(a) || 1));
+const lerp = (a, b, t) => a + (b - a) * t;
+const lerp3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ss = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const UP = [0, 1, 0];
+const rnd = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+const rgb = (c, k = 1, a = 1) => `rgba(${Math.round(c[0] * k)},${Math.round(c[1] * k)},${Math.round(c[2] * k)},${a})`;
+
+// ---------- camera ----------
+let cam;
+function setCam(target, yaw, pitch, dist) {
+  const eye = add(target, [dist * Math.cos(pitch) * Math.sin(yaw), dist * Math.sin(pitch), dist * Math.cos(pitch) * Math.cos(yaw)]);
+  const fwd = norm(sub(target, eye)), right = norm(cross(fwd, UP)), up = cross(right, fwd);
+  cam = { eye, fwd, right, up, f: H * 1.0 };
+}
+function P(p) {
+  const d = sub(p, cam.eye), z = Math.max(0.1, dot(d, cam.fwd));
+  return { x: W / 2 + dot(d, cam.right) * cam.f / z, y: H / 2 - dot(d, cam.up) * cam.f / z, z };
+}
+const depth = p => dot(sub(p, cam.eye), cam.fwd);
+const px = (r, z) => r * cam.f / z;
+
+// [time, target, yaw, pitch, dist]
+const CAMS = [
+  [0, [0, 0, 8], 0.0, 0.50, 175],
+  [5.5, [0, 4, 9], 0.12, 0.72, 100],
+  [10.5, [-19, 10, 10], 0.20, 0.60, 36],
+  [24, [-17, 9, 11], 0.32, 0.66, 40],
+  [26.5, [-3, 9, 13], 0.18, 0.80, 44],
+  [34.5, [-3, 9, 13], 0.26, 0.80, 44],
+  [37, [19, 11, 4], 0.40, 0.45, 40],
+  [44.5, [19, 11, 4], 0.50, 0.45, 40],
+  [47, [17, 10, 9], 1.05, 0.80, 46],
+  [56.5, [17, 10, 9], 1.14, 0.80, 46],
+  [59.5, [2, 6, 10], 0.05, 0.80, 84],
+  [67, [2, 6, 10], -0.30, 0.70, 92],
+  [75, [0, 3, 9], -0.55, 0.52, 178],
+];
+function cameraAt(t) {
+  let i = 0; while (i < CAMS.length - 2 && t > CAMS[i + 1][0]) i++;
+  const a = CAMS[i], b = CAMS[i + 1], k = ss(a[0], b[0], t);
+  setCam(lerp3(a[1], b[1], k), lerp(a[2], b[2], k), lerp(a[3], b[3], k), lerp(a[4], b[4], k));
+}
+
+// ---------- the valley ----------
+const DECK = 8;
+const ISLANDS = [
+  { id: "S", c: [-34, 6], r: 8, h: DECK },
+  { id: "A", c: [-9, 13], r: 7, h: DECK },
+  { id: "B", c: [8, 0], r: 6, h: DECK },
+  { id: "C", c: [6, 26], r: 6, h: DECK },
+  { id: "D", c: [33, 6], r: 9, h: DECK, sanctuary: true },
+];
+const ROCK = { c: [19.2, 2.7], rb: 2.8, rt: 0.9, h: 12.2 };
+const isl = id => ISLANDS.find(i => i.id === id);
+const topOf = (id, dx = 0, dz = 0) => { const i = isl(id); return [i.c[0] + dx, DECK, i.c[1] + dz]; };
+function edge(fromId, toward, inset) {
+  const i = isl(fromId); const d = norm([toward[0] - i.c[0], 0, toward[2] - i.c[1]]);
+  return [i.c[0] + d[0] * (i.r - inset), DECK + 0.15, i.c[1] + d[2] * (i.r - inset)];
+}
+
+// Bridges: start, end, arch rise, width, build window [start, end].
+function bridge(p0, p1, rise, width, b0, b1, sag = 0) {
+  const L = len(sub(p1, p0));
+  return { p0, p1, rise, width, b0, b1, sag, n: Math.max(6, Math.round(L / 1.25)),
+    at(s) { const p = lerp3(p0, p1, s); p[1] += rise * 4 * s * (1 - s) - sag * 4 * s * (1 - s); return p; } };
+}
+const b1p0 = edge("S", topOf("A"), 1.6), b1p1 = edge("A", topOf("S"), 1.6);
+const forkRoot = (() => { const a = isl("A"); const m = norm(add(norm([8 - a.c[0], 0, 0 - a.c[1]]), norm([6 - a.c[0], 0, 26 - a.c[1]]))); return [a.c[0] + m[0] * 5.4, DECK + 0.15, a.c[1] + m[2] * 5.4]; })();
+const fkB = edge("B", forkRoot, 1.5), fkC = edge("C", forkRoot, 1.5);
+const arP0 = edge("B", topOf("D"), 1.5), arP1 = edge("D", topOf("B"), 1.6);
+const BRIDGES = {
+  first: bridge(b1p0, b1p1, 0, 3.0, 16.2, 19.4, 0.5),
+  forkB: bridge(forkRoot, fkB, 0, 2.4, 28.6, 31.4, 0.3),
+  forkC: bridge(forkRoot, fkC, 0, 2.4, 28.6, 31.4, 0.3),
+  arch: bridge(arP0, arP1, 6.2, 2.6, 39.6, 42.6),
+};
+
+// ---------- hands ----------
+// A left hand, local frame: u toward the fingers, v toward the thumb, n out of the back of the hand.
+const FINGERS = [
+  { k: [7.6, 2.7], seg: [3.2, 2.2, 1.8], r: 0.78 },
+  { k: [8.0, 0.9], seg: [3.5, 2.4, 1.9], r: 0.82 },
+  { k: [7.7, -0.9], seg: [3.3, 2.2, 1.8], r: 0.78 },
+  { k: [7.0, -2.6], seg: [2.6, 1.8, 1.5], r: 0.68 },
+];
+function handFrame(pose) {
+  const y = pose.yaw, p = pose.pitch || 0, r = pose.roll || 0;
+  const u0 = [Math.cos(y), 0, Math.sin(y)], v0 = [-Math.sin(y), 0, Math.cos(y)], n0 = UP;
+  const u1 = add(mul(u0, Math.cos(p)), mul(n0, Math.sin(p))), n1 = add(mul(u0, -Math.sin(p)), mul(n0, Math.cos(p)));
+  const v2 = add(mul(v0, Math.cos(r)), mul(n1, Math.sin(r))), n2 = add(mul(v0, -Math.sin(r)), mul(n1, Math.cos(r)));
+  return { o: pose.o, u: u1, v: v2, n: n2, w: (a, b, c) => add(pose.o, add(add(mul(u1, a), mul(v2, b)), mul(n2, c))) };
+}
+function handJoints(pose) {
+  const F = handFrame(pose), curl = pose.curl || 0, spread = pose.spread || 0;
+  const fingers = FINGERS.map((f, i) => {
+    const a = pose.fingerYaw ? pose.fingerYaw[i] : spread * (1.5 - (3 - i)) * 0.5 * (i < 2 ? 1 : 1);
+    let pt = [f.k[0], f.k[1], 0]; const pts = [F.w(...pt)];
+    const bends = [curl * 0.55, curl * 1.35, curl * 2.0];
+    f.seg.forEach((s, k) => {
+      const c = bends[k];
+      pt = add(pt, mul([Math.cos(a) * Math.cos(c), Math.sin(a) * Math.cos(c), -Math.sin(c)], s));
+      pts.push(F.w(...pt));
+    });
+    return { pts, r: f.r };
+  });
+  const tb = [1.4, 2.1, -0.2], ta = 0.55 + (pose.thumbOpen || 0);
+  const t1 = add(tb, mul([Math.cos(ta), Math.sin(ta), -0.15], 3.0)), t2 = add(t1, mul([Math.cos(ta - 0.35), Math.sin(ta - 0.35), -0.25 - curl * 0.6], 2.4));
+  const thumb = { pts: [F.w(...tb), F.w(...t1), F.w(...t2)], r: 0.85 };
+  const palm = [F.w(0, 2.3, 0), F.w(7.6, 3.1, 0), F.w(8.0, 0.9, 0.1), F.w(7.7, -0.9, 0.1), F.w(7.0, -2.9, 0), F.w(0, -2.3, 0)];
+  return { F, fingers, thumb, palm };
+}
+function lerpPose(a, b, k) {
+  const o = {};
+  for (const key of ["yaw", "pitch", "roll", "curl", "spread", "thumbOpen"]) o[key] = lerp(a[key] || 0, b[key] || 0, k);
+  o.o = lerp3(a.o, b.o, k);
+  if (a.fingerYaw || b.fingerYaw) { const fa = a.fingerYaw || [0, 0, 0, 0], fb = b.fingerYaw || [0, 0, 0, 0]; o.fingerYaw = fa.map((x, i) => lerp(x, fb[i], k)); }
+  return o;
+}
+const yawOf = d => Math.atan2(d[2], d[0]);
+const dir1 = norm(sub(b1p1, b1p0));
+const POSE_FLAT = { o: add(sub(b1p0, mul(dir1, 2.2)), [0, 4.2, 0]), yaw: yawOf(dir1), pitch: -0.03, curl: 0.04, spread: 0.06, thumbOpen: 0.1 };
+const forkMid = norm(sub(lerp3(fkB, fkC, 0.5), forkRoot));
+const angTo = p => { const d = norm(sub(p, forkRoot)); return Math.atan2(cross(forkMid, d)[1] * -1, dot(forkMid, d)); };
+const aB = angTo(fkB), aC = angTo(fkC);
+const POSE_FORK = { o: add(sub(forkRoot, mul(forkMid, 2.2)), [0, 4.2, 0]), yaw: yawOf(forkMid), curl: 0.05, thumbOpen: 0.15,
+  fingerYaw: aB > aC ? [aB, aB * 0.92, aC * 0.92, aC] : [aC, aC * 0.92, aB * 0.92, aB] };
+const dirA = norm(sub(arP1, arP0));
+const POSE_ARCH = { o: add(sub(arP0, mul(dirA, 1.2)), [0, 3.4, 0]), yaw: yawOf(dirA), pitch: 0.62, curl: 0.42, spread: 0.04, thumbOpen: 0.05 };
+const archMid = BRIDGES.arch.at(0.5);
+const perpA = norm(cross(UP, dirA));
+const GUST_O = add(sub(archMid, mul(perpA, 22)), [0, -1.5, 0]);
+const WALL_C = add(sub(archMid, mul(perpA, 9.5)), [0, -1.0, 0]);
+const POSE_WALL = { o: sub(WALL_C, mul(dirA, 8.4)), yaw: yawOf(dirA), roll: Math.PI / 2, curl: 0.03, spread: 0.02, thumbOpen: -0.3 };
+
+const lift = (pose, dy, back) => Object.assign({}, pose, { o: add(add(pose.o, [0, dy, 0]), mul([Math.cos(pose.yaw), 0, Math.sin(pose.yaw)], -back)) });
+// [t0 enter, t1 settled, t2 leave, t3 gone, pose, settle pose from]
+const HAND_BEATS = [
+  { t: [12.6, 15.2, 20.6, 22.6], pose: POSE_FLAT },
+  { t: [25.8, 27.9, 32.0, 33.8], pose: POSE_FORK },
+  { t: [36.6, 38.8, 43.4, 45.0], pose: POSE_ARCH },
+  { t: [46.2, 48.3, 54.6, 56.4], pose: POSE_WALL },
+];
+function handAt(t) {
+  for (const b of HAND_BEATS) {
+    const [t0, t1, t2, t3] = b.t;
+    if (t < t0 || t > t3) continue;
+    const away = b.pose.roll ? lift(b.pose, 6, -10) : lift(b.pose, 16, 6);
+    if (t < t1) { const k = ss(t0, t1, t); return { pose: lerpPose(away, b.pose, k), alpha: k * (b.pose.roll ? 1 : 0.62 + 0.38 * (1 - k)), settled: false }; }
+    if (t < t2) { const wob = Math.sin(t * 7.3) * 0.05; const p = Object.assign({}, b.pose, { o: add(b.pose.o, [0, wob, 0]) }); return { pose: p, alpha: b.pose.roll ? 1 : 0.62, settled: true, beat: b }; }
+    const k = ss(t2, t3, t); return { pose: lerpPose(b.pose, away, k), alpha: (1 - k) * (b.pose.roll ? 1 : 0.62), settled: false };
+  }
+  return null;
+}
+
+// ---------- travelers ----------
+function makePath(points) {
+  const cum = [0]; for (let i = 1; i < points.length; i++) cum.push(cum[i - 1] + len(sub(points[i], points[i - 1])));
+  const L = cum[cum.length - 1];
+  return u => {
+    const d = clamp(u) * L; let i = 1; while (i < cum.length - 1 && cum[i] < d) i++;
+    const k = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1); return lerp3(points[i - 1], points[i], k);
+  };
+}
+const along = (b, rev = false) => { const a = []; for (let i = 0; i <= 24; i++) a.push(b.at(rev ? 1 - i / 24 : i / 24)); return a; };
+const PATH_SA = makePath([topOf("S", -1, 0), ...along(BRIDGES.first), topOf("A", 0, 0)]);
+const PATH_AB = makePath([topOf("A", 0, 0), ...along(BRIDGES.forkB), topOf("B", 0, 0)]);
+const PATH_AC = makePath([topOf("A", 0, 1), ...along(BRIDGES.forkC), topOf("C", 0, 0)]);
+const PATH_BD = makePath([topOf("B", 0, 0), ...along(BRIDGES.arch), topOf("D", -1, 0)]);
+const PATH_ALL = makePath([topOf("S", -3, -1), ...along(BRIDGES.first), topOf("A"), ...along(BRIDGES.forkB), topOf("B"), ...along(BRIDGES.arch), topOf("D", 0, 1)]);
+
+function walk(segments, t) {
+  // segments: [{t0, t1, path}] in order; before the first, at its start; between, at the previous end.
+  let pos = segments[0].path(0), moving = false;
+  for (const s of segments) {
+    if (t >= s.t0) { pos = s.path(clamp((t - s.t0) / (s.t1 - s.t0))); moving = t < s.t1; }
+  }
+  return { pos, moving };
+}
+const TRAVELERS = [
+  { name: "Pip", body: [255, 190, 40], hat: [200, 60, 40], scale: 1.15, from: 5.6,
+    segs: [{ t0: 21.4, t1: 25.0, path: PATH_SA }, { t0: 31.8, t1: 35.0, path: PATH_AB }, { t0: 47.0, t1: 56.0, path: PATH_BD }] },
+  { name: "Fen", body: [80, 190, 200], hat: [40, 90, 120], scale: 1.0, from: 5.8, off: [0.9, 0.9],
+    segs: [{ t0: 22.0, t1: 25.6, path: PATH_SA }, { t0: 32.4, t1: 35.6, path: PATH_AB }, { t0: 47.8, t1: 56.6, path: PATH_BD }] },
+  { name: "Rue", body: [240, 120, 110], hat: [120, 50, 70], scale: 0.95, from: 6.0, off: [-0.9, 1.2],
+    segs: [{ t0: 22.6, t1: 26.2, path: PATH_SA }, { t0: 32.2, t1: 35.4, path: PATH_AC }] },
+  { name: "Bram", body: [150, 100, 60], hat: [235, 230, 220], scale: 1.45, from: 57.4, cart: true,
+    segs: [{ t0: 58.4, t1: 67.4, path: PATH_ALL }] },
+];
+
+// ---------- drawing ----------
+const LIGHT = norm([-0.55, 0, 0.85]);
+function poly(pts, fill, stroke, lw) {
+  g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath();
+  if (fill) { g.fillStyle = fill; g.fill(); }
+  if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw || 1; g.stroke(); }
+}
+function ring3(c, rx, rz, y, N = 40) { const a = []; for (let i = 0; i < N; i++) { const t = i / N * Math.PI * 2; a.push([c[0] + Math.cos(t) * rx, y, c[1] + Math.sin(t) * rz]); } return a; }
+
+function drawCylinder(c, rb, rt, y0, y1, side, topCol, opt = {}) {
+  const N = 44, sx = opt.sx || 1, sz = opt.sz || 1;
+  const B = ring3(c, rb * sx, rb * sz, y0, N), T = ring3(c, rt * sx, rt * sz, y1, N);
+  const centre = [c[0], (y0 + y1) / 2, c[1]], toEye = sub(cam.eye, centre);
+  for (let i = 0; i < N; i++) {
+    const j = (i + 1) % N, am = (i + 0.5) / N * Math.PI * 2, n = [Math.cos(am) * sz, 0, Math.sin(am) * sx];
+    if (dot(n, toEye) <= 0) continue;
+    const shade = 0.5 + 0.5 * Math.max(0, dot(norm(n), LIGHT));
+    const q = [P(B[i]), P(B[j]), P(T[j]), P(T[i])];
+    poly(q, rgb(side, shade), rgb(side, shade), 0.8);
+    if (opt.lip && y1 - y0 > 2) {
+      const lb = ring3(c, lerp(rb, rt, (y1 - 1.3 - y0) / (y1 - y0)) * sx, lerp(rb, rt, (y1 - 1.3 - y0) / (y1 - y0)) * sz, y1 - 1.3, N);
+      poly([P(lb[i]), P(lb[j]), P(T[j]), P(T[i])], rgb(opt.lip, shade), rgb(opt.lip, shade), 0.8);
+    }
+  }
+  if (topCol) {
+    const tp = T.map(P); poly(tp, rgb(topCol), rgb(topCol, 0.85), 1);
+    if (opt.inner) poly(ring3(c, rt * sx * 0.7, rt * sz * 0.7, y1 + 0.01, N).map(P), rgb(opt.inner, 1, 0.55));
+  }
+}
+function drawTable() {
+  const T = [[-80, -2.2, -50], [80, -2.2, -50], [80, -2.2, 62], [-80, -2.2, 62]].map(P);
+  const grd = g.createLinearGradient(0, Math.min(...T.map(p => p.y)), 0, H);
+  grd.addColorStop(0, "#4a3527"); grd.addColorStop(1, "#6b4a33");
+  poly(T, grd);
+  g.save(); g.globalAlpha = 0.08; g.strokeStyle = "#000"; g.lineWidth = 1;
+  for (let z = -46; z < 62; z += 4) { const a = P([-80, -2.2, z]), b = P([80, -2.2, z]); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+  g.restore();
+}
+function drawRoom(t) {
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, "#1b1d22"); grd.addColorStop(0.55, "#2a2622"); grd.addColorStop(1, "#151311");
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  const win = g.createRadialGradient(W * 0.78, H * 0.18, 10, W * 0.78, H * 0.18, 420);
+  win.addColorStop(0, "rgba(255,226,170,0.20)"); win.addColorStop(1, "rgba(255,226,170,0)");
+  g.fillStyle = win; g.fillRect(0, 0, W, H);
+}
+function drawValleyBase() {
+  drawCylinder([0, 10], 60, 58, -2.2, 0, [62, 52, 44], [40, 72, 70], { sx: 1, sz: 0.62, inner: [52, 92, 88] });
+  // the stream
+  g.save(); g.lineCap = "round"; g.lineJoin = "round";
+  const s = []; for (let i = 0; i <= 40; i++) { const x = -52 + i * 2.6; s.push(P([x, 0.05, 16 + Math.sin(i * 0.35) * 9 - i * 0.25])); }
+  g.strokeStyle = "rgba(90,170,210,0.55)"; g.lineWidth = 7; g.beginPath(); s.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke();
+  g.strokeStyle = "rgba(190,235,255,0.35)"; g.lineWidth = 2; g.stroke();
+  g.restore();
+  // mist
+  const m = P([0, 1, 10]); const grd = g.createRadialGradient(m.x, m.y, 10, m.x, m.y, px(70, m.z));
+  grd.addColorStop(0, "rgba(160,210,220,0.10)"); grd.addColorStop(1, "rgba(160,210,220,0)"); g.fillStyle = grd; g.fillRect(0, 0, W, H);
+}
+function drawTree(p, s = 1) {
+  const b = P(p), a = P(add(p, [0, 4.2 * s, 0])), tr = P(add(p, [0, 1.2 * s, 0]));
+  const rr = px(1.4 * s, b.z);
+  g.fillStyle = "#5a3d28"; g.fillRect(b.x - px(0.25, b.z), tr.y, px(0.5, b.z), b.y - tr.y);
+  g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(tr.x - rr, tr.y + rr * 0.15); g.lineTo(tr.x + rr, tr.y + rr * 0.15); g.closePath();
+  g.fillStyle = "#2f6b3f"; g.fill();
+  g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(tr.x + rr, tr.y + rr * 0.15); g.lineTo(tr.x + rr * 0.1, tr.y + rr * 0.15); g.closePath();
+  g.fillStyle = "#3f8a52"; g.fill();
+}
+function drawBox(c, s, col) {
+  const faces = [[[1, 0, 0], [[1, -1, -1], [1, -1, 1], [1, 1, 1], [1, 1, -1]]], [[-1, 0, 0], [[-1, -1, -1], [-1, 1, -1], [-1, 1, 1], [-1, -1, 1]]],
+    [[0, 0, 1], [[-1, -1, 1], [-1, 1, 1], [1, 1, 1], [1, -1, 1]]], [[0, 0, -1], [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1]]], [[0, 1, 0], [[-1, 1, -1], [1, 1, -1], [1, 1, 1], [-1, 1, 1]]]];
+  for (const [n, q] of faces) {
+    const fc = add(c, [n[0] * s[0], n[1] * s[1], n[2] * s[2]]);
+    if (dot(n, sub(cam.eye, fc)) <= 0) continue;
+    const sh = n[1] ? 1.05 : 0.6 + 0.4 * Math.max(0, dot(n, LIGHT));
+    poly(q.map(v => P(add(c, [v[0] * s[0], v[1] * s[1], v[2] * s[2]]))), rgb(col, sh), rgb(col, sh * 0.8), 0.8);
+  }
+}
+function drawHouse(c, t) {
+  drawBox(add(c, [0, 1.6, 0]), [2.2, 1.6, 1.8], [214, 196, 160]);
+  const apex = P(add(c, [0, 5.4, 0]));
+  const corners = [[-2.6, 3.2, -2.2], [2.6, 3.2, -2.2], [2.6, 3.2, 2.2], [-2.6, 3.2, 2.2]].map(v => add(c, v));
+  for (let i = 0; i < 4; i++) {
+    const a = corners[i], b = corners[(i + 1) % 4], mid = mul(add(a, b), 0.5), n = norm(sub([mid[0], c[1] + 3.2, mid[2]], [c[0], c[1] + 3.2, c[2]]));
+    if (dot(n, sub(cam.eye, mid)) <= 0) continue;
+    poly([P(a), P(b), apex], rgb([170, 70, 50], 0.7 + 0.3 * Math.max(0, dot(n, LIGHT))));
+  }
+  const lit = ss(64.5, 65.5, t);
+  if (lit > 0) { const d = P(add(c, [0, 1.3, 1.85])); glow(d.x, d.y, px(2.4, d.z), [255, 200, 110], 0.8 * lit); }
+}
+function glow(x, y, r, col, a) {
+  const grd = g.createRadialGradient(x, y, 0, x, y, r);
+  grd.addColorStop(0, rgb(col, 1, a)); grd.addColorStop(1, rgb(col, 1, 0));
+  g.fillStyle = grd; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+}
+const TREES = { S: [[-4, -4], [3, -5.5], [-5.5, 3]], A: [[2, -4.5], [-4, -3]], B: [[2.5, -3.5]], C: [[-2.5, 3], [3, 2.5]], D: [[5, -4], [-5, -5]] };
+function drawIslands(t) {
+  const order = ISLANDS.map((i, k) => ({ i, k, d: depth([i.c[0], DECK / 2, i.c[1]]) })).concat([{ rock: true, d: depth([ROCK.c[0], 6, ROCK.c[1]]) }]).sort((a, b) => b.d - a.d);
+  for (const o of order) {
+    if (o.rock) {
+      const gr = ss(3.4, 4.8, t); if (gr <= 0) continue;
+      drawCylinder(ROCK.c, ROCK.rb, ROCK.rt, 0, ROCK.h * gr, [120, 112, 104], [140, 132, 122]);
+      continue;
+    }
+    const { i, k } = o, gr = ss(2.0 + k * 0.4, 3.3 + k * 0.4, t); if (gr <= 0) continue;
+    const h = i.h * gr;
+    drawCylinder(i.c, i.r * 0.82, i.r, 0, h, [118, 92, 70], [124, 178, 96], { lip: [86, 128, 70], inner: [140, 194, 110] });
+    if (gr > 0.98) {
+      for (const [dx, dz] of TREES[i.id] || []) drawTree([i.c[0] + dx, DECK, i.c[1] + dz], 0.9);
+      if (i.sanctuary) { drawHouse([i.c[0] + 1.5, DECK, i.c[1] + 1], t); drawLanterns(i, t); }
+    }
+  }
+}
+function drawLanterns(i, t) {
+  for (let k = 0; k < 6; k++) {
+    const a = -0.4 + k * 0.62, p = [i.c[0] + Math.cos(a) * (i.r - 1.2), DECK, i.c[1] + Math.sin(a) * (i.r - 1.2)];
+    const b = P(p), tp = P(add(p, [0, 2.6, 0]));
+    g.strokeStyle = "#3b2a1f"; g.lineWidth = Math.max(1, px(0.25, b.z)); g.beginPath(); g.moveTo(b.x, b.y); g.lineTo(tp.x, tp.y); g.stroke();
+    const lit = ss(64.6 + k * 0.35, 65.1 + k * 0.35, t);
+    g.fillStyle = lit > 0 ? rgb([255, 210, 120], 1, 0.6 + 0.4 * lit) : "#6b5a44"; g.beginPath(); g.arc(tp.x, tp.y, Math.max(2, px(0.45, tp.z)), 0, Math.PI * 2); g.fill();
+    if (lit > 0) glow(tp.x, tp.y, px(3.2, tp.z), [255, 200, 110], 0.55 * lit);
+  }
+}
+
+// bridges
+function bridgeProgress(b, t) { return ss(b.b0, b.b1, t) * (t >= b.b0 ? 1 : 0); }
+function drawBridge(b, t, ghostA) {
+  const pr = t < b.b0 ? 0 : clamp((t - b.b0) / (b.b1 - b.b0));
+  const planks = [];
+  for (let i = 0; i < b.n; i++) {
+    const s = (i + 0.5) / b.n; if (s > pr) continue;
+    const settle = clamp((pr - s) / 0.12), drop = (1 - settle) * 2.6;
+    const c = b.at(s), tan = norm(sub(b.at(Math.min(1, s + 0.01)), b.at(Math.max(0, s - 0.01)))), side = norm(cross(tan, UP));
+    const hw = b.width / 2, hl = 0.48;
+    const cc = add(c, [0, drop, 0]);
+    const q = [add(add(cc, mul(side, hw)), mul(tan, hl)), add(add(cc, mul(side, -hw)), mul(tan, hl)), add(add(cc, mul(side, -hw)), mul(tan, -hl)), add(add(cc, mul(side, hw)), mul(tan, -hl))];
+    planks.push({ q, d: depth(cc), shade: 0.85 + 0.25 * rnd(i * 7 + b.n), a: 0.3 + 0.7 * settle });
+  }
+  planks.sort((a, b) => b.d - a.d);
+  for (const p of planks) {
+    const col = [168, 116, 66];
+    poly(p.q.map(P), rgb(col, p.shade, p.a), rgb([90, 60, 35], 1, p.a), 1);
+  }
+  // ropes and posts
+  if (pr > 0.02) {
+    g.save(); g.lineCap = "round";
+    for (const sgn of [1, -1]) {
+      const pts = []; for (let i = 0; i <= 30; i++) { const s = i / 30 * pr; const c = b.at(s), tan = norm(sub(b.at(Math.min(1, s + 0.01)), b.at(Math.max(0, s - 0.01)))), side = norm(cross(tan, UP)); pts.push(P(add(add(c, mul(side, sgn * b.width / 2)), [0, 1.5 - 0.35 * Math.sin(Math.PI * (i / 30)), 0]))); }
+      g.strokeStyle = "rgba(225,205,160,0.9)"; g.lineWidth = Math.max(1, px(0.18, pts[0].z)); g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke();
+      for (const s of [0, pr]) { const c = b.at(s), tan = norm(sub(b.at(Math.min(1, s + 0.01)), b.at(Math.max(0, s - 0.01)))), side = norm(cross(tan, UP)); const base = add(c, mul(side, sgn * b.width / 2)); const a = P(base), tp = P(add(base, [0, 1.8, 0])); g.strokeStyle = "#5a3d28"; g.lineWidth = Math.max(1.5, px(0.35, a.z)); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(tp.x, tp.y); g.stroke(); }
+    }
+    g.restore();
+  }
+  // the ghost deck under a settled hand, before planks
+  if (ghostA > 0 && pr < 1) {
+    const pts = []; for (let i = 0; i <= 30; i++) pts.push(P(add(b.at(i / 30), [0, 0.2, 0])));
+    g.save(); g.lineCap = "round"; g.strokeStyle = `rgba(140,230,255,${0.35 * ghostA})`; g.lineWidth = px(b.width, pts[15].z); g.setLineDash([]);
+    g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke(); g.restore();
+  }
+  // bake: a gold flash along the deck and sparks lifting off
+  const since = t - b.b1;
+  if (since > 0 && since < 2.2) {
+    const k = 1 - since / 2.2;
+    const pts = []; for (let i = 0; i <= 30; i++) pts.push(P(add(b.at(i / 30), [0, 0.4, 0])));
+    g.save(); g.lineCap = "round"; g.globalCompositeOperation = "lighter";
+    g.strokeStyle = `rgba(255,200,80,${0.55 * k * k})`; g.lineWidth = px(b.width * 1.4, pts[15].z);
+    g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke();
+    for (let j = 0; j < 46; j++) {
+      const st = rnd(j + b.n * 13) * 0.7, life = (since - st) / 1.3; if (life < 0 || life > 1) continue;
+      const s = (rnd(j * 3.1 + 2) + life * 0.05) % 1, c = b.at(s);
+      const p = P(add(c, [(rnd(j * 5.7) - 0.5) * 3 * life, 0.4 + life * 7, (rnd(j * 9.3) - 0.5) * 3 * life]));
+      glow(p.x, p.y, Math.max(3, px(0.9 * (1 - life), p.z)) * 2.2, [255, 210, 90], 0.9 * (1 - life));
+    }
+    g.restore();
+  }
+}
+function drawRings(t) {
+  const beats = [
+    { span: [11.6, 19.4], pts: [b1p0, b1p1], held: [15.0, 19.4] },
+    { span: [25.4, 31.4], pts: [forkRoot, fkB, fkC], held: [27.7, 31.4] },
+    { span: [36.2, 42.6], pts: [arP0, arP1], held: [38.6, 42.6] },
+  ];
+  for (const b of beats) {
+    if (t < b.span[0] || t > b.span[1]) continue;
+    const a = ss(b.span[0], b.span[0] + 0.6, t) * (1 - ss(b.span[1] - 0.4, b.span[1], t));
+    const held = t >= b.held[0];
+    const pulse = held ? 1 : 0.85 + 0.15 * Math.sin(t * 6);
+    for (const p of b.pts) {
+      const pts = ring3([p[0], p[2]], 1.9 * pulse, 1.9 * pulse, DECK + 0.2, 36).map(P);
+      g.save(); g.globalCompositeOperation = "lighter";
+      poly(pts, null, held ? `rgba(90,255,140,${a})` : `rgba(255,210,80,${a})`, 3);
+      if (!held) { const m = P(add(p, [0, 4.5 + Math.sin(t * 4) * 0.6, 0])); glow(m.x, m.y, 12, [255, 210, 80], a); }
+      g.restore();
+    }
+  }
+}
+
+// travelers
+function drawTraveler(tr, t) {
+  if (t < tr.from) return null;
+  const { pos, moving } = walk(tr.segs, t);
+  const off = tr.off && !moving ? [tr.off[0], 0, tr.off[1]] : [0, 0, 0];
+  const p = add(pos, off), bob = moving ? Math.abs(Math.sin(t * 11 + tr.scale * 3)) * 0.35 : 0;
+  const pop = ss(tr.from, tr.from + 0.5, t);
+  const s = tr.scale * pop;
+  const items = [];
+  items.push({ d: depth(p), draw: () => {
+    const base = P(p); const r = px(0.9 * s, base.z);
+    g.fillStyle = "rgba(0,0,0,0.25)"; g.beginPath(); g.ellipse(base.x, base.y, r, r * 0.45, 0, 0, Math.PI * 2); g.fill();
+    if (tr.cart) {
+      const back = walk(tr.segs.map(x => ({ t0: x.t0 + 0.28, t1: x.t1 + 0.28, path: x.path })), t).pos;
+      const cb = P(add(back, [0, 1.0, 0])), cw = px(1.6, cb.z);
+      g.fillStyle = "#8a5a32"; g.strokeStyle = "#4a2f1a"; g.lineWidth = 1.5;
+      g.fillRect(cb.x - cw, cb.y - cw * 0.7, cw * 2, cw * 1.1); g.strokeRect(cb.x - cw, cb.y - cw * 0.7, cw * 2, cw * 1.1);
+      g.fillStyle = "#e8c070"; g.fillRect(cb.x - cw * 0.8, cb.y - cw * 1.1, cw * 1.6, cw * 0.45);
+      g.fillStyle = "#2e2118"; for (const dx of [-0.65, 0.65]) { g.beginPath(); g.arc(cb.x + dx * cw, cb.y + cw * 0.45, cw * 0.38, 0, Math.PI * 2); g.fill(); }
+    }
+    const body = P(add(p, [0, (1.15 + bob) * s, 0])), head = P(add(p, [0, (2.45 + bob) * s, 0])), hat = P(add(p, [0, (3.35 + bob) * s, 0]));
+    const br = px(0.78 * s, body.z), hr = px(0.6 * s, head.z);
+    g.fillStyle = rgb(tr.body); g.beginPath(); g.ellipse(body.x, body.y, br, br * 1.35, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = rgb(tr.body, 0.75); g.beginPath(); g.ellipse(body.x + br * 0.25, body.y + br * 0.2, br * 0.6, br * 1.0, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#f3d9b8"; g.beginPath(); g.arc(head.x, head.y, hr, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#2a1d14"; g.beginPath(); g.arc(head.x - hr * 0.35, head.y - hr * 0.05, Math.max(1, hr * 0.13), 0, 7); g.arc(head.x + hr * 0.35, head.y - hr * 0.05, Math.max(1, hr * 0.13), 0, 7); g.fill();
+    g.fillStyle = rgb(tr.hat); g.beginPath(); g.moveTo(hat.x, hat.y - hr * 0.5); g.lineTo(head.x - hr * 1.05, head.y - hr * 0.55); g.lineTo(head.x + hr * 1.05, head.y - hr * 0.55); g.closePath(); g.fill();
+    if (tr.name === "Pip") glow(body.x, body.y, br * 3.2, [255, 210, 90], 0.25);
+  } });
+  return items;
+}
+
+// the hand
+function drawHand(h, t, shield) {
+  const J = handJoints(h.pose), a = h.alpha;
+  const rim = shield ? [120, 255, 170] : [130, 220, 255];
+  // soft shadow on the deck for a flat hand
+  if (!h.pose.roll && a > 0.05) {
+    g.save(); g.filter = "blur(6px)"; g.globalAlpha = 0.22 * a; g.fillStyle = "#000"; g.strokeStyle = "#000"; g.lineCap = "round";
+    const flat = p => P([p[0] + 1.0, DECK + 0.3, p[2] + 0.6]);
+    poly(J.palm.map(flat), "#000");
+    for (const f of J.fingers.concat([J.thumb])) { const pts = f.pts.map(flat); g.lineWidth = px(1.7, pts[0].z); g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke(); }
+    g.restore();
+  }
+  const parts = [{ palm: true, d: depth(mul(add(J.palm[0], J.palm[3]), 0.5)) }].concat(J.fingers.concat([J.thumb]).map(f => ({ f, d: depth(f.pts[1]) })));
+  parts.sort((x, y) => y.d - x.d);
+  g.save(); g.lineCap = "round"; g.lineJoin = "round";
+  for (const part of parts) {
+    if (part.palm) {
+      const pp = J.palm.map(P);
+      g.shadowColor = rgb(rim, 1, 0.9 * a); g.shadowBlur = 18;
+      poly(pp, `rgba(232,240,255,${0.58 * a})`, rgb(rim, 1, 0.85 * a), 2.6);
+      g.shadowBlur = 0; continue;
+    }
+    const pts = part.f.pts.map(P);
+    for (let k = 0; k < pts.length - 1; k++) {
+      const z = (pts[k].z + pts[k + 1].z) / 2, r = part.f.r * (1 - k * 0.1);
+      g.shadowColor = rgb(rim, 1, 0.8 * a); g.shadowBlur = 14;
+      g.strokeStyle = rgb(rim, 1, 0.55 * a); g.lineWidth = px(2 * r + 0.35, z);
+      g.beginPath(); g.moveTo(pts[k].x, pts[k].y); g.lineTo(pts[k + 1].x, pts[k + 1].y); g.stroke();
+      g.shadowBlur = 0;
+      g.strokeStyle = `rgba(236,243,255,${0.62 * a})`; g.lineWidth = px(2 * r - 0.25, z);
+      g.beginPath(); g.moveTo(pts[k].x, pts[k].y); g.lineTo(pts[k + 1].x, pts[k + 1].y); g.stroke();
+    }
+    const tip = pts[pts.length - 1]; g.fillStyle = `rgba(255,255,255,${0.75 * a})`; g.beginPath(); g.arc(tip.x, tip.y, px(0.35, tip.z), 0, 7); g.fill();
+  }
+  g.restore();
+}
+
+// wind
+const GUST = { gather: [45.4, 49.4], blow: [49.4, 51.6] };
+function drawGust(t, shielding) {
+  if (t < GUST.gather[0] || t > GUST.blow[1] + 0.8) return;
+  const gathering = t < GUST.gather[1], k = gathering ? ss(GUST.gather[0], GUST.gather[1], t) : 1;
+  const fade = 1 - ss(GUST.blow[1], GUST.blow[1] + 0.8, t);
+  const target = add(archMid, [0, 0.5, 0]);
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  // swirl
+  for (let i = 0; i < 22; i++) {
+    const ang = i / 22 * Math.PI * 2 + t * 4.2, rr = 1.2 + 3.2 * k * (0.6 + 0.4 * rnd(i));
+    const p = P(add(GUST_O, [Math.cos(ang) * rr, (i % 5) * 0.7, Math.sin(ang) * rr]));
+    glow(p.x, p.y, px(0.9, p.z), [180, 225, 255], 0.55 * fade);
+  }
+  // dotted path toward the travelers
+  for (let i = 1; i < 18; i++) { const p = P(lerp3(GUST_O, target, i / 18)); g.fillStyle = `rgba(190,230,255,${0.35 * fade})`; g.beginPath(); g.arc(p.x, p.y, 2, 0, 7); g.fill(); }
+  if (!gathering) {
+    const stop = len(sub(WALL_C, GUST_O)) / len(sub(target, GUST_O)) - 0.04;
+    for (let i = 0; i < 16; i++) {
+      const f = ((t - GUST.blow[0]) * 1.6 + i / 16) % 1, lat = (rnd(i) - 0.5) * 4, up = (rnd(i + 9) - 0.5) * 3;
+      const reach = shielding ? stop : 1;
+      const a0 = lerp3(GUST_O, target, f * reach), a1 = lerp3(GUST_O, target, Math.min(f * reach + 0.12, reach));
+      const o = add(mul(perpA, 0), add(mul(dirA, lat), [0, up, 0]));
+      const p0 = P(add(a0, o)), p1 = P(add(a1, o));
+      g.strokeStyle = `rgba(200,235,255,${0.75 * fade})`; g.lineWidth = Math.max(1.5, px(0.3, p0.z));
+      g.beginPath(); g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y); g.stroke();
+    }
+    if (shielding) {
+      for (let j = 0; j < 30; j++) {
+        const life = ((t - GUST.blow[0]) * 1.8 + rnd(j)) % 1;
+        const d = add(mul(dirA, (rnd(j * 3) - 0.5) * 2), [0, rnd(j * 7) * 1.2, 0]);
+        const p = P(add(add(WALL_C, mul(perpA, -1.2)), add(mul(d, life * 7), mul(perpA, -life * 3))));
+        glow(p.x, p.y, px(0.8, p.z) * (1 - life) + 2, [140, 255, 190], 0.8 * (1 - life) * fade);
+      }
+    }
+  }
+  g.restore();
+}
+
+// ---------- captions ----------
+const CAPTIONS = [
+  [6.0, 11.6, "A tiny valley grows on your table.", "Its folk need to get home, but the gaps are too wide."],
+  [11.8, 21.2, "Lay your hand across the gap.", "Hold still. Your hand becomes a bridge, and it stays when you lift away."],
+  [21.4, 25.4, "Bridge built!", "Pip and friends cross on the shape your hand made."],
+  [25.6, 35.4, "Spread your fingers.", "One hand, two paths: the bridge forks to both islands."],
+  [35.6, 45.0, "Cup your hand over the rock.", "The bridge takes your hand's curve and arches over it."],
+  [45.2, 49.4, "A gust is coming!", "Stand your hand up like a wall between the wind and the travelers."],
+  [49.4, 51.6, "Hold it…", "Your hand is the windbreak."],
+  [51.6, 57.0, "Shielded!", "Gusts held back: 1. They keep walking."],
+  [57.4, 67.8, "Every shape you made carries them home.", "Bram brings the cart across all your bridges. The sanctuary lights up."],
+];
+const SCENES = [["Title", 0], ["The valley", 6], ["First bridge", 11.8], ["Fork", 25.6], ["Arch", 35.6], ["Wind", 45.2], ["Finale", 57.4], ["End", 68]];
+function drawCaption(t) {
+  for (const [a, b, title, sub] of CAPTIONS) {
+    if (t < a || t > b) continue;
+    const k = ss(a, a + 0.5, t) * (1 - ss(b - 0.5, b, t));
+    const grd = g.createLinearGradient(0, H - 170, 0, H);
+    grd.addColorStop(0, "rgba(0,0,0,0)"); grd.addColorStop(1, `rgba(0,0,0,${0.7 * k})`);
+    g.fillStyle = grd; g.fillRect(0, H - 170, W, 170);
+    g.textAlign = "center"; g.fillStyle = `rgba(255,236,190,${k})`; g.font = "600 38px 'Segoe UI', system-ui, sans-serif";
+    g.fillText(title, W / 2, H - 78);
+    g.fillStyle = `rgba(235,232,225,${0.9 * k})`; g.font = "24px 'Segoe UI', system-ui, sans-serif";
+    g.fillText(sub, W / 2, H - 40);
+  }
+}
+function drawTitle(t) {
+  const k1 = ss(0.4, 1.4, t) * (1 - ss(4.6, 5.6, t));
+  const k2 = ss(68.4, 69.6, t);
+  const k = Math.max(k1, k2); if (k <= 0) return;
+  g.save(); g.textAlign = "center";
+  if (k2 > 0) { g.fillStyle = `rgba(0,0,0,${0.45 * k2})`; g.fillRect(0, 0, W, H); }
+  g.fillStyle = `rgba(255,226,160,${k})`; g.font = "700 92px Georgia, 'Times New Roman', serif";
+  g.shadowColor = `rgba(255,190,80,${0.6 * k})`; g.shadowBlur = 30;
+  g.fillText("PALMFOLK", W / 2, H * 0.36); g.shadowBlur = 0;
+  g.fillStyle = `rgba(240,236,228,${k})`; g.font = "28px 'Segoe UI', system-ui, sans-serif";
+  g.fillText("Your hand shapes their world.", W / 2, H * 0.36 + 56);
+  if (k2 > 0) {
+    g.font = "22px 'Segoe UI', system-ui, sans-serif"; g.fillStyle = `rgba(220,215,205,${k2})`;
+    g.fillText("A hands-only puzzle for Meta Quest. No controllers, just your hands.", W / 2, H * 0.36 + 100);
+    g.fillText("Bridge · Fork · Arch · Wall", W / 2, H * 0.36 + 136);
+  }
+  g.restore();
+}
+function drawTag() {
+  g.save(); g.font = "14px 'Segoe UI', system-ui, sans-serif"; g.fillStyle = "rgba(255,255,255,0.55)"; g.textAlign = "left";
+  g.fillText("Concept animation · not gameplay footage", 18, 28); g.restore();
+}
+
+// ---------- frame ----------
+function render(t) {
+  cameraAt(t);
+  drawRoom(t); drawTable(); drawValleyBase(); drawIslands(t);
+  const h = handAt(t);
+  const ghost = h && h.settled && !h.pose.roll ? 1 : 0;
+  const ghostFor = name => {
+    if (!ghost) return 0;
+    if (name === "first") return h.beat === HAND_BEATS[0] ? 1 : 0;
+    if (name === "forkB" || name === "forkC") return h.beat === HAND_BEATS[1] ? 1 : 0;
+    return h.beat === HAND_BEATS[2] ? 1 : 0;
+  };
+  // bridges far to near
+  Object.entries(BRIDGES).map(([k, b]) => ({ k, b, d: depth(b.at(0.5)) })).sort((x, y) => y.d - x.d).forEach(o => drawBridge(o.b, t, ghostFor(o.k)));
+  drawRings(t);
+  const items = []; for (const tr of TRAVELERS) { const it = drawTraveler(tr, t); if (it) items.push(...it); }
+  items.sort((a, b) => b.d - a.d).forEach(i => i.draw());
+  const shielding = h && h.pose.roll && h.settled;
+  drawGust(t, shielding);
+  if (h) drawHand(h, t, shielding && t > GUST.blow[0] && t < GUST.blow[1] + 0.6);
+  drawCaption(t); drawTitle(t); drawTag();
+  // fade from and to black
+  const fb = Math.max(1 - ss(0, 0.8, t), ss(DUR - 0.8, DUR, t));
+  if (fb > 0) { g.fillStyle = `rgba(0,0,0,${fb})`; g.fillRect(0, 0, W, H); }
+}
+
+// ---------- player ----------
+const seek = document.getElementById("seek"), timeEl = document.getElementById("time"), playBtn = document.getElementById("play");
+const chips = document.getElementById("chips");
+SCENES.forEach(([name, at]) => { const c = document.createElement("span"); c.className = "chip"; c.textContent = name; c.onclick = () => { T = at; draw(); }; chips.appendChild(c); });
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const params = new URLSearchParams(location.search);
+let T = parseFloat(params.get("t") || "0"), playing = !params.has("pause"), last = performance.now();
+function draw() {
+  render(T); seek.value = T; timeEl.textContent = `${fmt(T)} / ${fmt(DUR)}`;
+  let cur = 0; SCENES.forEach(([, at], i) => { if (T >= at) cur = i; });
+  [...chips.children].forEach((c, i) => c.classList.toggle("on", i === cur));
+}
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing) { T += dt; if (T >= DUR) { T = DUR; playing = false; playBtn.textContent = "Replay"; finishRecording(); } }
+  draw(); requestAnimationFrame(loop);
+}
+playBtn.onclick = () => { if (T >= DUR) T = 0; playing = !playing; playBtn.textContent = playing ? "Pause" : "Play"; };
+seek.oninput = () => { T = parseFloat(seek.value); draw(); };
+document.addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); playBtn.click(); } });
+window.seekTo = t => { T = t; playing = false; playBtn.textContent = "Play"; draw(); };
+let recorder = null, chunks = [];
+document.getElementById("rec").onclick = () => {
+  if (recorder) return;
+  const stream = C.captureStream(30);
+  const type = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+  recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 8e6 }); chunks = [];
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(chunks, { type: "video/webm" })); a.download = "palmfolk-concept.webm"; a.click(); recorder = null; document.getElementById("rec").textContent = "Save as video"; };
+  T = 0; playing = true; playBtn.textContent = "Pause"; recorder.start(); document.getElementById("rec").textContent = "Recording…";
+};
+function finishRecording() { if (recorder && recorder.state === "recording") recorder.stop(); }
+playBtn.textContent = playing ? "Pause" : "Play";
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
