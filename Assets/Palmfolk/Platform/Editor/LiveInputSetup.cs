@@ -128,8 +128,9 @@ namespace Palmfolk.Platform.Editor
     // Palmfolk is hands-only, so the store must offer it only where hand tracking exists. XR Hands (order 10) writes
     // oculus.software.handtracking as optional; this puts it back to required before Meta's pass (99999) and
     // Slice0BuildChecks (100000) inspect the manifest. Unity adds microphone, Bluetooth and network-state permissions
-    // because Meta's voice and platform packages reference those APIs; Palmfolk uses none of them, so they are
-    // marked removed (Test-Slice0Apk.ps1 checks the merged APK against its allowlist).
+    // because Meta's voice and platform packages reference those APIs, and Meta's dev-agent library brings a screen
+    // capture service with foreground-service permissions. Palmfolk uses none of them, so they are marked removed for
+    // the manifest merge (Test-Slice0Apk.ps1 checks the merged APK against its allowlist).
     public sealed class HandsOnlyManifest : IPostGenerateGradleAndroidProject
     {
         private const string AndroidNamespace = "http://schemas.android.com/apk/res/android";
@@ -137,8 +138,10 @@ namespace Palmfolk.Platform.Editor
         private static readonly string[] Unused =
         {
             "android.permission.RECORD_AUDIO", "android.permission.MODIFY_AUDIO_SETTINGS",
-            "android.permission.BLUETOOTH", "android.permission.ACCESS_NETWORK_STATE"
+            "android.permission.BLUETOOTH", "android.permission.ACCESS_NETWORK_STATE",
+            "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
         };
+        private static readonly string[] UnusedServices = { "com.meta.agenticxr.AgenticMediaProjectionService" };
         public int callbackOrder => 50000;
         public void OnPostGenerateGradleAndroidProject(string path)
         {
@@ -151,12 +154,24 @@ namespace Palmfolk.Platform.Editor
                 if (feature.GetAttribute("name", AndroidNamespace) != "oculus.software.handtracking" || feature.GetAttribute("required", AndroidNamespace) == "true") continue;
                 feature.SetAttribute("required", AndroidNamespace, "true"); changed = true;
             }
-            foreach (XmlElement permission in doc.SelectNodes("/manifest/uses-permission").OfType<XmlElement>())
-            {
-                if (!Unused.Contains(permission.GetAttribute("name", AndroidNamespace)) || permission.GetAttribute("node", ToolsNamespace) == "remove") continue;
-                permission.SetAttribute("node", ToolsNamespace, "remove"); changed = true;
-            }
+            var root = doc.DocumentElement; var application = (XmlElement)doc.SelectSingleNode("/manifest/application");
+            foreach (var name in Unused) changed |= Remove(doc, root, "uses-permission", name);
+            if (application != null) foreach (var name in UnusedServices) changed |= Remove(doc, application, "service", name);
             if (changed) doc.Save(manifestPath);
+        }
+
+        // Marks the entry removed, adding a removal marker if only a library declares it.
+        private static bool Remove(XmlDocument doc, XmlElement parent, string tag, string name)
+        {
+            var entry = parent.ChildNodes.OfType<XmlElement>().FirstOrDefault(e => e.Name == tag && e.GetAttribute("name", AndroidNamespace) == name);
+            if (entry != null && entry.GetAttribute("node", ToolsNamespace) == "remove") return false;
+            if (entry == null)
+            {
+                entry = doc.CreateElement(tag); entry.SetAttribute("name", AndroidNamespace, name);
+                if (tag == "uses-permission") parent.PrependChild(entry); else parent.AppendChild(entry);
+            }
+            entry.SetAttribute("node", ToolsNamespace, "remove");
+            return true;
         }
     }
 }
