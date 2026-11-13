@@ -45,6 +45,10 @@ namespace Palmfolk.Views
         private Material ringIdle, ringReady, pipMaterial, gustMaterial;
         private TextMesh prompt;
         private string transient; private long transientUntil = -1, refusedAt = -1;
+        // The bake moment: the bridge that just solidified, when, and how many gusts the player has shielded.
+        private readonly HashSet<string> seenBridges = new HashSet<string>();
+        private string bakedKey; private long bakedAt = -1; private int shieldedCount; private bool bakePrimed;
+        private const int BakeTicks = 70;
         public void Consume(IReadOnlyList<GameEvent> events)
         {
             if (pipRig != null) { pipRig.Consume(events); bramRig.Consume(events); }
@@ -56,8 +60,9 @@ namespace Palmfolk.Views
                 if (e.Kind == GameEventKind.TrackingLost) Say("Keep your hand where the headset can see it", e.Tick, 150);
                 if (e.Kind == GameEventKind.PuzzleCompleted) Say("Well done!", e.Tick, 120);
                 if (e.Kind == GameEventKind.Refused) refusedAt = e.Tick;
-                if (e.Kind == GameEventKind.GustBlocked) Say("Shielded! Your hand held back the wind", e.Tick, 150);
+                if (e.Kind == GameEventKind.GustBlocked) { shieldedCount++; Say(shieldedCount == 1 ? "Shielded! Your hand held back the wind" : "Shielded! " + shieldedCount + " gusts held back", e.Tick, 150); }
                 if (e.Kind == GameEventKind.GustHit) Say("Whoosh! They're bracing.\nStand your hand up like a wall to shield them", e.Tick, 180);
+                if (e.Kind == GameEventKind.ReplantStarted) { seenBridges.Clear(); bakedKey = null; bakePrimed = false; }
                 if (e.Kind == GameEventKind.ReplantStarted || e.Kind == GameEventKind.PuzzleStarted || e.Kind == GameEventKind.VisitorCalled) { planted = e.Kind == GameEventKind.ReplantStarted ? null : planted; connectionTick = null; }
             }
         }
@@ -225,7 +230,7 @@ namespace Palmfolk.Views
                 }
                 if (!held && !ReducedMotion) rings.Sphere(centre + Vector3.up * (0.03f + 0.006f * Mathf.Sin(frame.Tick / 6f)), 0.006f, ringIdle);
             }
-            DrawGust(frame);
+            DrawGust(frame); DrawBake(frame);
             rings.End();
             Prompt = PromptFor(frame);
             prompt.text = Prompt; prompt.gameObject.SetActive(Prompt.Length > 0);
@@ -234,6 +239,32 @@ namespace Palmfolk.Views
                 prompt.transform.position = valley.TransformPoint(new Vector3(0, 0.11f, 0));
                 var viewer = Camera.main != null ? Camera.main.transform : null;
                 if (viewer != null) prompt.transform.rotation = Quaternion.LookRotation(prompt.transform.position - viewer.position, Vector3.up);
+            }
+        }
+
+        // The bake moment: when a bridge solidifies, a wave of golden sparks runs along it from end to end and lifts
+        // off, so the shape your hand held visibly becomes part of the world.
+        private void DrawBake(ValleyPresentation frame)
+        {
+            foreach (var key in frame.Bridges.Keys)
+                if (seenBridges.Add(key) && bakePrimed) { bakedKey = key; bakedAt = frame.Tick; }
+            bakePrimed = true;
+            if (bakedKey == null || !frame.Bridges.TryGetValue(bakedKey, out var tree) || frame.Tick - bakedAt > BakeTicks) return;
+            float u = (frame.Tick - bakedAt) / (float)BakeTicks;
+            foreach (var curve in tree.Curves)
+            {
+                int n = curve.Points.Count; if (n < 2) continue;
+                for (int i = 0; i < n; i++)
+                {
+                    float along = i / (float)(n - 1);
+                    float local = Mathf.Clamp01(u * 2f - along);
+                    if (local <= 0 || local >= 1) continue;
+                    var point = PalmfolkView.V(curve.Points[i]);
+                    float lift = ReducedMotion ? 0.004f : 0.004f + local * 0.035f;
+                    float size = 0.006f * (1 - local) + 0.0015f;
+                    rings.Sphere(point + Vector3.up * lift, size, ringIdle);
+                    if (!ReducedMotion && i % 2 == 0) rings.Sphere(point + new Vector3(0.006f, lift * 0.6f, -0.004f), size * 0.6f, ringReady);
+                }
             }
         }
 
