@@ -174,4 +174,24 @@ namespace Palmfolk.Platform.Editor
             return true;
         }
     }
+
+    // Meta's SDK packs its dev-agent OpenXR layer (XR_APILAYER_METAX_operator) into every Development build. On the
+    // Quest 2 it sits between the game and the runtime and OpenXR fails to start (xrPollEvent unsupported, no display),
+    // and it brings a screen capture service. Palmfolk never uses it: leave the AAR out of every Android build.
+    // Runs after Meta's own processor (order 0), which includes it for Development builds.
+    public sealed class ExcludeMetaOperatorLayer : IPreprocessBuildWithReport
+    {
+        private const string AarFileName = "XrApiLayer_METAX_operator_unity_android";
+        public int callbackOrder => 1;
+        public void OnPreprocessBuild(BuildReport report)
+        {
+            if (report.summary.platform != BuildTarget.Android) return;
+            foreach (var importer in PluginImporter.GetAllImporters())
+            {
+                if (!importer.assetPath.Contains(AarFileName)) continue;
+                importer.SetIncludeInBuildDelegate(_ => false);
+                Debug.Log("Palmfolk: leaving Meta's operator OpenXR layer out of the APK.");
+            }
+        }
+    }
 }
