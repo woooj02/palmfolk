@@ -36,7 +36,8 @@ Editor checks cover the command queue, mode fallback, settings/save round-trip, 
 targets and all ten tip mappings/loss. They do not constitute a live poke or hands-only headset pass.
 Owner checks remain A1/GZ2/E9/E18, both hands alone and ten runs without accidental system-menu selections.
 
-Recording limitation for Dario: the current format-2 recorder snapshots initial player settings, but
-`runner.Apply` and `ChooseMode` are not tick-frame commands. Sessions that change settings/mode need a
-published recorder event contract before their replay can be claimed identical. No recorder/save types
-were changed in this binding.
+Recording format 3 now captures settings and running-mode changes through the runner's
+`SettingsApplied`/`ModeChanged` events. `SessionRecording` subscribes directly; the waystone keeps using
+`Apply`/`ChooseMode`. The editor integration test records those actual menu actions in memory, encodes/
+decodes the result and checks identical replay decisions/final save. Format 2 remains readable.
+Recording still requires tester consent and is compiled out of release; no headset replay is claimed.

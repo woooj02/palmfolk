@@ -1,6 +1,6 @@
 {
   "name": "Palmfolk.Stats.Tests",
-  "references": ["Palmfolk.Core", "Palmfolk.Platform", "Palmfolk.Developer", "Palmfolk.Stats", "Palmfolk.Core.Tests"],
+  "references": ["Palmfolk.Core", "Palmfolk.Platform", "Palmfolk.Developer", "Palmfolk.Stats", "Palmfolk.Core.Tests", "Palmfolk.UI", "Palmfolk.Platform.Developer"],
   "includePlatforms": ["Editor"],
   "defineConstraints": ["PALMFOLK_DEVELOPMENT"],
   "optionalUnityReferences": ["TestAssemblies"]

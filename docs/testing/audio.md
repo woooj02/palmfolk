@@ -7,8 +7,10 @@ These are not final polished sounds, an audible quality pass, or headset spatial
 `AudioPresenter.Consume(events, frame)` maps actual section commits, completed bridges, refusals and
 the M1 lantern finish. Supply the corresponding tick's presentation, so positions are not silently taken
 from a later frame when processing a backlog. Call `FootContact(worldPosition)` on the animation's
-actual contact, and `Play` for explicit platform/director connection/visitor signals. Do not map boarding
-or build-start to a missing connection-lock event. Such events are not currently exposed by Core.
+actual contact. `ConnectionLocked` now maps directly to the connection chime and its caption at the
+destination anchor; it never maps from boarding, build-start or proximity. `ValleyView` starts a short
+dust burst at the locked source/end zones from that same event, once per hold. Reduced motion keeps
+the specks still while they fade. The presentation flag alone does not replay the chime or burst.
 
 Footsteps use a spatial source at the contact point, not the player's head. Configure `ContactAudioBinding`
 with the audio presenter and **only** the relevant view's content root; it binds newly created/pool rigs
@@ -23,5 +25,5 @@ Music owns a child source/caption root; it never moves the platform's shared sce
 
 The live scene binds contact audio, visitor arrival/settling and music. Visitor events use the visitor or
 sanctuary location; several catch-up ticks share the latest frame position, an explicit timing limit.
-Unbound: exact connection-lock event. Sound-alone completion recognition, caption legibility and spatial placement
+Connection feedback is now bound. Sound-alone completion recognition, caption legibility and spatial placement
 need the owner to listen/inspect in editor and on Quest 2. Original synthesized placeholders still need P11 polish.

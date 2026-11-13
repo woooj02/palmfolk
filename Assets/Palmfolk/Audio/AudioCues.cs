@@ -20,6 +20,7 @@ namespace Palmfolk.Audio
                 case GameEventKind.BridgeBaked: cue = Cue.BuildDone; return true;
                 case GameEventKind.Refused: cue = Cue.Refusal; return true;
                 case GameEventKind.BramFinished: cue = Cue.Lantern; return true;
+                case GameEventKind.ConnectionLocked: cue = Cue.Connection; return true;
                 case GameEventKind.VisitorArrived: cue = Cue.VisitorArrival; return true;
                 case GameEventKind.VisitorSettled: cue = Cue.Lantern; return true;
                 default: cue = default; return false;
@@ -68,6 +69,7 @@ namespace Palmfolk.Audio
                 if (CueCatalog.TryMap(e.Kind, out var cue))
                 {
                     var position = frame.Pip;
+                    if (e.Kind == GameEventKind.ConnectionLocked && frame.Destination.HasValue) position = frame.Destination.Value.Centre;
                     if (e.Kind == GameEventKind.VisitorArrived)
                         position = frame.VisitorFigure?.Position ?? frame.Valley.Island(frame.Visitor?.From ?? frame.Valley.Sanctuary).Top;
                     if (e.Kind == GameEventKind.VisitorSettled || e.Kind == GameEventKind.BramFinished) position = frame.Valley.Island(frame.Valley.Sanctuary).Top;

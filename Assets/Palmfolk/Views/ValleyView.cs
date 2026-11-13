@@ -11,7 +11,10 @@ namespace Palmfolk.Views
     {
         private Transform valley, islands, pip, bram, cart, ledge, capacity;
         private TravelerRig pipRig, bramRig;
-        private PalmfolkView.ShapePool live, preview, scaffold, ghost, refusals, refusedScaffold, capacityGlyph;
+        private PalmfolkView.ShapePool live, preview, scaffold, ghost, refusals, refusedScaffold, capacityGlyph, connectionDust;
+        private long? connectionTick;
+        private readonly List<Vec3> lockedAnchors = new List<Vec3>();
+        public bool ShowingConnectionDust { get; private set; }
         private readonly Dictionary<string, PalmfolkView.ShapePool> bridges = new Dictionary<string, PalmfolkView.ShapePool>();
         private readonly List<Transform> travelers = new List<Transform>();
         private readonly List<Transform> travelerCarts = new List<Transform>();
@@ -39,7 +42,12 @@ namespace Palmfolk.Views
         public void Consume(IReadOnlyList<GameEvent> events)
         {
             if (pipRig != null) { pipRig.Consume(events); bramRig.Consume(events); }
-            foreach (var e in events) { if (e.Kind == GameEventKind.Planted) planted = e.Tick; if (e.Kind == GameEventKind.ReplantStarted) planted = null; }
+            foreach (var e in events)
+            {
+                if (e.Kind == GameEventKind.Planted) planted = e.Tick;
+                if (e.Kind == GameEventKind.ConnectionLocked) connectionTick = e.Tick;
+                if (e.Kind == GameEventKind.ReplantStarted || e.Kind == GameEventKind.PuzzleStarted || e.Kind == GameEventKind.VisitorCalled) { planted = e.Kind == GameEventKind.ReplantStarted ? null : planted; connectionTick = null; }
+            }
         }
         public void Present(ValleyPresentation frame) { Present(frame, 1); }
         public void Present(ValleyPresentation frame, float handInterpolation)
@@ -50,6 +58,7 @@ namespace Palmfolk.Views
             valley.SetPositionAndRotation(PalmfolkView.V(pose.Origin), new Quaternion((float)pose.Rotation.X, (float)pose.Rotation.Y, (float)pose.Rotation.Z, (float)pose.Rotation.W));
             float growth = planted.HasValue && !ReducedMotion ? Mathf.Max(0.001f, Mathf.SmoothStep(0, 1, (frame.Tick - planted.Value) / 30f)) : 1;
             valley.localScale = Vector3.one * (float)pose.Scale * growth;
+            DrawConnection(frame);
             pip.localPosition = PalmfolkView.V(frame.Pip); bram.localPosition = PalmfolkView.V(frame.Bram);
             pipRig.ReducedMotion = bramRig.ReducedMotion = ReducedMotion; pipRig.Present(frame); bramRig.Present(frame);
             cart.localPosition = bram.localPosition + bram.localRotation * Vector3.back * 0.016f; cart.localRotation = bram.localRotation;
@@ -168,6 +177,30 @@ namespace Palmfolk.Views
             live = new PalmfolkView.ShapePool(valley, "Displayed route"); preview = new PalmfolkView.ShapePool(valley, "Preview");
             scaffold = new PalmfolkView.ShapePool(valley, "Frozen scaffold"); ghost = new PalmfolkView.ShapePool(valley, "Recovery ghost"); refusals = new PalmfolkView.ShapePool(valley, "Refusal crosses");
             refusedScaffold = new PalmfolkView.ShapePool(valley, "Refused branch removal");
+            connectionDust = new PalmfolkView.ShapePool(valley, "Connection lock dust");
+        }
+        private void DrawConnection(ValleyPresentation frame)
+        {
+            connectionDust.Begin(); ShowingConnectionDust = connectionTick.HasValue && frame.ConnectionLocked && frame.Tick >= connectionTick.Value && frame.Tick - connectionTick.Value < 30;
+            if (ShowingConnectionDust)
+            {
+                lockedAnchors.Clear();
+                if (frame.Source.HasValue) lockedAnchors.Add(frame.Source.Value.Centre);
+                foreach (string id in frame.ActiveEdges)
+                {
+                    var edge = spec.Edge(id); bool from = !frame.Source.HasValue || Vec3.Distance(edge.FromAnchor.Centre, frame.Source.Value.Centre) <= Vec3.Distance(edge.ToAnchor.Centre, frame.Source.Value.Centre);
+                    lockedAnchors.Add(from ? edge.ToAnchor.Centre : edge.FromAnchor.Centre);
+                }
+                float age = (frame.Tick - connectionTick.Value) / 30f;
+                foreach (var anchor in lockedAnchors)
+                    for (int i = 0; i < 6; i++)
+                    {
+                        float angle = i * Mathf.PI / 3, radius = ReducedMotion ? 0.005f : 0.003f + age * 0.007f;
+                        var offset = new Vector3(Mathf.Cos(angle) * radius, ReducedMotion ? 0.003f : Mathf.Sin(age * Mathf.PI) * 0.006f, Mathf.Sin(angle) * radius);
+                        connectionDust.Sphere(PalmfolkView.V(anchor) + offset, 0.002f * (1 - age), warning);
+                    }
+            }
+            connectionDust.End();
         }
         private Material Material(Color color) { var value = PalmfolkView.CreateMaterial(color); materials.Add(value); return value; }
         private void ApplyContrast()

@@ -73,8 +73,8 @@ hand interpolation. Configure `NightView` with the content sanctuary position. R
 the input adapter, never a view mutation of Core. `GamePresentation` now supplies this live binding;
 the setup menu configures the open scene for owner review without saving it or editing platform code.
 
-The preview is geometric: Core does not expose the destination connection watcher's locked state, so no
-explicit connection-lock chime/event is fabricated. The full recovery skeleton, solution hint pose and
+The preview is geometric. Core now exposes the connection lock; its event drives the chime/caption and
+brief anchor dust, with no feedback fabricated from proximity. The full recovery skeleton, solution hint pose and
 strict foot support cursor remain open contracts. D4's single-hand Fork is bound; natural reach/spread
 and headset performance/feel remain owner checks.
 

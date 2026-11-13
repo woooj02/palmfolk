@@ -2,14 +2,22 @@
 
 Work items: [`team-plan.md`](team-plan.md#sams-work). Labels: headless, Unity editor, simulator, Quest 2.
 
-Latest verification, Nov 11 after D11 and the live bindings: **headless** 228 developer / 214 release
-tests; Python 3.12 source checks (93 C# files); 28 manifest regressions. **Unity editor**: compile exit 0/no
-`error CS`, 283 developer and 264 release Edit Mode tests pass. Stats are present only in the developer
-configuration. One release-gate attempt exited with native code -1073741819; the full retry exited 0.
+Latest verification, Nov 12 with Dario's new view contracts: **headless** 234 developer / 218 release
+tests; Python 3.12 source checks (97 C# files). **Unity editor**: compile exit 0/no `error CS`, 291 developer
+Edit Mode tests pass. The last Sam release run (Nov 11) passed 264 tests; both Unity gates and manifest
+regressions will be rerun after the support/ghost/hint bindings below.
 No simulator, Quest 2, Quest 3/3S,
 APK, installed build or M1 sign-off is claimed. Individual results below are historical by item.
 
 ## Done
+
+- **S5 connection feedback and format-3 menu replay, Nov 12 — Unity editor.** Pulled `f7237df` and
+  read Dario's note. Actual `ConnectionLocked` events now drive the connection chime/caption and a short
+  source/destination dust burst, once per hold; flags/proximity do not trigger repeated effects. Reduced
+  motion leaves the fading specks still. Added a synthetic in-memory test using the actual waystone,
+  runner and `SessionRecording`: settings/mode changes encode/decode in format 3 and replay with identical
+  decisions/final save. No recording files are written by the test. Removed the obsolete waystone caveat.
+  Headless 234 / 218, source checks, compile and 291 developer Edit Mode tests pass. No listening/headset pass.
 
 - **Privacy page requested by owner, Nov 11 — published web page, not a headset result.**
   Published https://palmfolk-privacy.curiousnote2.chatgpt.site with Aryan Neopane as developer and
@@ -176,8 +184,7 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
 - S3 measured labels and the full valley graph are bound. Device performance and readability remain owner checks.
 - S4 commands/settings/mode/gaze and ten poke tips are bound. A full session with either hand alone,
   including real ISDK poke and system-menu rejection, remains an owner headset check.
-- S5 still lacks an explicit connection-lock event; no chime is invented from geometric proximity.
-  Foot-contact, visitor and night-music ports are bound. Owner must judge audio/caption quality and
+- S5 connection-lock, foot-contact, visitor and night-music ports are bound. Owner must judge audio/caption quality and
   sound-alone build-completion recognition; procedural cues remain placeholders until polished.
 - S6 route-relative foot planting/callbacks are implemented. Surface transitions, final contact treatment/
   props and 3 cm readability still need owner editor/headset review; do not claim a live sliding-free pass.
@@ -186,8 +193,6 @@ APK, installed build or M1 sign-off is claimed. Individual results below are his
   contact guarantee; no Core type was changed to guess it.
 - S9 counts/bridges/music and D8 visitor windows are bound. Final art/audio review remains open.
   Actual passthrough dimming stays at zero until the owner supplies a table-edge visibility limit.
-- Dynamic settings/mode changes are not represented in format-2 recordings. This needs Dario's recorder
-  contract/review; these sessions must not claim identical replay.
 - S7's Stargazer gap is diagonal mostly in depth (25° off forward); the Lookout Fork spans about 68°.
   T14 and V5 cannot be certified from coordinates. D4 geometry is integrated; H1 and owner-run natural
   spread/reach/comfort remain open.
